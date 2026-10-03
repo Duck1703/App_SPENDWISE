@@ -7,8 +7,8 @@ High-level phase plan. Milestone briefs are created per phase by ATLAS using
 
 | Phase | Name | Status |
 | --- | --- | --- |
-| P0 | Agent Company + Workspace Governance | DONE (see [milestones/P0-BOOTSTRAP.md](milestones/P0-BOOTSTRAP.md)) |
-| P1 | Senior Android Reference Architecture Audit | NEXT |
+| P0 | Agent Company + Workspace Governance | COMPLETE (see [milestones/P0-BOOTSTRAP.md](milestones/P0-BOOTSTRAP.md)) |
+| P1 | Senior Android Reference Architecture Audit | READY_FOR_HUMAN_REVIEW (see [milestones/P1-SENIOR-ANDROID-REFERENCE-AUDIT.md](milestones/P1-SENIOR-ANDROID-REFERENCE-AUDIT.md), [ANDROID-BASELINE.md](ANDROID-BASELINE.md)) |
 | P2 | Spendwise Backend Contract Audit | Planned |
 | P3 | Spendwise Android Product Blueprint | Provisional |
 | P4 | Android Architecture Blueprint | Provisional |
