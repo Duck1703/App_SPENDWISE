@@ -1,6 +1,14 @@
 # M0 — Spendwise Android Foundation
 
-STATUS: **READY_FOR_HUMAN_REVIEW**
+STATUS: **COMPLETE** (HUMAN_APPROVED)
+
+## Human approval record
+
+- `M0_HUMAN_APPROVED=YES` — THE HUMAN approved the M0 foundation
+  checkpoint (`8526a74`) and authorized the M1 Authentication & Session
+  milestone.
+- Consequence: `M1_STATUS=CURRENT`. M1 remains gated on Human review
+  before M2 begins.
 
 ## Objective
 
