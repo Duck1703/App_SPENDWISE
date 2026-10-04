@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Spendwise</string>
+
+    <string name="nav_home">Home</string>
+    <string name="nav_transactions">Transactions</string>
+    <string name="nav_accounts">Accounts</string>
+    <string name="nav_more">More</string>
+
+    <string name="welcome_title">Spendwise</string>
+    <string name="welcome_tagline">Calm, clear personal finance</string>
+    <string name="welcome_sign_in">Sign in</string>
+    <string name="welcome_create_account">Create account</string>
+
+    <string name="placeholder_sign_in_title">Sign in</string>
+    <string name="placeholder_register_title">Create account</string>
+    <string name="placeholder_m1_auth">Authentication is implemented in milestone M1.</string>
+
+    <string name="session_expired_title">Session expired</string>
+    <string name="session_expired_message">Your session has expired. Sign in again to continue.</string>
+    <string name="session_expired_sign_in">Sign in again</string>
+</resources>

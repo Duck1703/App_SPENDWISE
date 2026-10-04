@@ -12,17 +12,39 @@ Android client for the Spendwise Spring Boot backend.
 
 ## Current phase
 
-**P0 — Governance Bootstrap**
+**M0 — Android Foundation** (awaiting Human review)
 
-This repository currently contains governance and project-control artifacts only.
-There is intentionally no Android application source, no Gradle configuration, and no
-build scaffolding yet.
+The repository now contains a compiling Android foundation: single `:app`
+module, Compose + Material 3 shell, Hilt graph, typed Navigation routes,
+Retrofit/OkHttp + kotlinx.serialization plumbing, precise `BigDecimal` JSON
+handling, Keystore-encrypted session storage, and a JVM-first test suite.
 
-## Next phase
+No product features exist yet — the four top-level destinations are
+foundation placeholders. See
+[project-control/milestones/M0-ANDROID-FOUNDATION.md](project-control/milestones/M0-ANDROID-FOUNDATION.md)
+for the milestone record and scope boundaries.
 
-**P1 — Senior Android Reference Architecture Audit** — a read-only, evidence-backed
-analysis of `D:\app_spendwise\kotlin-accelerator-ai` producing
-[project-control/ANDROID-BASELINE.md](project-control/ANDROID-BASELINE.md).
+## Building
+
+Requirements: JDK 17, Android SDK (platform `android-36`), `local.properties`
+with `sdk.dir=…`. Then:
+
+```
+./gradlew assembleDebug          # debug APK
+./gradlew testDebugUnitTest      # JVM unit tests
+./gradlew lintDebug              # Android lint
+./gradlew detekt                 # static analysis (warn-only)
+./gradlew assembleRelease        # unsigned release compile (R8)
+```
+
+### API base URL
+
+Property-driven (Human decision Q3), resolved in order:
+`-Pspendwise.api.base.url=…` → `SPENDWISE_API_BASE_URL` env var →
+`gradle.properties` default `https://example.invalid/`.
+
+The committed default is intentionally non-routable; no real backend URL is
+recorded in this repository.
 
 ## Governance
 
@@ -30,10 +52,6 @@ analysis of `D:\app_spendwise\kotlin-accelerator-ai` producing
 - Workflow contract: [agent-system/WORKFLOW-CONTRACT.md](agent-system/WORKFLOW-CONTRACT.md)
 - Workspace boundaries: [project-control/WORKSPACE-BOUNDARIES.md](project-control/WORKSPACE-BOUNDARIES.md)
 - Product principles: [project-control/PRODUCT.md](project-control/PRODUCT.md)
+- Architecture: [project-control/ARCHITECTURE.md](project-control/ARCHITECTURE.md)
 - Roadmap: [project-control/ROADMAP.md](project-control/ROADMAP.md)
 - Decision log: [project-control/DECISIONS.md](project-control/DECISIONS.md)
-
-No architecture decisions (dependency injection, networking, persistence, module
-structure, state management, UI architecture) have been made yet. They will be
-established only after the P1 reference audit, the P2 backend contract audit, and the
-P4 architecture blueprint.

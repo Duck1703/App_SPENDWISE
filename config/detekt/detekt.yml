@@ -1,0 +1,19 @@
+# Spendwise detekt configuration (warn-only per ARCHITECTURE §36).
+# Tunes stock rules for Compose + token files; tighten over time.
+build:
+  maxIssues: 0
+
+naming:
+  FunctionNaming:
+    # @Composable functions are PascalCase by Compose convention.
+    ignoreAnnotated: ['Composable']
+  MatchingDeclarationName:
+    # Token objects (SwColors, SwSpacing, …) live in Theme-named files.
+    active: false
+
+style:
+  MagicNumber:
+    # Color/dimension tokens are declarations of constants, not magic numbers.
+    ignorePropertyDeclaration: true
+    ignoreRanges: true
+    excludes: ['**/test/**', '**/androidTest/**']
