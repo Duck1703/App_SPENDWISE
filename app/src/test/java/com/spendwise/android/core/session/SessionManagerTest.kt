@@ -2,11 +2,16 @@ package com.spendwise.android.core.session
 
 import app.cash.turbine.test
 import com.spendwise.android.fakes.FakeTokenStore
+import java.io.IOException
+import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 import java.time.Clock
 import java.time.Instant
@@ -259,5 +264,86 @@ class SessionManagerTest {
         assertEquals("user-2", session.userId)
         assertFalse(session.resumedSession)
         assertEquals("user-2", store.lastUserId)
+    }
+
+    // --- M1 external-audit EXT-MINOR-1: storage I/O failure fails closed ---
+
+    @Test
+    fun `restore with storage read failure fails closed to SignedOut`() = runTest {
+        val store = FakeTokenStore(
+            stored = StoredSession("token-abc", futureExpiry, "ana", "user-1"),
+        )
+        store.loadError = IOException("disk read failed")
+        val manager = manager(store)
+
+        manager.restore()
+
+        // No crash, never stuck in Restoring, credential not trusted.
+        assertEquals(Session.SignedOut, manager.session.value)
+        assertNull(manager.accessToken())
+        // Credential preserved — a transient read failure must not destroy
+        // a possibly-valid session; the next restore retries.
+        assertEquals("token-abc", store.token)
+    }
+
+    @Test
+    fun `restore does not swallow cancellation`() = runTest {
+        val store = FakeTokenStore()
+        store.loadError = CancellationException()
+        val manager = manager(store)
+
+        try {
+            manager.restore()
+            fail("CancellationException must propagate, not be swallowed")
+        } catch (e: CancellationException) {
+            // Expected — the narrow IOException guard must not catch this.
+        }
+    }
+
+    @Test
+    fun `signOut with disk clear failure still clears in-memory session`() = runTest {
+        val store = FakeTokenStore()
+        val manager = manager(store)
+        manager.onSignedIn("token-abc", futureExpiry, "ana", "user-1")
+        store.writeError = IOException("disk write failed")
+
+        manager.signOut()
+
+        // In-memory sign-out is authoritative — the user is out even if
+        // the persisted credential could not be deleted this time.
+        assertEquals(Session.SignedOut, manager.session.value)
+        assertNull(manager.accessToken())
+    }
+
+    @Test
+    fun `expiry with disk clear failure still marks session expired`() = runTest {
+        val store = FakeTokenStore()
+        val manager = manager(store)
+        manager.onSignedIn("token-abc", futureExpiry, "ana", "user-1")
+        store.writeError = IOException("disk write failed")
+
+        manager.onAuthenticationExpired()
+
+        val session = manager.session.value
+        assertTrue(session is Session.Expired)
+        assertNull(manager.accessToken())
+    }
+
+    @Test
+    fun `concurrent authenticated 401 signals resolve to a single Expired state`() = runTest {
+        val store = FakeTokenStore()
+        val manager = manager(store)
+        manager.onSignedIn("token-abc", futureExpiry, "ana", "user-1")
+
+        coroutineScope {
+            launch { manager.onAuthenticationExpired() }
+            launch { manager.onAuthenticationExpired() }
+            launch { manager.onAuthenticationExpired() }
+        }
+
+        val session = manager.session.value
+        assertTrue(session is Session.Expired)
+        assertEquals("user-1", (session as Session.Expired).userId)
+        assertNull(manager.accessToken())
     }
 }

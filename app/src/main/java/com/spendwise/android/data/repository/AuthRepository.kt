@@ -68,6 +68,13 @@ class RemoteAuthRepository @Inject constructor(
         }
         val expiresAt = runCatching { Instant.parse(response.expiresAt) }
             .getOrElse { throw AppErrorException(AppError.Unknown(it), it) }
+        if (response.accessToken.isBlank()) {
+            // A 200 with a blank token is a malformed success — never sign in
+            // with a credential that can only produce "Bearer " requests.
+            throw AppErrorException(
+                AppError.Unknown(IllegalStateException("blank accessToken")),
+            )
+        }
         sessionManager.onSignedIn(
             token = response.accessToken,
             expiresAt = expiresAt,

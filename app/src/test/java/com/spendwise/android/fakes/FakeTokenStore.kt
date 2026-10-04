@@ -15,12 +15,18 @@ class FakeTokenStore(
     stored: StoredSession? = null,
 ) : TokenStore {
 
+    /** Storage-failure injection: thrown by [load] / write ops when set. */
+    var loadError: Throwable? = null
+    var writeError: Throwable? = null
+    var clearTokenCalls = 0
+
     var token: String? = stored?.token
     var expiresAt: Instant? = stored?.expiresAt
     var lastUsername: String? = stored?.username
     var lastUserId: String? = stored?.userId
 
     override suspend fun load(): StoredSession? {
+        loadError?.let { throw it }
         val t = token ?: return null
         val e = expiresAt ?: return null
         return StoredSession(
@@ -32,6 +38,7 @@ class FakeTokenStore(
     }
 
     override suspend fun save(token: String, expiresAt: Instant, username: String?, userId: String?) {
+        writeError?.let { throw it }
         this.token = token
         this.expiresAt = expiresAt
         this.lastUsername = username
@@ -39,11 +46,14 @@ class FakeTokenStore(
     }
 
     override suspend fun clearToken() {
+        clearTokenCalls++
+        writeError?.let { throw it }
         token = null
         expiresAt = null
     }
 
     override suspend fun clear() {
+        writeError?.let { throw it }
         token = null
         expiresAt = null
         lastUsername = null

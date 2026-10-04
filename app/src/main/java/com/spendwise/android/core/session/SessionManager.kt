@@ -1,5 +1,6 @@
 package com.spendwise.android.core.session
 
+import java.io.IOException
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -32,13 +33,31 @@ class SessionManager @Inject constructor(
     private val _cacheInvalidations = MutableSharedFlow<Unit>(extraBufferCapacity = 8)
     val cacheInvalidations: SharedFlow<Unit> = _cacheInvalidations.asSharedFlow()
 
-    /** Load the persisted session at startup. Expired tokens are discarded. */
+    /**
+     * Load the persisted session at startup. Expired tokens are discarded.
+     *
+     * A storage read failure (e.g. an `IOException` from disk — distinct
+     * from protobuf corruption, which the store handles upstream) fails
+     * closed to [Session.SignedOut] without deleting the credential: the
+     * failure may be transient and the next restore may succeed. Only
+     * `IOException` is caught — cancellation propagates and programmer
+     * defects must surface, not be masked (M1 audit EXT-MINOR-1).
+     */
     suspend fun restore() {
-        val stored = tokenStore.load()
+        val stored = try {
+            tokenStore.load()
+        } catch (e: IOException) {
+            null
+        }
         _session.value = when {
             stored == null -> Session.SignedOut
             !stored.expiresAt.isAfter(clock.instant()) -> {
-                tokenStore.clearToken()
+                try {
+                    tokenStore.clearToken()
+                } catch (e: IOException) {
+                    // Best-effort cleanup — the expired credential is
+                    // re-evaluated on every restore, so retaining it is safe.
+                }
                 Session.SignedOut
             }
             else -> Session.SignedIn(
@@ -99,15 +118,30 @@ class SessionManager @Inject constructor(
      */
     suspend fun onAuthenticationExpired() {
         val current = _session.value as? Session.SignedIn ?: return
-        tokenStore.clearToken()
+        // In-memory transition first — expiry must hold even if the disk
+        // cleanup fails. A surviving stored token is re-checked by
+        // restore() and rejected again by the next server 401.
         markExpired(current)
+        try {
+            tokenStore.clearToken()
+        } catch (e: IOException) {
+            // Best-effort — see above.
+        }
     }
 
     suspend fun signOut() {
         val hadSession = _session.value !is Session.SignedOut
-        tokenStore.clear()
+        // In-memory sign-out is authoritative — a failed disk clear must
+        // not leave the user believing they are signed out while SignedIn.
         _session.value = Session.SignedOut
         if (hadSession) emitInvalidation()
+        try {
+            tokenStore.clear()
+        } catch (e: IOException) {
+            // Best-effort — residual risk is a stored token surviving to
+            // the next boot, where restore() re-validates expiry and the
+            // server re-401s anything already blacklisted.
+        }
     }
 
     /**

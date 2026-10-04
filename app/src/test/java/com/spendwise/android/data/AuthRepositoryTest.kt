@@ -94,6 +94,34 @@ class AuthRepositoryTest {
     }
 
     @Test
+    fun `malformed expiresAt maps to Unknown and never signs in`() = runTest {
+        val (service, sessionManager, repository) = harness()
+        service.loginResponse = LoginResponseDto("jwt-1", "not-a-timestamp")
+
+        try {
+            repository.login("ana", "pw")
+            fail("Expected AppErrorException")
+        } catch (e: AppErrorException) {
+            assertTrue(e.error is AppError.Unknown)
+        }
+        assertFalse(sessionManager.session.value is Session.SignedIn)
+    }
+
+    @Test
+    fun `blank accessToken maps to Unknown and never signs in`() = runTest {
+        val (service, sessionManager, repository) = harness()
+        service.loginResponse = LoginResponseDto("", futureExpiry)
+
+        try {
+            repository.login("ana", "pw")
+            fail("Expected AppErrorException")
+        } catch (e: AppErrorException) {
+            assertTrue(e.error is AppError.Unknown)
+        }
+        assertFalse(sessionManager.session.value is Session.SignedIn)
+    }
+
+    @Test
     fun `register success returns the created user`() = runTest {
         val (_, _, repository) = harness()
 
