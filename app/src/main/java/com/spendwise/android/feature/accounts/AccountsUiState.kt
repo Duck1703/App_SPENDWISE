@@ -15,6 +15,11 @@ sealed interface AccountsUiState {
         /** >1 distinct balance currency → show the never-aggregated banner. */
         val mixedCurrencies: Boolean,
         val isRefreshing: Boolean = false,
+        /**
+         * A failed pull-refresh over live content: stays visible as an
+         * inline banner while the list stays on screen (MIN-1).
+         */
+        val refreshError: AccountsError? = null,
     ) : AccountsUiState
 
     data class Error(val kind: AccountsError) : AccountsUiState

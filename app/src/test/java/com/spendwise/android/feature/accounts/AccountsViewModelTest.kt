@@ -148,4 +148,46 @@ class AccountsViewModelTest {
         assertFalse(state.isRefreshing) // settled after refresh completes
         assertEquals(listOf(false, true), repo.listCalls)
     }
+
+    @Test
+    fun `refresh failure over content keeps the list and flags refreshError`() = runTest {
+        val repo = FakeAccountRepository()
+        repo.listResult = { listOf(FakeAccountRepository.account("a1")) }
+        val vm = AccountsViewModel(repo)
+        repo.listResult = { throw AppErrorException(AppError.NetworkUnavailable) }
+
+        vm.refresh()
+
+        val state = vm.state.value as AccountsUiState.Content
+        assertEquals(1, state.accounts.size)
+        assertEquals(AccountsError.Network, state.refreshError)
+        assertFalse(state.isRefreshing)
+        assertEquals(listOf(false, true), repo.listCalls)
+    }
+
+    @Test
+    fun `successful refresh clears a previous refreshError`() = runTest {
+        val repo = FakeAccountRepository()
+        repo.listResult = { listOf(FakeAccountRepository.account("a1")) }
+        val vm = AccountsViewModel(repo)
+        repo.listResult = { throw AppErrorException(AppError.NetworkUnavailable) }
+        vm.refresh()
+        repo.listResult = { listOf(FakeAccountRepository.account("a1"), FakeAccountRepository.account("a2")) }
+
+        vm.refresh()
+
+        val state = vm.state.value as AccountsUiState.Content
+        assertEquals(2, state.accounts.size)
+        assertEquals(null, state.refreshError)
+    }
+
+    @Test
+    fun `initial load failure still surfaces the full error state`() = runTest {
+        val repo = FakeAccountRepository()
+        repo.listResult = { throw AppErrorException(AppError.Server(500)) }
+
+        val vm = AccountsViewModel(repo)
+
+        assertEquals(AccountsUiState.Error(AccountsError.Server), vm.state.value)
+    }
 }

@@ -4,18 +4,22 @@ import com.spendwise.android.core.model.CurrencyCode
 import com.spendwise.android.core.model.Money
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
 import java.util.Locale
 
 /**
- * Money display formatting (HANDOFF §8): grouped amount with the currency's
- * fraction digits; the currency code renders as a separate muted suffix in
- * the UI (never wrapped away from the amount).
+ * Money display formatting (HANDOFF §8): locale-grouped amount with the
+ * currency's fraction digits; the currency code renders as a separate
+ * muted suffix in the UI (never wrapped away from the amount).
  *
- * Precision: works on [BigDecimal] text only — no Float/Double anywhere.
+ * Precision: [DecimalFormat.format] on a [BigDecimal] is exact decimal
+ * formatting — no Float/Double anywhere. Both grouping and decimal
+ * separators follow the locale (EXT-MIN-2: en-US "1,234.56", vi-VN
+ * "1.234,56") — presentation only, the stored value is untouched.
  * Fraction digits come from the ISO currency (VND→0, USD→2) via
- * `java.util.Currency`, falling back to 2 for codes the JDK does not know
- * (open-set [CurrencyCode] values stay displayable).
+ * `java.util.Currency`, falling back to 2 for codes the JDK does not
+ * know (open-set [CurrencyCode] values stay displayable).
  */
 object MoneyFormat {
 
@@ -24,8 +28,7 @@ object MoneyFormat {
 
     fun format(amount: BigDecimal, currency: CurrencyCode, locale: Locale = Locale.getDefault()): String {
         val digits = fractionDigits(currency)
-        val scaled = amount.setScale(digits, RoundingMode.HALF_UP)
-        return groupIntegerPart(scaled.toPlainString(), DecimalFormatSymbols.getInstance(locale).groupingSeparator)
+        return formatter(locale, digits).format(amount)
     }
 
     /** ISO-4217 fraction digits, or 2 when the JDK does not know the code. */
@@ -34,18 +37,17 @@ object MoneyFormat {
             .getOrDefault(2)
             .let { if (it < 0) 2 else it }
 
-    private fun groupIntegerPart(plain: String, separator: Char): String {
-        val negative = plain.startsWith('-')
-        val unsigned = if (negative) plain.substring(1) else plain
-        val dot = unsigned.indexOf('.')
-        val intPart = if (dot < 0) unsigned else unsigned.substring(0, dot)
-        val fracPart = if (dot < 0) "" else unsigned.substring(dot)
-        val grouped = buildString {
-            intPart.forEachIndexed { index, c ->
-                if (index > 0 && (intPart.length - index) % 3 == 0) append(separator)
-                append(c)
-            }
+    /**
+     * `DecimalFormat` is not thread-safe — a fresh instance per call
+     * (formatting is display-path, never hot enough to matter).
+     */
+    private fun formatter(locale: Locale, fractionDigits: Int): DecimalFormat =
+        DecimalFormat().apply {
+            decimalFormatSymbols = DecimalFormatSymbols.getInstance(locale)
+            minimumFractionDigits = fractionDigits
+            maximumFractionDigits = fractionDigits
+            isGroupingUsed = true
+            groupingSize = 3
+            roundingMode = RoundingMode.HALF_UP
         }
-        return (if (negative) "-" else "") + grouped + fracPart
-    }
 }

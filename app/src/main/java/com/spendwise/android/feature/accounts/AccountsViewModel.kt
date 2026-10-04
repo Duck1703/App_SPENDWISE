@@ -32,7 +32,7 @@ class AccountsViewModel @Inject constructor(
         viewModelScope.launch {
             val current = _state.value
             _state.value = if (current is AccountsUiState.Content) {
-                current.copy(isRefreshing = true)
+                current.copy(isRefreshing = true, refreshError = null)
             } else {
                 AccountsUiState.Loading
             }
@@ -58,7 +58,12 @@ class AccountsViewModel @Inject constructor(
                     return@launch
                 }
                 loadSettled = true
-                _state.value = AccountsUiState.Error(e.error.toListError())
+                // MIN-1: a failed refresh over live content keeps the list
+                // and reports inline; only an initial-load failure flips
+                // to the full-screen error state.
+                _state.value = (current as? AccountsUiState.Content)
+                    ?.copy(isRefreshing = false, refreshError = e.error.toListError())
+                    ?: AccountsUiState.Error(e.error.toListError())
             }
         }
     }

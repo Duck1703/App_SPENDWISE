@@ -206,4 +206,31 @@ class AuthRepositoryTest {
 
         assertFalse((sessionManager.session.value as Session.SignedIn).resumedSession)
     }
+
+    @Test
+    fun `login with session persistence failure maps to Unknown — never NetworkUnavailable`() =
+        runTest {
+            val service = FakeAuthService().apply {
+                loginResponse = LoginResponseDto("jwt-1", futureExpiry)
+            }
+            val store = FakeTokenStore().apply { writeError = IOException("disk full") }
+            val sessionManager = SessionManager(
+                tokenStore = store,
+                clock = Clock.fixed(now, ZoneOffset.UTC),
+            )
+            val repository = RemoteAuthRepository(service, sessionManager)
+
+            try {
+                repository.login("ana", "secret-pw")
+                fail("Expected AppErrorException")
+            } catch (e: AppErrorException) {
+                // A disk fault is not "no connection" — honest Unknown.
+                assertTrue(e.error is AppError.Unknown)
+                assertFalse(e.error == AppError.NetworkUnavailable)
+            }
+
+            // Fails closed: no SignedIn state, credential not persisted.
+            assertFalse(sessionManager.session.value is Session.SignedIn)
+            assertNull(store.token)
+        }
 }

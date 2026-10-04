@@ -35,8 +35,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -239,10 +242,21 @@ fun SwServerError(onRetry: () -> Unit, modifier: Modifier = Modifier) {
 /**
  * Loading placeholder — static rounded blocks (no shimmer: static by
  * default also satisfies the reduced-motion requirement, HANDOFF §10).
+ * One merged indeterminate-progress semantic on the container (EXT-MIN-3)
+ * — TalkBack announces "loading" once, not per row.
  */
 @Composable
 fun SwSkeletonRows(modifier: Modifier = Modifier, count: Int = 3) {
-    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    val loadingDescription = stringResource(R.string.state_loading)
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .semantics(mergeDescendants = true) {
+                contentDescription = loadingDescription
+                progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate
+            },
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
         repeat(count) {
             Box(
                 modifier = Modifier

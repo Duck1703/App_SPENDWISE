@@ -13,7 +13,8 @@ object SwSpacing {
     val Lg = 24.dp
     val Xl = 32.dp
 
-    val TouchTargetMin = 44.dp
+    /** Android/Material a11y minimum (EXT-MIN-5 — was the P3A 44dp floor). */
+    val TouchTargetMin = 48.dp
 }
 
 object SwRadii {

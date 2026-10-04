@@ -67,6 +67,7 @@
     <!-- Shared states (P3A §8 copy) -->
     <string name="cd_navigate_back">Back</string>
     <string name="action_try_again">Try again</string>
+    <string name="state_loading">Loading</string>
     <string name="state_network_title">Can\'t reach Spendwise</string>
     <string name="state_network_body">Check your connection and try again. Nothing was changed.</string>
     <string name="state_server_title">Something went wrong on our side</string>
@@ -88,6 +89,8 @@
     </plurals>
     <string name="accounts_mixed_banner_title">Multiple currencies</string>
     <string name="accounts_mixed_banner_body">Each balance stays in its own currency — Spendwise never converts or mixes totals.</string>
+    <string name="accounts_refresh_error_title">Couldn\'t refresh</string>
+    <string name="accounts_refresh_error_body">Showing your saved accounts — pull down to try again.</string>
     <string name="accounts_add">Add account</string>
     <string name="accounts_empty_title">No accounts yet</string>
     <string name="accounts_empty_body">Add your first account to start tracking balances across cash and bank.</string>
@@ -111,6 +114,7 @@
     <string name="account_create_balance_placeholder">0.00</string>
     <string name="account_create_submit">Create account</string>
     <string name="account_create_submitting">Creating…</string>
+    <string name="account_create_error_ambiguous">We couldn\'t confirm whether the account was created — check your accounts before trying again.</string>
     <string name="account_error_name_required">Give the account a name.</string>
     <string name="account_error_name_long">Keep it under 255 characters.</string>
     <string name="account_error_balance_invalid">Enter a valid amount, like 1500 or 1500.50.</string>

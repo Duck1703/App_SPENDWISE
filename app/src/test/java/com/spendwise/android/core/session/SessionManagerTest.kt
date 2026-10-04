@@ -346,4 +346,22 @@ class SessionManagerTest {
         assertEquals("user-1", (session as Session.Expired).userId)
         assertNull(manager.accessToken())
     }
+
+    @Test
+    fun `sign-in with storage write failure fails closed — no session, no token`() = runTest {
+        val store = FakeTokenStore().apply { writeError = IOException("disk full") }
+        val manager = manager(store)
+
+        try {
+            manager.onSignedIn("token-abc", futureExpiry, "ana", "user-1")
+            fail("Expected IOException")
+        } catch (e: IOException) {
+            // Expected — propagates for the repository to map.
+        }
+
+        // Fails closed: no SignedIn state was ever established, and the
+        // credential was not persisted.
+        assertFalse(manager.session.value is Session.SignedIn)
+        assertNull(store.token)
+    }
 }

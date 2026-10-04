@@ -13,6 +13,10 @@ import com.spendwise.android.R
 /**
  * Typography baseline (AD-018) — P3A's Manrope variable font, with the
  * Compose weights we use mapped onto the font's `wght` variation axis.
+ *
+ * Every Material 3 slot carries the family (EXT-MIN-1): no style falls
+ * back to the platform typeface — the unmapped defaults rendered hero
+ * amounts and secondary labels in Roboto.
  */
 @OptIn(ExperimentalTextApi::class)
 private val Manrope = FontFamily(
@@ -38,47 +42,31 @@ private val Manrope = FontFamily(
     ),
 )
 
+private fun manrope(
+    weight: FontWeight,
+    size: Int,
+    lineHeight: Int,
+): TextStyle = TextStyle(
+    fontFamily = Manrope,
+    fontWeight = weight,
+    fontSize = size.sp,
+    lineHeight = lineHeight.sp,
+)
+
 val SpendwiseTypography = Typography(
-    headlineMedium = TextStyle(
-        fontFamily = Manrope,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 24.sp,
-        lineHeight = 32.sp,
-    ),
-    titleLarge = TextStyle(
-        fontFamily = Manrope,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 20.sp,
-        lineHeight = 28.sp,
-    ),
-    titleMedium = TextStyle(
-        fontFamily = Manrope,
-        fontWeight = FontWeight.Medium,
-        fontSize = 16.sp,
-        lineHeight = 24.sp,
-    ),
-    bodyLarge = TextStyle(
-        fontFamily = Manrope,
-        fontWeight = FontWeight.Normal,
-        fontSize = 16.sp,
-        lineHeight = 24.sp,
-    ),
-    bodyMedium = TextStyle(
-        fontFamily = Manrope,
-        fontWeight = FontWeight.Normal,
-        fontSize = 14.sp,
-        lineHeight = 20.sp,
-    ),
-    labelLarge = TextStyle(
-        fontFamily = Manrope,
-        fontWeight = FontWeight.Medium,
-        fontSize = 14.sp,
-        lineHeight = 20.sp,
-    ),
-    labelMedium = TextStyle(
-        fontFamily = Manrope,
-        fontWeight = FontWeight.Medium,
-        fontSize = 12.sp,
-        lineHeight = 16.sp,
-    ),
+    displayLarge = manrope(FontWeight.SemiBold, 57, 64),
+    displayMedium = manrope(FontWeight.SemiBold, 45, 52),
+    displaySmall = manrope(FontWeight.SemiBold, 36, 44),
+    headlineLarge = manrope(FontWeight.SemiBold, 32, 40),
+    headlineMedium = manrope(FontWeight.SemiBold, 24, 32),
+    headlineSmall = manrope(FontWeight.SemiBold, 21, 28),
+    titleLarge = manrope(FontWeight.SemiBold, 20, 28),
+    titleMedium = manrope(FontWeight.Medium, 16, 24),
+    titleSmall = manrope(FontWeight.Medium, 14, 20),
+    bodyLarge = manrope(FontWeight.Normal, 16, 24),
+    bodyMedium = manrope(FontWeight.Normal, 14, 20),
+    bodySmall = manrope(FontWeight.Normal, 12, 16),
+    labelLarge = manrope(FontWeight.Medium, 14, 20),
+    labelMedium = manrope(FontWeight.Medium, 12, 16),
+    labelSmall = manrope(FontWeight.Medium, 11, 16),
 )

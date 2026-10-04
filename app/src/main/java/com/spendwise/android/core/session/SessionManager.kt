@@ -1,6 +1,7 @@
 package com.spendwise.android.core.session
 
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -32,6 +33,25 @@ class SessionManager @Inject constructor(
 
     private val _cacheInvalidations = MutableSharedFlow<Unit>(extraBufferCapacity = 8)
     val cacheInvalidations: SharedFlow<Unit> = _cacheInvalidations.asSharedFlow()
+
+    /**
+     * Monotonic session/cache generation (M2 remediation EXT-MAJOR-1).
+     *
+     * Incremented **synchronously** inside [emitInvalidation] — before the
+     * async signal is ever emitted — on every boundary that invalidates
+     * session-scoped data (sign-out, expiry, a different identity). A
+     * generation captured at the start of a repository operation can
+     * therefore never alias a later session, and a stale write/read is
+     * detected by comparison alone — no reliance on collector timing,
+     * dispatcher ordering, or ViewModel disposal. `@Volatile` via
+     * [AtomicLong]: reads/writes are ordered across threads and two
+     * concurrent invalidations can never collapse into one.
+     */
+    private val _sessionGeneration = AtomicLong(0L)
+
+    /** Current session generation; safe to read from any thread. */
+    val sessionGeneration: Long
+        get() = _sessionGeneration.get()
 
     /**
      * Load the persisted session at startup. Expired tokens are discarded.
@@ -86,6 +106,10 @@ class SessionManager @Inject constructor(
         username: String?,
         userId: String? = JwtClaims.subjectOf(token),
     ) {
+        // A persistence failure must fail closed — callers never observe a
+        // SignedIn state whose durable copy does not exist (EXT-MIN-4).
+        // IOException propagates for the repository to map; cancellation
+        // and defects propagate untouched.
         tokenStore.save(
             token = token,
             expiresAt = expiresAt,
@@ -180,6 +204,10 @@ class SessionManager @Inject constructor(
     }
 
     private fun emitInvalidation() {
+        // Synchronous generation advance FIRST — a subsequent session's
+        // first cache access is already safe even if this async signal
+        // is never scheduled (EXT-MAJOR-1).
+        _sessionGeneration.incrementAndGet()
         _cacheInvalidations.tryEmit(Unit)
     }
 }

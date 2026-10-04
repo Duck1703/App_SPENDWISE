@@ -149,7 +149,9 @@ private fun CreateAccountUiState.BalanceError.displayText(): String = when (this
 @Composable
 private fun CreateAccountUiState.CreateFormError.displayText(): String = stringResource(
     when (this) {
-        CreateAccountUiState.CreateFormError.Network -> R.string.auth_error_network
+        // A POST that dies mid-flight may have succeeded server-side —
+        // never claim "nothing happened" (MIN-4; no idempotency exists).
+        CreateAccountUiState.CreateFormError.Network -> R.string.account_create_error_ambiguous
         CreateAccountUiState.CreateFormError.Server -> R.string.auth_error_server
         CreateAccountUiState.CreateFormError.Generic -> R.string.auth_error_generic
     },

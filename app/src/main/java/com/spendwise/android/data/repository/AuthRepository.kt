@@ -75,12 +75,23 @@ class RemoteAuthRepository @Inject constructor(
                 AppError.Unknown(IllegalStateException("blank accessToken")),
             )
         }
-        sessionManager.onSignedIn(
-            token = response.accessToken,
-            expiresAt = expiresAt,
-            username = username,
-            userId = JwtClaims.subjectOf(response.accessToken),
-        )
+        try {
+            sessionManager.onSignedIn(
+                token = response.accessToken,
+                expiresAt = expiresAt,
+                username = username,
+                userId = JwtClaims.subjectOf(response.accessToken),
+            )
+        } catch (e: IOException) {
+            // Session persistence failed (EXT-MIN-4): onSignedIn fails
+            // closed before the session state is set, so no SignedIn is
+            // ever observed without its durable copy. This is a storage
+            // fault, not a transport one — surfaced as Unknown, never
+            // NetworkUnavailable.
+            throw AppErrorException(AppError.Unknown(e), e)
+        } catch (e: CancellationException) {
+            throw e
+        }
     }
 
     override suspend fun logout() {

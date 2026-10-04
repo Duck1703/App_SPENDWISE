@@ -170,4 +170,26 @@ class AccountsScreenTest {
 
         assertEquals(1, harness.createClicks)
     }
+
+    @Test
+    fun refreshError_showsBannerAndKeepsRows() {
+        screen(
+            AccountsUiState.Content(
+                accounts = listOf(account("a1", "Wallet")),
+                mixedCurrencies = false,
+                refreshError = AccountsError.Network,
+            ),
+        )
+
+        composeRule.onNodeWithText("Couldn’t refresh").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Wallet, Cash, balance 1,000 VND")
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun loadingState_announcesLoadingSemantics() {
+        screen(AccountsUiState.Loading)
+
+        composeRule.onNodeWithContentDescription("Loading").assertIsDisplayed()
+    }
 }

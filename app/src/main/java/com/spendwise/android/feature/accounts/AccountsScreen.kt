@@ -17,10 +17,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,6 +56,7 @@ import com.spendwise.android.core.model.Money
 import com.spendwise.android.core.ui.format.MoneyFormat
 import java.math.BigDecimal
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountsScreen(
     state: AccountsUiState,
@@ -60,55 +64,65 @@ fun AccountsScreen(
     onCreateAccount: () -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    onRefresh: () -> Unit = onRetry,
 ) {
     Column(modifier = modifier.fillMaxSize()) {
         SwHeader(
             title = stringResource(R.string.accounts_title),
             modifier = Modifier.padding(horizontal = SwSpacing.Lg, vertical = SwSpacing.Md),
         )
-        when (state) {
-            AccountsUiState.Loading -> SwSkeletonRows(
-                count = 4,
-                modifier = Modifier.padding(horizontal = SwSpacing.Lg),
-            )
-            is AccountsUiState.Error -> when (state.kind) {
-                AccountsError.Network -> SwNetworkError(
-                    onRetry = onRetry,
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
+        PullToRefreshBox(
+            isRefreshing = (state as? AccountsUiState.Content)?.isRefreshing == true,
+            onRefresh = onRefresh,
+            state = rememberPullToRefreshState(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+        ) {
+            when (state) {
+                AccountsUiState.Loading -> SwSkeletonRows(
+                    count = 4,
+                    modifier = Modifier.padding(horizontal = SwSpacing.Lg),
                 )
-                AccountsError.Server -> SwServerError(
-                    onRetry = onRetry,
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                )
-                AccountsError.Generic -> SwStateBlock(
-                    title = stringResource(R.string.state_generic_title),
-                    text = stringResource(R.string.state_generic_body),
-                    actionLabel = stringResource(R.string.action_try_again),
-                    onAction = onRetry,
-                    icon = R.drawable.ic_lucide_circle_alert,
-                    isError = true,
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                is AccountsUiState.Error -> when (state.kind) {
+                    AccountsError.Network -> SwNetworkError(
+                        onRetry = onRetry,
+                        modifier = Modifier.align(Alignment.Center),
+                    )
+                    AccountsError.Server -> SwServerError(
+                        onRetry = onRetry,
+                        modifier = Modifier.align(Alignment.Center),
+                    )
+                    AccountsError.Generic -> SwStateBlock(
+                        title = stringResource(R.string.state_generic_title),
+                        text = stringResource(R.string.state_generic_body),
+                        actionLabel = stringResource(R.string.action_try_again),
+                        onAction = onRetry,
+                        icon = R.drawable.ic_lucide_circle_alert,
+                        isError = true,
+                        modifier = Modifier.align(Alignment.Center),
+                    )
+                }
+                AccountsUiState.Empty -> Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    SwStateBlock(
+                        title = stringResource(R.string.accounts_empty_title),
+                        text = stringResource(R.string.accounts_empty_body),
+                        actionLabel = stringResource(R.string.accounts_empty_action),
+                        onAction = onCreateAccount,
+                        illustration = R.drawable.coin_3d,
+                        modifier = Modifier.align(Alignment.CenterHorizontally),
+                    )
+                }
+                is AccountsUiState.Content -> AccountsContent(
+                    state = state,
+                    onOpenAccount = onOpenAccount,
+                    onCreateAccount = onCreateAccount,
                 )
             }
-            AccountsUiState.Empty -> Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState()),
-            ) {
-                SwStateBlock(
-                    title = stringResource(R.string.accounts_empty_title),
-                    text = stringResource(R.string.accounts_empty_body),
-                    actionLabel = stringResource(R.string.accounts_empty_action),
-                    onAction = onCreateAccount,
-                    illustration = R.drawable.coin_3d,
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                )
-            }
-            is AccountsUiState.Content -> AccountsContent(
-                state = state,
-                onOpenAccount = onOpenAccount,
-                onCreateAccount = onCreateAccount,
-            )
         }
     }
 }
@@ -128,6 +142,15 @@ private fun AccountsContent(
         verticalArrangement = Arrangement.spacedBy(SwSpacing.Md),
     ) {
         item(key = "hero") { AccountsHero(state.accounts) }
+        if (state.refreshError != null) {
+            item(key = "refresh-error") {
+                SwBanner(
+                    title = stringResource(R.string.accounts_refresh_error_title),
+                    text = stringResource(R.string.accounts_refresh_error_body),
+                    kind = SwBannerKind.Error,
+                )
+            }
+        }
         if (state.mixedCurrencies) {
             item(key = "mixed-banner") {
                 SwBanner(
