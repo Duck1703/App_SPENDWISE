@@ -14,7 +14,7 @@ import javax.inject.Singleton
 /**
  * Preferences-DataStore [TokenStore] with the token encrypted via
  * [KeystoreCipher] (AD-010). Only ciphertext touches disk; the store
- * directory is excluded from backup (res/xml backup rules, ARCHITECTURE §10).
+ * directory is excluded from backup (res/xml backup rules, §10).
  *
  * A corrupt/undecryptable blob (e.g. keystore key invalidated) is treated as
  * "no session" rather than crashing.
@@ -39,15 +39,17 @@ class DataStoreTokenStore @Inject constructor(
             token = token,
             expiresAt = Instant.ofEpochMilli(expiresAt),
             username = prefs[KEY_USERNAME],
+            userId = prefs[KEY_USER_ID],
         )
     }
 
-    override suspend fun save(token: String, expiresAt: Instant, username: String?) {
+    override suspend fun save(token: String, expiresAt: Instant, username: String?, userId: String?) {
         val encoded = Base64.encodeToString(cipher.encrypt(token.encodeToByteArray()), Base64.NO_WRAP)
         dataStore.edit { prefs ->
             prefs[KEY_TOKEN] = encoded
             prefs[KEY_EXPIRES_AT] = expiresAt.toEpochMilli()
             if (username != null) prefs[KEY_USERNAME] = username else prefs.remove(KEY_USERNAME)
+            if (userId != null) prefs[KEY_USER_ID] = userId else prefs.remove(KEY_USER_ID)
         }
     }
 
@@ -63,6 +65,7 @@ class DataStoreTokenStore @Inject constructor(
             prefs.remove(KEY_TOKEN)
             prefs.remove(KEY_EXPIRES_AT)
             prefs.remove(KEY_USERNAME)
+            prefs.remove(KEY_USER_ID)
         }
     }
 
@@ -70,5 +73,6 @@ class DataStoreTokenStore @Inject constructor(
         val KEY_TOKEN = stringPreferencesKey("token_ciphertext")
         val KEY_EXPIRES_AT = longPreferencesKey("token_expires_at_epoch_ms")
         val KEY_USERNAME = stringPreferencesKey("last_username")
+        val KEY_USER_ID = stringPreferencesKey("last_user_id")
     }
 }

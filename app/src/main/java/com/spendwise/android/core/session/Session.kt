@@ -3,13 +3,16 @@ package com.spendwise.android.core.session
 import java.time.Instant
 
 /**
- * Explicit session state (AD-011, ARCHITECTURE §10.1).
+ * Explicit session state (AD-011, ARCHITECTURE §13).
  *
  * - [Restoring]: persisted session is being loaded at startup.
  * - [SignedOut]: no usable session.
- * - [SignedIn]: valid token in memory.
+ * - [SignedIn]: valid token in memory. [resumedSession] is true when the
+ *   sign-in was a re-authentication matching the identity of the preceding
+ *   [Expired] session — the signal that the preserved back stack may be
+ *   resumed (identity-continuity guard, §13).
  * - [Expired]: an authenticated call returned 401; the preserved UI stack
- *   stays in place and re-authentication resumes it (M1 wires the flow).
+ *   stays in place and re-authentication resumes it.
  */
 sealed interface Session {
 
@@ -21,7 +24,12 @@ sealed interface Session {
         val token: String,
         val expiresAt: Instant,
         val username: String?,
+        val userId: String?,
+        val resumedSession: Boolean = false,
     ) : Session
 
-    data class Expired(val username: String?) : Session
+    data class Expired(
+        val username: String?,
+        val userId: String?,
+    ) : Session
 }

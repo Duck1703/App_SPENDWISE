@@ -8,8 +8,8 @@ import java.time.Instant
  * In-memory [TokenStore] for JVM tests — no Android Keystore required.
  *
  * Mirrors the real store's contract: after [clearToken], [load] returns
- * null (the credential is gone) while [lastUsername] stays observable —
- * matching how the DataStore impl retains the username on disk.
+ * null (the credential is gone) while the identity hints stay observable —
+ * matching how the DataStore impl retains username/userId on disk.
  */
 class FakeTokenStore(
     stored: StoredSession? = null,
@@ -18,17 +18,24 @@ class FakeTokenStore(
     var token: String? = stored?.token
     var expiresAt: Instant? = stored?.expiresAt
     var lastUsername: String? = stored?.username
+    var lastUserId: String? = stored?.userId
 
     override suspend fun load(): StoredSession? {
         val t = token ?: return null
         val e = expiresAt ?: return null
-        return StoredSession(token = t, expiresAt = e, username = lastUsername)
+        return StoredSession(
+            token = t,
+            expiresAt = e,
+            username = lastUsername,
+            userId = lastUserId,
+        )
     }
 
-    override suspend fun save(token: String, expiresAt: Instant, username: String?) {
+    override suspend fun save(token: String, expiresAt: Instant, username: String?, userId: String?) {
         this.token = token
         this.expiresAt = expiresAt
         this.lastUsername = username
+        this.lastUserId = userId
     }
 
     override suspend fun clearToken() {
@@ -40,5 +47,6 @@ class FakeTokenStore(
         token = null
         expiresAt = null
         lastUsername = null
+        lastUserId = null
     }
 }

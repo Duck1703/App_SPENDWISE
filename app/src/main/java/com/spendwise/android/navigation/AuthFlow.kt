@@ -5,14 +5,17 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.compose.ui.res.stringResource
-import com.spendwise.android.R
-import com.spendwise.android.app.FoundationPlaceholder
-import com.spendwise.android.app.WelcomePlaceholder
+import com.spendwise.android.feature.auth.LoginDestination
+import com.spendwise.android.feature.auth.RegisterDestination
+import com.spendwise.android.feature.auth.WelcomeScreen
 
 /**
- * Auth graph shell (AD-004). The screens are foundation placeholders —
- * real register/login forms are the M1 milestone.
+ * Unauthenticated graph (AD-004): Welcome → Login / Register.
+ *
+ * Successful sign-in flips the session to SignedIn — the app root swaps
+ * this graph for the authenticated one (auth stack cleared by composition
+ * contract, §13). Register success navigates to login with the username
+ * prefilled + confirmation banner.
  */
 @Composable
 fun AuthFlow(
@@ -23,21 +26,26 @@ fun AuthFlow(
         startDestination = WelcomeRoute,
     ) {
         composable<WelcomeRoute> {
-            WelcomePlaceholder(
-                onSignIn = { navController.navigate(LoginRoute) },
+            WelcomeScreen(
+                onSignIn = { navController.navigate(LoginRoute()) },
                 onCreateAccount = { navController.navigate(RegisterRoute) },
             )
         }
         composable<LoginRoute> {
-            FoundationPlaceholder(
-                title = stringResource(R.string.placeholder_sign_in_title),
-                detail = stringResource(R.string.placeholder_m1_auth),
+            LoginDestination(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToRegister = { navController.navigate(RegisterRoute) },
             )
         }
         composable<RegisterRoute> {
-            FoundationPlaceholder(
-                title = stringResource(R.string.placeholder_register_title),
-                detail = stringResource(R.string.placeholder_m1_auth),
+            RegisterDestination(
+                onRegistered = { username ->
+                    navController.navigate(LoginRoute(prefill = username, accountCreated = true)) {
+                        popUpTo(WelcomeRoute)
+                    }
+                },
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToLogin = { navController.popBackStack() },
             )
         }
     }

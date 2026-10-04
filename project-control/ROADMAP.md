@@ -15,7 +15,7 @@ High-level phase plan. Milestone briefs are created per phase by ATLAS using
 | P4 | Android Architecture Blueprint | HUMAN_APPROVED — COMPLETE (see [milestones/P4-SPENDWISE-ANDROID-ARCHITECTURE-BLUEPRINT.md](milestones/P4-SPENDWISE-ANDROID-ARCHITECTURE-BLUEPRINT.md), [ARCHITECTURE.md](ARCHITECTURE.md), [reviews/P4-ARGUS-REVIEW.md](reviews/P4-ARGUS-REVIEW.md)) |
 | — | **HUMAN GATE** — PASSED (P4 approved; Android implementation authorized at M0) | — |
 | M0 | Android Foundation (scaffold, toolchain, DI, theme skeleton, nav shell, network plumbing, session store, test scaffold, gates) | HUMAN_APPROVED — COMPLETE (see [milestones/M0-ANDROID-FOUNDATION.md](milestones/M0-ANDROID-FOUNDATION.md), [reviews/M0-ARGUS-REVIEW.md](reviews/M0-ARGUS-REVIEW.md)) |
-| M1 | Authentication & Session (register/login/logout/expiry + resume) | **CURRENT** — authorized after M0 Human approval |
+| M1 | Authentication & Session (register/login/logout/expiry + resume) | TECHNICAL_COMPLETE — READY FOR EXTERNAL AUDIT (see [milestones/M1-AUTHENTICATION-SESSION.md](milestones/M1-AUTHENTICATION-SESSION.md), [reviews/M1-SENTINEL-REVIEW.md](reviews/M1-SENTINEL-REVIEW.md), [reviews/M1-ARGUS-REVIEW.md](reviews/M1-ARGUS-REVIEW.md)) |
 | M2 | Accounts + design-system core (list/detail/create, balances, heroes) | PLANNED |
 | M3 | Transactions (list/filters/detail, income/expense entry; read-only history per Human P3A override) | PLANNED |
 | M4 | Home / Dashboard (hero month totals, carousel, recent activity, mixed-currency state) | PLANNED |

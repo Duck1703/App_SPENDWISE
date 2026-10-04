@@ -26,6 +26,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.spendwise.android.R
 import com.spendwise.android.app.FoundationPlaceholder
+import com.spendwise.android.feature.more.MoreDestination
 
 private data class TopLevelDestination(
     val route: AppRoute,
@@ -110,10 +111,7 @@ fun SpendwiseMainShell(
                 )
             }
             composable<MoreRoute> {
-                FoundationPlaceholder(
-                    title = "More",
-                    detail = "Settings & planning foundation — content arrives with its milestones.",
-                )
+                MoreDestination()
             }
         }
     }

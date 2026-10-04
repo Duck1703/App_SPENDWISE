@@ -2,6 +2,7 @@ package com.spendwise.android.core.network
 
 import com.spendwise.android.BuildConfig
 import com.spendwise.android.core.serialization.BigDecimalSerializer
+import com.spendwise.android.data.remote.AuthService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -74,4 +75,8 @@ object NetworkModule {
             .client(okHttpClient)
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
+
+    @Provides
+    @Singleton
+    fun provideAuthService(retrofit: Retrofit): AuthService = retrofit.create(AuthService::class.java)
 }

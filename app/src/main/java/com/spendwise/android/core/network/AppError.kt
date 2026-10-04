@@ -29,6 +29,15 @@ sealed interface AppError {
 }
 
 /**
+ * Thrown by repositories so ViewModels catch a single typed failure family
+ * (AD-016: throw AppError-typed, catch in VM).
+ */
+class AppErrorException(
+    val error: AppError,
+    cause: Throwable? = null,
+) : Exception("AppError: $error", cause)
+
+/**
  * Default mapping for **authenticated** calls: a 401 here means the session
  * died (SessionExpired). Auth endpoints (login/register) inspect the
  * [ApiException] themselves and must not route their 401 through this

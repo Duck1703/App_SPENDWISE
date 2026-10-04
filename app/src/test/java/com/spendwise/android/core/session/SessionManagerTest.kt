@@ -1,9 +1,12 @@
 package com.spendwise.android.core.session
 
+import app.cash.turbine.test
 import com.spendwise.android.fakes.FakeTokenStore
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Clock
 import java.time.Instant
@@ -33,50 +36,74 @@ class SessionManagerTest {
     @Test
     fun `restore with live token signs in`() = runTest {
         val store = FakeTokenStore(
-            stored = StoredSession("token-abc", futureExpiry, "user@x"),
+            stored = StoredSession("token-abc", futureExpiry, "ana", "user-1"),
         )
         val manager = manager(store)
         manager.restore()
-        assertEquals(Session.SignedIn("token-abc", futureExpiry, "user@x"), manager.session.value)
+        assertEquals(
+            Session.SignedIn("token-abc", futureExpiry, "ana", "user-1"),
+            manager.session.value,
+        )
         assertEquals("token-abc", manager.accessToken())
     }
 
     @Test
     fun `restore with expired token signs out, keeps username, drops credential`() = runTest {
         val store = FakeTokenStore(
-            stored = StoredSession("dead-token", pastExpiry, "user@x"),
+            stored = StoredSession("dead-token", pastExpiry, "ana", "user-1"),
         )
         val manager = manager(store)
         manager.restore()
 
         assertEquals(Session.SignedOut, manager.session.value)
         assertNull(manager.accessToken())
-        // Credential dropped (load() is null), last username retained for
-        // resume UX.
+        // Credential dropped (load() is null), identity hints retained.
         assertNull(store.load())
-        assertEquals("user@x", store.lastUsername)
+        assertEquals("ana", store.lastUsername)
+        assertEquals("user-1", store.lastUserId)
     }
 
     @Test
     fun `onSignedIn persists and signs in`() = runTest {
         val store = FakeTokenStore()
         val manager = manager(store)
-        manager.onSignedIn("token-1", futureExpiry, "user@x")
+        manager.onSignedIn("token-1", futureExpiry, "ana", "user-1")
 
-        assertEquals(Session.SignedIn("token-1", futureExpiry, "user@x"), manager.session.value)
+        assertEquals(
+            Session.SignedIn("token-1", futureExpiry, "ana", "user-1"),
+            manager.session.value,
+        )
         assertEquals("token-1", store.token)
+        assertEquals("user-1", store.lastUserId)
     }
 
     @Test
-    fun `authenticated 401 expires the session`() = runTest {
+    fun `authenticated 401 expires the session but keeps identity`() = runTest {
         val store = FakeTokenStore()
         val manager = manager(store)
-        manager.onSignedIn("token-1", futureExpiry, "user@x")
+        manager.onSignedIn("token-1", futureExpiry, "ana", "user-1")
 
         manager.onAuthenticationExpired()
 
-        assertEquals(Session.Expired("user@x"), manager.session.value)
+        assertEquals(Session.Expired("ana", "user-1"), manager.session.value)
         assertNull(manager.accessToken())
+        // Dead credential dropped from the store; identity hints retained.
+        assertNull(store.token)
+        assertEquals("ana", store.lastUsername)
+    }
+
+    @Test
+    fun `expired credential cannot resurrect on restart`() = runTest {
+        val store = FakeTokenStore()
+        val manager = manager(store)
+        manager.onSignedIn("dead-token", futureExpiry, "ana", "user-1")
+        manager.onAuthenticationExpired()
+
+        val restarted = manager(store)
+        restarted.restore()
+
+        // The server-rejected token was dropped — restart signs out.
+        assertEquals(Session.SignedOut, restarted.session.value)
     }
 
     @Test
@@ -88,14 +115,149 @@ class SessionManagerTest {
     }
 
     @Test
+    fun `expiry signal while already expired is a no-op`() = runTest {
+        val manager = manager(FakeTokenStore())
+        manager.onSignedIn("token-1", futureExpiry, "ana", "user-1")
+        manager.onAuthenticationExpired()
+
+        manager.onAuthenticationExpired()
+
+        assertEquals(Session.Expired("ana", "user-1"), manager.session.value)
+    }
+
+    @Test
+    fun `accessToken returns null and expires the session when locally past expiry`() = runTest {
+        val store = FakeTokenStore()
+        val manager = manager(store)
+        manager.onSignedIn("token-1", pastExpiry, "ana", "user-1")
+
+        assertNull(manager.accessToken())
+        assertEquals(Session.Expired("ana", "user-1"), manager.session.value)
+    }
+
+    @Test
+    fun `re-authentication with the same identity resumes the session`() = runTest {
+        val manager = manager(FakeTokenStore())
+        manager.onSignedIn("token-1", futureExpiry, "ana", "user-1")
+        manager.onAuthenticationExpired()
+
+        manager.cacheInvalidations.test {
+            manager.onSignedIn("token-2", futureExpiry, "ana", "user-1")
+
+            val session = manager.session.value as Session.SignedIn
+            assertTrue(session.resumedSession)
+            assertEquals("token-2", session.token)
+            expectNoEvents()
+        }
+    }
+
+    @Test
+    fun `re-authentication with a different user does not resume and resets caches`() = runTest {
+        val manager = manager(FakeTokenStore())
+        manager.onSignedIn("token-1", futureExpiry, "ana", "user-1")
+        manager.onAuthenticationExpired()
+
+        manager.cacheInvalidations.test {
+            manager.onSignedIn("token-9", futureExpiry, "bob", "user-2")
+
+            val session = manager.session.value as Session.SignedIn
+            assertFalse(session.resumedSession)
+            assertEquals("user-2", session.userId)
+            assertEquals(Unit, awaitItem())
+        }
+    }
+
+    @Test
+    fun `cold sign-in (not a resume) does not mark resumed`() = runTest {
+        val manager = manager(FakeTokenStore())
+        manager.restore()
+
+        manager.cacheInvalidations.test {
+            manager.onSignedIn("token-1", futureExpiry, "ana", "user-1")
+
+            val session = manager.session.value as Session.SignedIn
+            assertFalse(session.resumedSession)
+            assertEquals(Unit, awaitItem())
+        }
+    }
+
+    @Test
+    fun `identity continuity falls back to username when ids are missing`() = runTest {
+        val manager = manager(FakeTokenStore())
+        manager.onSignedIn("token-1", futureExpiry, "ana", null)
+        manager.onAuthenticationExpired()
+
+        manager.onSignedIn("token-2", futureExpiry, "ana", null)
+
+        assertTrue((manager.session.value as Session.SignedIn).resumedSession)
+    }
+
+    @Test
+    fun `user id wins over username for identity continuity`() = runTest {
+        val manager = manager(FakeTokenStore())
+        manager.onSignedIn("token-1", futureExpiry, "ana", "user-1")
+        manager.onAuthenticationExpired()
+
+        manager.onSignedIn("token-2", futureExpiry, "ana", "user-2")
+
+        assertFalse((manager.session.value as Session.SignedIn).resumedSession)
+    }
+
+    @Test
     fun `signOut clears store and signs out`() = runTest {
         val store = FakeTokenStore()
         val manager = manager(store)
-        manager.onSignedIn("token-1", futureExpiry, "user@x")
+        manager.onSignedIn("token-1", futureExpiry, "ana", "user-1")
 
+        manager.cacheInvalidations.test {
+            manager.signOut()
+
+            assertEquals(Session.SignedOut, manager.session.value)
+            assertNull(store.load())
+            assertNull(store.lastUsername)
+            assertEquals(Unit, awaitItem())
+        }
+    }
+
+    @Test
+    fun `restart after logout stays signed out`() = runTest {
+        val store = FakeTokenStore()
+        val manager = manager(store)
+        manager.onSignedIn("token-1", futureExpiry, "ana", "user-1")
         manager.signOut()
 
-        assertEquals(Session.SignedOut, manager.session.value)
-        assertNull(store.load())
+        val restarted = manager(store)
+        restarted.restore()
+
+        assertEquals(Session.SignedOut, restarted.session.value)
+    }
+
+    @Test
+    fun `restart after login restores the session`() = runTest {
+        val store = FakeTokenStore()
+        manager(store).onSignedIn("token-1", futureExpiry, "ana", "user-1")
+
+        val restarted = manager(store)
+        restarted.restore()
+
+        val session = restarted.session.value as Session.SignedIn
+        assertEquals("token-1", session.token)
+        assertEquals("user-1", session.userId)
+        assertFalse(session.resumedSession)
+    }
+
+    @Test
+    fun `sign-out then different user leaves no prior identity`() = runTest {
+        val store = FakeTokenStore()
+        val manager = manager(store)
+        manager.onSignedIn("token-1", futureExpiry, "ana", "user-1")
+        manager.signOut()
+
+        manager.onSignedIn("token-9", futureExpiry, "bob", "user-2")
+
+        val session = manager.session.value as Session.SignedIn
+        assertEquals("user-2", session.userId)
+        assertFalse(session.resumedSession)
+        assertEquals("user-2", store.lastUserId)
     }
 }

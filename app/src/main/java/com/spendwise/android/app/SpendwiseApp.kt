@@ -10,15 +10,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.spendwise.android.core.session.Session
 import com.spendwise.android.navigation.AuthFlow
-import com.spendwise.android.navigation.SpendwiseMainShell
+import com.spendwise.android.navigation.MainFlow
 
 /**
- * App root (AD-004): selects the structural shell from session state.
+ * App root (AD-004): selects the graph from session state.
  *
- * M0 scope: [Session.SignedOut] → auth placeholder graph, [Session.SignedIn]
- * → the four-destination main shell, [Session.Expired] → the session-expired
- * placeholder. The real auth flows and session-expired stack preservation
- * are M1 work.
+ * - [Session.Restoring] → launch spinner while the store is read.
+ * - [Session.SignedOut] → unauthenticated graph (Welcome/Login/Register).
+ * - [Session.SignedIn] / [Session.Expired] → the SAME authenticated-graph
+ *   branch — sharing one composition slot is what keeps the main back
+ *   stack (and draft ViewModels) alive while the session-expired
+ *   destination is pushed on top (§13).
+ *
+ * Logout and sign-out-from-expired both funnel through [onSignOut];
+ * session→SignedOut swaps graphs to the auth root automatically.
  */
 @Composable
 fun SpendwiseApp(
@@ -36,8 +41,9 @@ fun SpendwiseApp(
 
         Session.SignedOut -> AuthFlow()
 
-        is Session.SignedIn -> SpendwiseMainShell()
-
-        is Session.Expired -> SessionExpiredPlaceholder(onSignInAgain = onSignOut)
+        is Session.SignedIn, is Session.Expired -> MainFlow(
+            session = session,
+            onSignOut = onSignOut,
+        )
     }
 }

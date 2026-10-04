@@ -1,5 +1,9 @@
 package com.spendwise.android.core.network
 
+import com.spendwise.android.core.session.Session
+import com.spendwise.android.core.session.SessionManager
+import com.spendwise.android.fakes.FakeTokenStore
+import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
@@ -12,18 +16,28 @@ import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import java.io.IOException
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
 
 class ErrorInterceptorTest {
 
+    private val now: Instant = Instant.parse("2026-10-04T12:00:00Z")
+
     private lateinit var server: MockWebServer
+    private lateinit var sessionManager: SessionManager
     private lateinit var client: OkHttpClient
 
     @Before
     fun setUp() {
         server = MockWebServer()
         server.start()
+        sessionManager = SessionManager(
+            tokenStore = FakeTokenStore(),
+            clock = Clock.fixed(now, ZoneOffset.UTC),
+        )
         client = OkHttpClient.Builder()
-            .addInterceptor(ErrorInterceptor(Json { ignoreUnknownKeys = true }))
+            .addInterceptor(ErrorInterceptor(Json { ignoreUnknownKeys = true }, sessionManager))
             .build()
     }
 
@@ -91,5 +105,27 @@ class ErrorInterceptorTest {
         } catch (e: IOException) {
             assertTrue(e is ApiException)
         }
+    }
+
+    @Test
+    fun `401 on an authenticated call expires the session`() = runTest {
+        sessionManager.onSignedIn("tok", now.plusSeconds(900), "ana", "u1")
+        server.enqueue(MockResponse(code = 401, body = ""))
+
+        apiExceptionOf { call().use {} }
+
+        // Raw OkHttp requests carry no Retrofit Invocation tag → treated as
+        // authenticated; a 401 invalidates the session (§13).
+        assertEquals(Session.Expired("ana", "u1"), sessionManager.session.value)
+    }
+
+    @Test
+    fun `401 while signed out still throws but leaves state SignedOut`() = runTest {
+        sessionManager.restore()
+        server.enqueue(MockResponse(code = 401, body = ""))
+
+        apiExceptionOf { call().use {} }
+
+        assertEquals(Session.SignedOut, sessionManager.session.value)
     }
 }

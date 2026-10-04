@@ -3,23 +3,45 @@ package com.spendwise.android.navigation
 import kotlinx.serialization.Serializable
 
 /**
- * Typed navigation routes (AD-004). M0 wires the auth entry graph and the
- * four top-level destinations; feature routes (transaction detail, import,
- * planning, …) are declared with their milestones, never guessed.
+ * Typed navigation routes (AD-004, §13).
+ *
+ * Auth destinations live in the unauthenticated graph; the main shell and
+ * the session-expired/re-authentication destinations live in the
+ * authenticated graph. Session-expired is PUSHED on top of the preserved
+ * main stack — never a second parallel destination.
  */
 sealed interface AppRoute
 
-// Auth graph
+// ── Auth graph ────────────────────────────────────────────────────────────
 @Serializable
 data object WelcomeRoute : AppRoute
 
+/**
+ * @param prefill username to seed the form (register success, expired
+ *   session resume)
+ * @param accountCreated show the post-register confirmation banner
+ * @param resume pushed over the preserved main stack during re-auth —
+ *   suppresses the "create account" cross-link
+ */
 @Serializable
-data object LoginRoute : AppRoute
+data class LoginRoute(
+    val prefill: String? = null,
+    val accountCreated: Boolean = false,
+    val resume: Boolean = false,
+) : AppRoute
 
 @Serializable
 data object RegisterRoute : AppRoute
 
-// Main graph — four top-level destinations (P3 product structure)
+// ── Authenticated graph ───────────────────────────────────────────────────
+/** Wrapper hosting the four-destination tab shell (keeps tab stack intact). */
+@Serializable
+data object MainShellRoute : AppRoute
+
+@Serializable
+data object SessionExpiredRoute : AppRoute
+
+// Main shell — four top-level destinations (P3 product structure)
 @Serializable
 data object HomeRoute : AppRoute
 

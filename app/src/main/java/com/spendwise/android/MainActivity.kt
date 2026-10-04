@@ -23,6 +23,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Session restore is kicked off in SpendwiseApplication.onCreate so
+        // the graph picks a branch before the first frame (§13).
         setContent {
             SpendwiseTheme {
                 val session by sessionManager.session.collectAsStateWithLifecycle()
