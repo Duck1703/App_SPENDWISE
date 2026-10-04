@@ -97,4 +97,7 @@ icons — required by the auth screens; no upgrades/replacements).
 ## Human gate
 
 `M1_TECHNICAL_COMPLETE=YES`, `M1_READY_FOR_EXTERNAL_AUDIT=YES`,
-`M1_HUMAN_APPROVED=NO`, `M2_STARTED=NO`. Next action: **EXTERNAL M1 AUDIT**.
+`M1_EXTERNAL_AUDIT=ACCEPTED`
+(see [reviews/M1-EXTERNAL-AUDIT-SUMMARY.md](../reviews/M1-EXTERNAL-AUDIT-SUMMARY.md)),
+`M1_HUMAN_APPROVED=YES`, `M1_STATUS=COMPLETE`, `M2_STARTED=NO`.
+Next action: **M2 — Accounts + design-system core**.
