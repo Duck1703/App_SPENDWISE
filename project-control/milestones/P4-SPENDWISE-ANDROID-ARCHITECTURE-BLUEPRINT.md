@@ -1,6 +1,23 @@
 # P4 — Spendwise Android Architecture Blueprint
 
-STATUS: **READY_FOR_HUMAN_REVIEW**
+STATUS: **COMPLETE** (HUMAN_APPROVED)
+
+## Human approval record
+
+- `P4_HUMAN_APPROVED=YES` — THE HUMAN approved the P4 architecture
+  blueprint and authorized the M0 foundation milestone.
+- Human answers to the four open questions (ARCHITECTURE §39):
+  - `Q1_HOME_HERO_LABEL=THIS_MONTH` — Home hero presents "this month's"
+    totals; label copy decided at M4, scope unchanged.
+  - `Q2_MIN_SDK_26=APPROVED` — minSdk 26 confirmed.
+  - `Q3_BASE_URL=PROPERTY_DRIVEN; ACTUAL DEV/PROD URL DEFERRED` —
+    BuildConfig-driven base URL; M0 default `https://example.invalid/`;
+    no real backend calls in M0.
+  - `Q4_RELEASE_SIGNING=HUMAN_OWNED; INTERNAL/DEBUG FIRST` — release
+    signing material is Human-owned and added later; M0 ships debug
+    builds; release compile-only, unsigned artifact.
+- Consequence: `ANDROID_APP_DEVELOPMENT_STARTED=YES`,
+  `OFFICIAL_ANDROID_IMPLEMENTATION_START=M0`.
 
 ## Objective
 
@@ -146,12 +163,13 @@ Unchanged (verified): `PRODUCT.md`, `BACKEND-CONTRACT.md`,
 
 ## Human gate
 
-P4 is **READY_FOR_HUMAN_REVIEW** — not approved. On approval, ADs may be
-promoted to `DECISIONS.md` at closeout and M0 may begin.
+P4 is **HUMAN_APPROVED** — the gate is passed. AD-001…AD-022 were
+promoted to `DECISIONS.md` at closeout (this commit) with meaning
+preserved; M0 may begin.
 
 ## Verdict
 
-`SAFE_TO_BEGIN_M0_AFTER_HUMAN_APPROVAL=YES` (pending Human answers to
-Q3/Q4 — base URLs and signing are M0 inputs, not blockers to review).
+`SAFE_TO_BEGIN_M0_AFTER_HUMAN_APPROVAL=YES` — approval received; all
+four open questions answered (see Human approval record above).
 
-ANDROID_APP_DEVELOPMENT_STARTED=NO
+ANDROID_APP_DEVELOPMENT_STARTED=YES
