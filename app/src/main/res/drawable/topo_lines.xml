@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Spendwise contour-line motif — project-owned original artwork from the
+     P3A prototype (src/assets/backgrounds/topo-lines.svg), translated to a
+     VectorDrawable. Decorative layer for account/budgets heroes. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="400dp"
+    android:height="240dp"
+    android:viewportWidth="400"
+    android:viewportHeight="240">
+
+    <path android:pathData="M200 -10 C260 20 250 70 310 80 C360 88 380 50 420 60"
+        android:strokeColor="#BFF0DE" android:strokeWidth="1.2"
+        android:strokeAlpha="0.11" android:strokeLineCap="round"/>
+    <path android:pathData="M180 -10 C250 34 236 92 306 104 C364 114 386 76 420 84"
+        android:strokeColor="#BFF0DE" android:strokeWidth="1.2"
+        android:strokeAlpha="0.11" android:strokeLineCap="round"/>
+    <path android:pathData="M160 -10 C240 48 222 114 302 128 C368 140 392 102 420 108"
+        android:strokeColor="#BFF0DE" android:strokeWidth="1.2"
+        android:strokeAlpha="0.11" android:strokeLineCap="round"/>
+    <path android:pathData="M140 -10 C230 62 208 136 298 152 C372 166 398 128 420 132"
+        android:strokeColor="#BFF0DE" android:strokeWidth="1.2"
+        android:strokeAlpha="0.11" android:strokeLineCap="round"/>
+    <path android:pathData="M120 -10 C220 76 194 158 294 176 C376 192 404 154 420 156"
+        android:strokeColor="#BFF0DE" android:strokeWidth="1.2"
+        android:strokeAlpha="0.11" android:strokeLineCap="round"/>
+    <path android:pathData="M100 -10 C210 90 180 180 290 200 C380 218 410 180 420 180"
+        android:strokeColor="#BFF0DE" android:strokeWidth="1.2"
+        android:strokeAlpha="0.11" android:strokeLineCap="round"/>
+    <path android:pathData="M80 -10 C200 104 166 202 286 224 C384 244 416 206 420 204"
+        android:strokeColor="#BFF0DE" android:strokeWidth="1.2"
+        android:strokeAlpha="0.11" android:strokeLineCap="round"/>
+    <path android:pathData="M340,40 m-56,0 a56,56 0 1,1 112,0 a56,56 0 1,1 -112,0"
+        android:strokeColor="#BFF0DE" android:strokeWidth="1.2" android:strokeAlpha="0.14"/>
+    <path android:pathData="M340,40 m-34,0 a34,34 0 1,1 68,0 a34,34 0 1,1 -68,0"
+        android:strokeColor="#BFF0DE" android:strokeWidth="1.2" android:strokeAlpha="0.18"/>
+</vector>

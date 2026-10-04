@@ -53,3 +53,14 @@ data object AccountsRoute : AppRoute
 
 @Serializable
 data object MoreRoute : AppRoute
+
+/**
+ * Full-screen account flows pushed OVER the preserved shell (outer graph):
+ * the shell — and its tab state — stays beneath, and an in-flight create
+ * form survives a session-expired overlay for same-user resume (§13).
+ */
+@Serializable
+data object AccountCreateRoute : AppRoute
+
+@Serializable
+data class AccountDetailRoute(val accountId: String) : AppRoute

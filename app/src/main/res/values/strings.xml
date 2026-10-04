@@ -63,4 +63,68 @@
     <string name="sign_out_dialog_body">You\'ll need to sign in again to see your finances.</string>
     <string name="sign_out_dialog_confirm">Sign out</string>
     <string name="sign_out_dialog_cancel">Cancel</string>
+
+    <!-- Shared states (P3A §8 copy) -->
+    <string name="cd_navigate_back">Back</string>
+    <string name="action_try_again">Try again</string>
+    <string name="state_network_title">Can\'t reach Spendwise</string>
+    <string name="state_network_body">Check your connection and try again. Nothing was changed.</string>
+    <string name="state_server_title">Something went wrong on our side</string>
+    <string name="state_server_body">Your data is safe. Please try again in a moment.</string>
+    <string name="state_generic_title">Something went wrong</string>
+    <string name="state_generic_body">Please try again.</string>
+
+    <!-- Accounts list (S06) -->
+    <string name="accounts_title">Accounts</string>
+    <string name="accounts_hero_label">Total across accounts</string>
+    <plurals name="accounts_hero_mixed_title">
+        <item quantity="one">%1$d account · %2$d currencies</item>
+        <item quantity="other">%1$d accounts · %2$d currencies</item>
+    </plurals>
+    <string name="accounts_hero_mixed_body">Totals are never mixed — each balance keeps its own currency.</string>
+    <plurals name="accounts_hero_count">
+        <item quantity="one">%1$d account</item>
+        <item quantity="other">%1$d accounts</item>
+    </plurals>
+    <string name="accounts_mixed_banner_title">Multiple currencies</string>
+    <string name="accounts_mixed_banner_body">Each balance stays in its own currency — Spendwise never converts or mixes totals.</string>
+    <string name="accounts_add">Add account</string>
+    <string name="accounts_empty_title">No accounts yet</string>
+    <string name="accounts_empty_body">Add your first account to start tracking balances across cash and bank.</string>
+    <string name="accounts_empty_action">Add your first account</string>
+    <string name="account_type_cash">Cash</string>
+    <string name="account_type_bank">Bank</string>
+    <string name="account_type_unknown">Account</string>
+    <string name="account_row_cd">%1$s, %2$s, balance %3$s %4$s</string>
+
+    <!-- Create account (S07) -->
+    <string name="account_create_title">New account</string>
+    <string name="account_create_subtitle">Name it, pick a type and currency — you can\'t mix currencies later.</string>
+    <string name="account_create_name_label">Account name</string>
+    <string name="account_create_name_hint">Shown on your dashboard and lists.</string>
+    <string name="account_create_name_placeholder">e.g. Everyday cash</string>
+    <string name="account_create_type_label">Type</string>
+    <string name="account_create_currency_label">Currency</string>
+    <string name="account_create_currency_hint">ISO 4217 — the balance stays in this currency.</string>
+    <string name="account_create_balance_label">Opening balance</string>
+    <string name="account_create_balance_hint">Optional — leave empty to start at 0.</string>
+    <string name="account_create_balance_placeholder">0.00</string>
+    <string name="account_create_submit">Create account</string>
+    <string name="account_create_submitting">Creating…</string>
+    <string name="account_error_name_required">Give the account a name.</string>
+    <string name="account_error_name_long">Keep it under 255 characters.</string>
+    <string name="account_error_balance_invalid">Enter a valid amount, like 1500 or 1500.50.</string>
+    <string name="account_error_balance_negative">Opening balance can\'t be negative.</string>
+    <string name="account_error_balance_precise">Use at most 2 decimal places.</string>
+    <string name="account_error_balance_large">That amount is too large.</string>
+
+    <!-- Account detail (S08) -->
+    <string name="account_detail_title">Account</string>
+    <string name="account_detail_balance_label">Current balance</string>
+    <string name="account_detail_field_type">Type</string>
+    <string name="account_detail_field_currency">Currency</string>
+    <string name="account_detail_field_opening">Opening balance</string>
+    <string name="account_detail_notfound_title">Account not found</string>
+    <string name="account_detail_notfound_body">It may have been removed or belongs to another sign-in.</string>
+    <string name="account_detail_back_to_accounts">Back to accounts</string>
 </resources>

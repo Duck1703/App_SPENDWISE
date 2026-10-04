@@ -26,6 +26,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.spendwise.android.R
 import com.spendwise.android.app.FoundationPlaceholder
+import com.spendwise.android.feature.accounts.AccountsDestination
 import com.spendwise.android.feature.more.MoreDestination
 
 private data class TopLevelDestination(
@@ -49,6 +50,8 @@ private val topLevelDestinations = listOf(
 @Composable
 fun SpendwiseMainShell(
     navController: NavHostController = rememberNavController(),
+    onOpenAccount: (accountId: String) -> Unit = {},
+    onCreateAccount: () -> Unit = {},
 ) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
@@ -105,9 +108,9 @@ fun SpendwiseMainShell(
                 )
             }
             composable<AccountsRoute> {
-                FoundationPlaceholder(
-                    title = "Accounts",
-                    detail = "Account list foundation — content arrives in M2.",
+                AccountsDestination(
+                    onOpenAccount = onOpenAccount,
+                    onCreateAccount = onCreateAccount,
                 )
             }
             composable<MoreRoute> {

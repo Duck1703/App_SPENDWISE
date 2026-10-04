@@ -2,6 +2,7 @@ package com.spendwise.android.core.network
 
 import com.spendwise.android.BuildConfig
 import com.spendwise.android.core.serialization.BigDecimalSerializer
+import com.spendwise.android.data.remote.AccountsService
 import com.spendwise.android.data.remote.AuthService
 import dagger.Module
 import dagger.Provides
@@ -79,4 +80,8 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideAuthService(retrofit: Retrofit): AuthService = retrofit.create(AuthService::class.java)
+
+    @Provides
+    @Singleton
+    fun provideAccountsService(retrofit: Retrofit): AccountsService = retrofit.create(AccountsService::class.java)
 }

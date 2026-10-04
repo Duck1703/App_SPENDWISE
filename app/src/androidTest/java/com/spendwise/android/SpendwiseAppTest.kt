@@ -96,6 +96,21 @@ class SpendwiseAppTest {
     }
 
     @Test
+    fun expiredTwice_doesNotStackDuplicateOverlays() {
+        val session = app(signedIn())
+
+        session.value = Session.Expired(username = "ana", userId = "u1")
+        composeRule.waitForIdle()
+        // A second expiry signal (e.g. another in-flight 401) must not push
+        // a second SessionExpired entry onto the stack.
+        session.value = Session.Expired(username = "ana", userId = "u1")
+        composeRule.waitForIdle()
+
+        val nodes = composeRule.onAllNodesWithText("Session expired").fetchSemanticsNodes()
+        assert(nodes.size == 1) { "Expected exactly one expired overlay, got ${nodes.size}" }
+    }
+
+    @Test
     fun resume_sameIdentity_restoresPriorDestination() {
         val session = app(signedIn())
         composeRule.onNodeWithText("Transactions").performClick()

@@ -1,6 +1,8 @@
 package com.spendwise.android.data
 
+import com.spendwise.android.data.repository.AccountRepository
 import com.spendwise.android.data.repository.AuthRepository
+import com.spendwise.android.data.repository.RemoteAccountRepository
 import com.spendwise.android.data.repository.RemoteAuthRepository
 import dagger.Binds
 import dagger.Module
@@ -16,4 +18,8 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindAuthRepository(impl: RemoteAuthRepository): AuthRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAccountRepository(impl: RemoteAccountRepository): AccountRepository
 }

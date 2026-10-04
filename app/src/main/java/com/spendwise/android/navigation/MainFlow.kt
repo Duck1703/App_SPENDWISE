@@ -8,6 +8,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.spendwise.android.core.session.Session
+import com.spendwise.android.feature.accounts.AccountCreateDestination
+import com.spendwise.android.feature.accounts.AccountDetailDestination
 import com.spendwise.android.feature.auth.LoginDestination
 import com.spendwise.android.feature.auth.SessionExpiredScreen
 
@@ -46,7 +48,13 @@ fun MainFlow(
                 }
             }
             is Session.Expired -> {
-                if (navController.currentDestination?.hasRoute<MainShellRoute>() == true) {
+                // Pushed over whatever protected surface is current — the
+                // shell OR a full-screen flow like account create/detail —
+                // preserving the whole stack beneath for same-user resume.
+                val expiredOnStack = runCatching {
+                    navController.getBackStackEntry<SessionExpiredRoute>()
+                }.isSuccess
+                if (!expiredOnStack) {
                     navController.navigate(SessionExpiredRoute)
                 }
             }
@@ -59,7 +67,25 @@ fun MainFlow(
         startDestination = MainShellRoute,
     ) {
         composable<MainShellRoute> {
-            SpendwiseMainShell()
+            SpendwiseMainShell(
+                onOpenAccount = { id -> navController.navigate(AccountDetailRoute(id)) },
+                onCreateAccount = { navController.navigate(AccountCreateRoute) },
+            )
+        }
+        composable<AccountCreateRoute> {
+            AccountCreateDestination(
+                onNavigateBack = { navController.popBackStack() },
+                onCreated = { accountId ->
+                    navController.navigate(AccountDetailRoute(accountId)) {
+                        popUpTo<AccountCreateRoute> { inclusive = true }
+                    }
+                },
+            )
+        }
+        composable<AccountDetailRoute> {
+            AccountDetailDestination(
+                onNavigateBack = { navController.popBackStack() },
+            )
         }
         composable<SessionExpiredRoute> {
             val expired = session as? Session.Expired
