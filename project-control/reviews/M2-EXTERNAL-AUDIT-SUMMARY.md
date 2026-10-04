@@ -89,3 +89,48 @@ M2_READY_FOR_HUMAN_APPROVAL=NO
   assembleRelease — all PASS.
 - Boundaries held: backend/reference/prototype read-only; private
   fixtures untouched; no source edited by the auditor.
+
+## Post-remediation verification — `db09826`
+
+Remediation landed in `db09826` ("M2 external-audit remediation").
+Post-fix falsification pass and gates:
+
+- `SessionCache` (`core/session/SessionCache.kt`) stamps every stored
+  value with the session generation captured at write time, under one
+  mutex. `read`/`write`/`update`/`invalidate` all re-validate
+  `sessionManager.sessionGeneration` inside the mutex — a write or
+  merge captured in generation N can never publish or be read in
+  generation N+1 regardless of when the `cacheInvalidations`
+  collector is scheduled. Stale writes throw `SessionEndedException`
+  (a `CancellationException`) instead of publishing.
+- `SessionManager` advances an `AtomicLong` synchronously inside
+  `emitInvalidation`, before the `tryEmit` — every invalidating
+  transition (sign-out, expiry, different-identity sign-in, restore-
+  to-signed-out) is a generation boundary. Concurrent emits cannot
+  collapse.
+- `tokenStore.save`/`clear` IO failures fail closed: session is not
+  established; `AuthRepository` maps `IOException` to
+  `AppError.Unknown` (EXT-MIN-4).
+- Accounts list keeps rendered content on refresh failure and
+  surfaces an inline error banner + pull-to-refresh (MIN-1);
+  initial-load failure still maps to the full-screen error state.
+- Create form states the ambiguity honestly on failure — a retry may
+  duplicate the account (MIN-4; idempotency remains a backend gap).
+- Manrope now covers all 15 M3 typography slots (EXT-MIN-1);
+  `MoneyFormat` uses `DecimalFormat` with locale decimal+grouping on
+  an exact `BigDecimal` path (EXT-MIN-2); skeleton rows carry merged
+  loading semantics (EXT-MIN-3); `TouchTargetMin` raised to 48.dp and
+  applied to back buttons + segmented control (EXT-MIN-5).
+- Deterministic concurrency suite
+  (`data/AccountRepositoryConcurrencyTest.kt`): stale cross-user
+  response, delayed invalidation collector (parked scheduler), RMW
+  races, in-flight logout, repeated transitions — all proven unable
+  to publish stale data.
+- Unit tests: **171/171, 0 failures, 0 skipped** (+19 vs audited
+  baseline). Gates: assembleDebug, testDebugUnitTest, lintDebug,
+  detekt (0 smells), compileDebugAndroidTestKotlin, assembleRelease —
+  all PASS. `adb devices`: none attached — androidTest remains
+  compile-verified only.
+- `M2_READY_FOR_HUMAN_APPROVAL`: findings resolved; per contract the
+  Human holds the approval gate. `M2_HUMAN_APPROVED` remains `NO`
+  until the Human records it.
