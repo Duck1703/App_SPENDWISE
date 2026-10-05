@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.spendwise.android.R
+import com.spendwise.android.TestFormats
 import com.spendwise.android.core.designsystem.SpendwiseTheme
 import com.spendwise.android.core.model.AccountType
 import com.spendwise.android.core.model.CurrencyCode
@@ -80,10 +81,12 @@ class AccountsScreenTest {
             ),
         )
 
-        composeRule.onNodeWithContentDescription("Wallet, Cash, balance 1,250,500 VND")
-            .assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Checking, Bank, balance 42.10 USD")
-            .assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(
+            "Wallet, Cash, balance ${TestFormats.amount("1250500", "VND")} VND",
+        ).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(
+            "Checking, Bank, balance ${TestFormats.amount("42.10", "USD")} USD",
+        ).assertIsDisplayed()
         // Mixed-currency banner shown; no cross-currency total exists.
         composeRule.onNodeWithText("Multiple currencies").assertIsDisplayed()
         composeRule.onNodeWithText("Totals are never mixed — each balance keeps its own currency.")
@@ -104,7 +107,7 @@ class AccountsScreenTest {
 
         composeRule.onNodeWithText("Total across accounts").assertIsDisplayed()
         // Sum rendered in-account-currency (VND → 0 fraction digits).
-        composeRule.onNodeWithText("1,250").assertIsDisplayed()
+        composeRule.onNodeWithText(TestFormats.amount("1250", "VND")).assertIsDisplayed()
     }
 
     @Test
@@ -118,7 +121,9 @@ class AccountsScreenTest {
             harness,
         )
 
-        composeRule.onNodeWithContentDescription("Wallet, Cash, balance 1,000 VND").performClick()
+        composeRule.onNodeWithContentDescription(
+            "Wallet, Cash, balance ${TestFormats.amount("1000", "VND")} VND",
+        ).performClick()
 
         assertEquals("a9", harness.opened)
     }
@@ -154,8 +159,9 @@ class AccountsScreenTest {
             ),
         )
 
-        composeRule.onNodeWithContentDescription("Wallet, Cash, balance 1,500 VND")
-            .assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(
+            "Wallet, Cash, balance ${TestFormats.amount("1500", "VND")} VND",
+        ).assertIsDisplayed()
     }
 
     @Test
@@ -187,8 +193,9 @@ class AccountsScreenTest {
         composeRule.onNodeWithText(
             androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.accounts_refresh_error_title),
         ).assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Wallet, Cash, balance 1,000 VND")
-            .assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(
+            "Wallet, Cash, balance ${TestFormats.amount("1000", "VND")} VND",
+        ).assertIsDisplayed()
     }
 
     @Test

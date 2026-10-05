@@ -8,6 +8,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.spendwise.android.core.designsystem.SpendwiseTheme
 import com.spendwise.android.core.model.Account
@@ -91,7 +92,8 @@ class CreateTransactionScreenTest {
         composeRule.onNodeWithText("No category").assertIsDisplayed()
         composeRule.onNodeWithText("Categorization hint (optional)").assertIsDisplayed()
         // Honest date handling — server stamps it; no picker exists.
-        composeRule.onNodeWithText("Recorded as today").assertIsDisplayed()
+        // Below the fold at large font scale — scroll into view.
+        composeRule.onNodeWithText("Recorded as today").performScrollTo().assertIsDisplayed()
         composeRule.onAllNodesWithText("Date", substring = true).assertCountEquals(0)
     }
 
@@ -120,7 +122,8 @@ class CreateTransactionScreenTest {
         val harness = Harness()
         screen(loadedState(), harness)
 
-        composeRule.onNodeWithText("Save transaction").performClick()
+        // Submit sits below the fold at large font scale — scroll first.
+        composeRule.onNodeWithText("Save transaction").performScrollTo().performClick()
         assertEquals(1, harness.submits)
     }
 

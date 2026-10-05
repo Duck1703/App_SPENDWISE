@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.spendwise.android.R
+import com.spendwise.android.TestFormats
 import com.spendwise.android.core.designsystem.SpendwiseTheme
 import com.spendwise.android.core.model.Account
 import com.spendwise.android.core.model.AccountType
@@ -139,10 +140,12 @@ class TransactionsScreenTest {
         // Rows are clearAndSetSemantics nodes: label text lives inside the
         // merged contentDescription, so assert on the row CD, not Text.
         composeRule.onNodeWithContentDescription(
-            "Expense −25.50 USD Food on Wallet, Manual",
+            "Expense ${TestFormats.signedAmount("25.50", "USD", credit = false)} " +
+                "USD Food on Wallet, Manual",
         ).assertIsDisplayed()
         composeRule.onNodeWithContentDescription(
-            "Income +25.50 USD Salary on Wallet, Manual",
+            "Income ${TestFormats.signedAmount("25.50", "USD", credit = true)} " +
+                "USD Salary on Wallet, Manual",
         ).assertIsDisplayed()
         // Count text + the server-order honesty note.
         composeRule.onNodeWithText("2 transactions").assertIsDisplayed()
@@ -169,7 +172,8 @@ class TransactionsScreenTest {
         // Merged row semantics — single clickable node (provenance suffix
         // included: MANUAL renders "…, Manual").
         composeRule.onNodeWithContentDescription(
-            "Expense −25.50 USD Food on Wallet, Manual",
+            "Expense ${TestFormats.signedAmount("25.50", "USD", credit = false)} " +
+                "USD Food on Wallet, Manual",
         ).performClick()
         assertEquals("t7", harness.opened)
     }
@@ -225,7 +229,8 @@ class TransactionsScreenTest {
             androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.transactions_refresh_error_title),
         ).assertIsDisplayed()
         composeRule.onNodeWithContentDescription(
-            "Expense −25.50 USD Food on Wallet, Manual",
+            "Expense ${TestFormats.signedAmount("25.50", "USD", credit = false)} " +
+                "USD Food on Wallet, Manual",
         ).assertIsDisplayed()
     }
 
@@ -257,10 +262,12 @@ class TransactionsScreenTest {
         // Imported badge visible inside the merged row CD; the manual row
         // carries a "Manual" provenance suffix instead.
         composeRule.onNodeWithContentDescription(
-            "Expense −25.50 USD Food on Transaction, Imported",
+            "Expense ${TestFormats.signedAmount("25.50", "USD", credit = false)} " +
+                "USD Food on Transaction, Imported",
         ).assertIsDisplayed()
         composeRule.onNodeWithContentDescription(
-            "Expense −25.50 USD Salary on Transaction, Manual",
+            "Expense ${TestFormats.signedAmount("25.50", "USD", credit = false)} " +
+                "USD Salary on Transaction, Manual",
         ).assertIsDisplayed()
     }
 }

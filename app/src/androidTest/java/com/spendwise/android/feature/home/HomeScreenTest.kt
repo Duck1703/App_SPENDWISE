@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.spendwise.android.TestFormats
 import com.spendwise.android.core.designsystem.SpendwiseTheme
 import com.spendwise.android.core.model.Account
 import com.spendwise.android.core.model.AccountType
@@ -117,8 +118,12 @@ class HomeScreenTest {
 
         composeRule.onNodeWithText("This month").assertIsDisplayed()
         // Merged figure semantics — figures read as one unit.
-        composeRule.onNodeWithContentDescription("Income 4,500 VND").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Spent −1,200 VND").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(
+            "Income ${TestFormats.amount("4500", "VND")} VND",
+        ).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(
+            "Spent ${TestFormats.signedAmount("1200", "VND", credit = false)} VND",
+        ).assertIsDisplayed()
         // Currency is announced inside the merged figure CDs — no stray
         // unlabeled "VND" text node should exist alongside them.
         composeRule.onAllNodesWithText("VND").assertCountEquals(0)
@@ -158,10 +163,13 @@ class HomeScreenTest {
             ),
         )
 
-        composeRule.onNodeWithContentDescription("Wallet, Cash, balance 1,250,500 VND")
+        composeRule.onNodeWithContentDescription(
+            "Wallet, Cash, balance ${TestFormats.amount("1250500", "VND")} VND",
+        )
             .assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Checking, Bank, balance 42.10 USD")
-            .assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(
+            "Checking, Bank, balance ${TestFormats.amount("42.10", "USD")} USD",
+        ).assertIsDisplayed()
     }
 
     @Test
@@ -169,8 +177,9 @@ class HomeScreenTest {
         val harness = Harness()
         screen(content(), harness)
 
-        composeRule.onNodeWithContentDescription("Wallet, Cash, balance 1,000 VND")
-            .performClick()
+        composeRule.onNodeWithContentDescription(
+            "Wallet, Cash, balance ${TestFormats.amount("1000", "VND")} VND",
+        ).performClick()
 
         assertEquals("a1", harness.openedAccount)
     }

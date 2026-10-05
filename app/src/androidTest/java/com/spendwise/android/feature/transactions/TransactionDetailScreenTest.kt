@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.spendwise.android.R
+import com.spendwise.android.TestFormats
 import com.spendwise.android.core.designsystem.SpendwiseTheme
 import com.spendwise.android.core.model.CurrencyCode
 import com.spendwise.android.core.model.Money
@@ -58,7 +59,9 @@ class TransactionDetailScreenTest {
         screen(TransactionDetailUiState.Content(txn(), accountName = "Wallet"))
 
         composeRule.onNodeWithText("Food").assertIsDisplayed()
-        composeRule.onNodeWithText("−25.50 USD").assertIsDisplayed()
+        composeRule.onNodeWithText(
+            "${TestFormats.signedAmount("25.50", "USD", credit = false)} USD",
+        ).assertIsDisplayed()
         composeRule.onNodeWithText("Account").assertIsDisplayed()
         composeRule.onNodeWithText("Wallet").assertIsDisplayed()
         composeRule.onNodeWithText("Currency").assertIsDisplayed()
@@ -89,7 +92,9 @@ class TransactionDetailScreenTest {
             ),
         )
 
-        composeRule.onNodeWithText("+25.50 USD").assertIsDisplayed()
+        composeRule.onNodeWithText(
+            "${TestFormats.signedAmount("25.50", "USD", credit = true)} USD",
+        ).assertIsDisplayed()
         composeRule.onNodeWithText("Income").assertIsDisplayed()
     }
 

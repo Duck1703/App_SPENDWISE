@@ -7,6 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.job
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
@@ -82,7 +83,7 @@ class SessionRuntimeM8Test {
 
     @Test
     fun keystore_newCipherInstanceDecryptsSameKeyMaterial() {
-        // Same alias → same TEE-held key → a fresh cipher instance (cold
+        // Same alias → same Keystore-held key → a fresh cipher instance (cold
         // start equivalent) decrypts blobs written earlier.
         val blob = KeystoreCipher().encrypt("cold-start".encodeToByteArray())
         assertArrayEquals("cold-start".encodeToByteArray(), KeystoreCipher().decrypt(blob))
@@ -124,8 +125,11 @@ class SessionRuntimeM8Test {
         val (first, file) = newStore()
         first.save("persisted", Instant.now().plusSeconds(3600), "ana", "u1")
         // Close the first store: process death / cold start equivalent —
-        // DataStore requires the old scope cancelled before re-opening.
-        createdScopes.last().cancel()
+        // DataStore requires the old scope fully cancelled (joined) before
+        // re-opening, or the active-file registry rejects the second store.
+        val dead = createdScopes.last()
+        dead.cancel()
+        dead.coroutineContext.job.join()
 
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         createdScopes += scope

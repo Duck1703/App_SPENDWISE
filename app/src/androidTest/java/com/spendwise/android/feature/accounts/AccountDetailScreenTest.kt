@@ -7,6 +7,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.spendwise.android.R
+import com.spendwise.android.TestFormats
 import com.spendwise.android.core.designsystem.SpendwiseTheme
 import androidx.compose.ui.test.onNodeWithContentDescription
 import com.spendwise.android.core.model.Account
@@ -118,7 +119,8 @@ class AccountDetailScreenTest {
         composeRule.onNodeWithText("Transactions").assertIsDisplayed()
         // Merged row CD carries the provenance suffix (…, Manual).
         composeRule.onNodeWithContentDescription(
-            "Expense −25.50 USD Food on Everyday cash, Manual",
+            "Expense ${TestFormats.signedAmount("25.50", "USD", credit = false)} USD " +
+                "Food on Everyday cash, Manual",
         ).performScrollTo().performClick()
         assertEquals("t1", harness.openedTxn)
     }

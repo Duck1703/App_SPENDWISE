@@ -13,7 +13,7 @@ import javax.inject.Singleton
 /**
  * AES/GCM cipher backed by an Android Keystore key (AD-010).
  *
- * The key never leaves the TEE/Keystore. The stored blob layout is
+ * The key never leaves the Android Keystore. The stored blob layout is
  * `IV (12 bytes) || ciphertext || GCM tag`; GCM authentication also detects
  * tampering on decrypt.
  */

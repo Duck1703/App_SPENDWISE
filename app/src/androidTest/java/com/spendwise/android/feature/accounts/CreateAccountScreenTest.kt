@@ -13,6 +13,7 @@ import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.text.AnnotatedString
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.spendwise.android.R
+import com.spendwise.android.TestFormats
 import com.spendwise.android.core.designsystem.SpendwiseTheme
 import com.spendwise.android.core.model.AccountType
 import org.junit.Assert.assertEquals
@@ -154,9 +155,11 @@ class CreateAccountScreenTest {
         composeRule.waitForIdle()
 
         // The open ISO set — JDK-provided — includes common codes. "USD" sits
-        // deep in the scrollable menu — scroll before asserting.
-        composeRule.onNodeWithText("USD — US Dollar").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("USD — US Dollar").performClick()
+        // deep in the scrollable menu — scroll before asserting. The label
+        // uses the locale display name ("US Dollar" en / "Đô-la Mỹ" vi).
+        composeRule.onNodeWithText(TestFormats.currencyOptionLabel("USD"))
+            .performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText(TestFormats.currencyOptionLabel("USD")).performClick()
 
         assertEquals("USD", harness.currency)
     }
