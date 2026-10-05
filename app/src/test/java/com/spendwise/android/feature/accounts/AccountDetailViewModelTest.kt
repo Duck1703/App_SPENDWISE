@@ -3,6 +3,7 @@ package com.spendwise.android.feature.accounts
 import androidx.lifecycle.SavedStateHandle
 import com.spendwise.android.core.network.AppError
 import com.spendwise.android.core.network.AppErrorException
+import com.spendwise.android.data.repository.SessionEndedException
 import com.spendwise.android.fakes.FakeAccountRepository
 import com.spendwise.android.fakes.FakeTransactionRepository
 import com.spendwise.android.fakes.MainDispatcherRule
@@ -151,6 +152,59 @@ class AccountDetailViewModelTest {
         val state = vm.state.value as AccountDetailUiState.Content
         assertTrue(state.history is AccountDetailUiState.AccountHistory.Items)
         // The account itself was not re-requested.
+        assertEquals(1, repo.findByIdCalls.size)
+    }
+
+    @Test
+    fun `dead-generation mid-load arms the resume retry — no stuck skeleton`() = runTest {
+        // EXT-MAJOR-1: the dead-generation publish must arm the same
+        // resume-retry as the 401 path.
+        val repo = FakeAccountRepository()
+        var dead = true
+        repo.findByIdResult = { id, _ ->
+            if (dead) {
+                throw SessionEndedException()
+            } else {
+                FakeAccountRepository.account(id = id)
+            }
+        }
+        val vm = viewModel(repo = repo)
+
+        assertTrue(vm.state.value is AccountDetailUiState.Loading)
+
+        dead = false
+        vm.onVisible()
+
+        val state = vm.state.value as AccountDetailUiState.Content
+        assertEquals("acc-1", state.account.id)
+        assertEquals(listOf("acc-1" to false, "acc-1" to true), repo.findByIdCalls)
+    }
+
+    @Test
+    fun `dead-generation on history marks the section for resume retry`() = runTest {
+        val repo = FakeAccountRepository()
+        val txns = FakeTransactionRepository()
+        var dead = true
+        txns.listResult = { _, _, _ ->
+            if (dead) {
+                throw SessionEndedException()
+            } else {
+                listOf(FakeTransactionRepository.transaction(id = "t1"))
+            }
+        }
+        val vm = viewModel(repo = repo, txns = txns)
+
+        // Header published; the section stayed pending on the dead session.
+        var state = vm.state.value as AccountDetailUiState.Content
+        assertTrue(state.history is AccountDetailUiState.AccountHistory.Loading)
+
+        dead = false
+        vm.onVisible()
+
+        state = vm.state.value as AccountDetailUiState.Content
+        assertTrue(state.history is AccountDetailUiState.AccountHistory.Items)
+        assertEquals(2, txns.listCalls.size)
+        // The header itself was not refetched — the section retried alone.
         assertEquals(1, repo.findByIdCalls.size)
     }
 

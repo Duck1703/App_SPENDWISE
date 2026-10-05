@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import com.spendwise.android.core.model.TransactionType
 import com.spendwise.android.core.network.AppError
 import com.spendwise.android.core.network.AppErrorException
+import com.spendwise.android.data.repository.SessionEndedException
 import com.spendwise.android.fakes.FakeAccountRepository
 import com.spendwise.android.fakes.FakeCategoryRepository
 import com.spendwise.android.fakes.FakeTransactionRepository
@@ -277,5 +278,58 @@ class CreateTransactionViewModelTest {
 
         assertEquals("acc-1", viewModel.state.value.accountId)
         assertEquals("7.00", viewModel.state.value.amount)
+    }
+
+    @Test
+    fun `dead-generation during options load clears the skeleton and reloads on resume`() = runTest {
+        // EXT-MAJOR-1 site 6: a dead-generation response must clear
+        // optionsLoading and arm the resume retry — not sit on the
+        // skeleton forever.
+        val accounts = FakeAccountRepository()
+        var dead = true
+        accounts.listResult = {
+            if (dead) {
+                throw SessionEndedException()
+            } else {
+                listOf(FakeAccountRepository.account(id = "acc-1"))
+            }
+        }
+        val viewModel = vm(accounts = accounts)
+        viewModel.onAmountChange("7.00")
+
+        assertFalse(viewModel.state.value.optionsLoading)
+        assertTrue(viewModel.state.value.accounts.isEmpty())
+        assertEquals("7.00", viewModel.state.value.amount)
+
+        dead = false
+        viewModel.onVisible()
+
+        assertEquals("acc-1", viewModel.state.value.accountId)
+        assertEquals("7.00", viewModel.state.value.amount)
+    }
+
+    @Test
+    fun `dead-generation submit releases the lock and marks the write ambiguous`() = runTest {
+        // EXT-MAJOR-1 site 7: a response landing after the generation
+        // boundary throws SessionEndedException — the POST almost
+        // certainly committed server-side, so the lock must release
+        // AND the outcome must be marked ambiguous (not silently
+        // editable). The preserved draft resubmits only by hand.
+        val txns = FakeTransactionRepository()
+        txns.createResult = { _, _, _, _, _ -> throw SessionEndedException() }
+        val viewModel = vm(accounts = accountBacked(), txns = txns)
+        fillValid(viewModel)
+
+        viewModel.submit()
+
+        val state = viewModel.state.value
+        assertFalse(state.isSubmitting)
+        assertEquals(CreateTransactionUiState.CreateTxnFormError.Ambiguous, state.formError)
+        assertEquals("25.50", state.amount) // draft preserved
+
+        txns.createResult = { _, _, _, _, _ -> FakeTransactionRepository.transaction(id = "retry-1") }
+        viewModel.submit()
+
+        assertEquals(2, txns.createCalls.size)
     }
 }

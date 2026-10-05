@@ -10,6 +10,7 @@ import com.spendwise.android.core.network.AppError
 import com.spendwise.android.core.network.AppErrorException
 import com.spendwise.android.data.repository.AccountRepository
 import com.spendwise.android.data.repository.CategoryRepository
+import com.spendwise.android.data.repository.SessionEndedException
 import com.spendwise.android.data.repository.TransactionRepository
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -71,6 +72,13 @@ class CreateTransactionViewModel @Inject constructor(
                         ?: accounts.firstOrNull()?.id,
                     optionsLoading = false,
                 )
+            } catch (e: SessionEndedException) {
+                // Dead-generation write — the session ended between
+                // dispatch and response. Same resume contract as the
+                // 401 path: arm the retry flag, release the skeleton.
+                optionsExpired = true
+                _state.value = _state.value.copy(optionsLoading = false)
+                return@launch
             } catch (e: AppErrorException) {
                 if (e.error is AppError.SessionExpired) {
                     // Overlay is being pushed over this screen — the
@@ -157,6 +165,16 @@ class CreateTransactionViewModel @Inject constructor(
                     hint = current.hint,
                 )
                 _events.send(Event.Created)
+            } catch (e: SessionEndedException) {
+                // Dead-generation publish — the response already landed
+                // (the repository throws only after it), so the entry
+                // almost certainly exists server-side. Release the
+                // submit lock and surface the honest ambiguous copy;
+                // the preserved draft is resubmitted only by the user.
+                _state.value = _state.value.copy(
+                    isSubmitting = false,
+                    formError = CreateTransactionUiState.CreateTxnFormError.Ambiguous,
+                )
             } catch (e: AppErrorException) {
                 if (e.error is AppError.SessionExpired) {
                     // Expired overlay pushed; release the lock so the

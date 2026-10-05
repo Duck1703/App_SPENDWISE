@@ -7,6 +7,7 @@ import com.spendwise.android.core.network.AppError
 import com.spendwise.android.core.network.AppErrorException
 import com.spendwise.android.fakes.FakeAccountRepository
 import com.spendwise.android.fakes.FakeCategoryRepository
+import com.spendwise.android.data.repository.SessionEndedException
 import com.spendwise.android.fakes.FakeTransactionRepository
 import com.spendwise.android.fakes.MainDispatcherRule
 import kotlinx.coroutines.CompletableDeferred
@@ -247,6 +248,74 @@ class TransactionsViewModelTest {
         val state = viewModel.state.value as TransactionsUiState.Content
         assertFalse(state.isRefreshing)
         assertEquals(2, state.items.size)
+    }
+
+    @Test
+    fun `dead-generation mid-load stays Loading and reloads on resume`() = runTest {
+        // EXT-MAJOR-1: a response landing after the generation boundary
+        // throws SessionEndedException — the same-user resume must still
+        // re-run the aborted load, not sit on the skeleton forever.
+        val txns = FakeTransactionRepository()
+        var dead = true
+        txns.listResult = { _, _, _ ->
+            if (dead) throw SessionEndedException() else twoRows()
+        }
+        val viewModel = vm(txns)
+
+        assertTrue(viewModel.state.value is TransactionsUiState.Loading)
+
+        dead = false
+        viewModel.onVisible()
+
+        val state = viewModel.state.value as TransactionsUiState.Content
+        assertEquals(2, state.items.size)
+    }
+
+    @Test
+    fun `dead-generation mid-refresh clears isRefreshing and reloads on resume`() = runTest {
+        val txns = FakeTransactionRepository()
+        var dead = false
+        txns.listResult = { _, _, _ ->
+            if (dead) throw SessionEndedException() else twoRows()
+        }
+        val viewModel = vm(txns)
+
+        dead = true
+        viewModel.refresh()
+
+        var state = viewModel.state.value as TransactionsUiState.Content
+        assertFalse(state.isRefreshing)
+        assertEquals(2, state.items.size)
+
+        dead = false
+        viewModel.onVisible()
+
+        state = viewModel.state.value as TransactionsUiState.Content
+        assertEquals(2, state.items.size)
+        assertEquals(3, txns.listCalls.size)
+    }
+
+    @Test
+    fun `dead-generation on options reloads the filter options on resume`() = runTest {
+        val txns = FakeTransactionRepository()
+        txns.listResult = { _, _, _ -> twoRows() }
+        val accounts = FakeAccountRepository()
+        var dead = true
+        accounts.listResult = { _ ->
+            if (dead) {
+                throw SessionEndedException()
+            } else {
+                listOf(FakeAccountRepository.account(id = "acc-1", name = "Wallet"))
+            }
+        }
+        val viewModel = vm(txns, accounts)
+
+        assertTrue(viewModel.options.value.accounts.isEmpty())
+
+        dead = false
+        viewModel.onVisible()
+
+        assertEquals(1, viewModel.options.value.accounts.size)
     }
 
     @Test

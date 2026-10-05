@@ -2,6 +2,7 @@ package com.spendwise.android.feature.accounts
 
 import com.spendwise.android.core.network.AppError
 import com.spendwise.android.core.network.AppErrorException
+import com.spendwise.android.data.repository.SessionEndedException
 import com.spendwise.android.fakes.FakeAccountRepository
 import com.spendwise.android.fakes.MainDispatcherRule
 import kotlinx.coroutines.test.runTest
@@ -103,7 +104,10 @@ class AccountsViewModelTest {
     }
 
     @Test
-    fun `expired mid-refresh keeps prior content and clears isRefreshing`() = runTest {
+    fun `expired mid-refresh keeps prior content, clears isRefreshing, and reloads on resume`() = runTest {
+        // Uniform invariant (M3 EXT-MAJOR-1 remediation): a session
+        // boundary during ANY in-flight load arms resume-retry — even
+        // when content is already on screen, so the resume re-fetches.
         val repo = FakeAccountRepository()
         repo.listResult = { listOf(FakeAccountRepository.account("a1")) }
         val vm = AccountsViewModel(repo)
@@ -113,9 +117,63 @@ class AccountsViewModelTest {
 
         val state = vm.state.value as AccountsUiState.Content
         assertFalse(state.isRefreshing)
-        // No mid-load retry needed — content is already on screen.
+        repo.listResult = { listOf(FakeAccountRepository.account("a1")) }
         vm.onVisible()
+        assertEquals(listOf(false, true, true), repo.listCalls)
+    }
+
+    @Test
+    fun `dead-generation mid-load arms the resume retry — no stuck skeleton`() = runTest {
+        // EXT-MAJOR-1: SessionEndedException (response lands after the
+        // generation boundary) must behave like the 401 path — arm the
+        // retry, release the pending state.
+        val repo = FakeAccountRepository()
+        var dead = true
+        repo.listResult = {
+            if (dead) {
+                throw SessionEndedException()
+            } else {
+                listOf(FakeAccountRepository.account("a1"))
+            }
+        }
+        val vm = AccountsViewModel(repo)
+
+        assertEquals(AccountsUiState.Loading, vm.state.value)
+
+        dead = false
+        vm.onVisible()
+
+        val state = vm.state.value as AccountsUiState.Content
+        assertEquals(1, state.accounts.size)
         assertEquals(listOf(false, true), repo.listCalls)
+    }
+
+    @Test
+    fun `dead-generation mid-refresh clears isRefreshing and reloads on resume`() = runTest {
+        val repo = FakeAccountRepository()
+        var dead = false
+        repo.listResult = {
+            if (dead) {
+                throw SessionEndedException()
+            } else {
+                listOf(FakeAccountRepository.account("a1"))
+            }
+        }
+        val vm = AccountsViewModel(repo)
+
+        dead = true
+        vm.refresh()
+
+        var state = vm.state.value as AccountsUiState.Content
+        assertFalse(state.isRefreshing)
+        assertEquals(1, state.accounts.size)
+
+        dead = false
+        vm.onVisible()
+
+        state = vm.state.value as AccountsUiState.Content
+        assertEquals(1, state.accounts.size)
+        assertEquals(listOf(false, true, true), repo.listCalls)
     }
 
     @Test

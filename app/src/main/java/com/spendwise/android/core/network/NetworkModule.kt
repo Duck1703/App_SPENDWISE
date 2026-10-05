@@ -29,6 +29,12 @@ import javax.inject.Singleton
  *
  * Logging policy: OkHttp headers-level logging exists **only** in debug
  * builds, with Authorization and Cookie redacted, never bodies (INV).
+ *
+ * Retry policy: `retryOnConnectionFailure(false)` — OkHttp's transparent
+ * transport retry could re-transmit a repeatable POST body on a recoverable
+ * connection failure, silently duplicating a financial write the app layer
+ * can never detect. No automatic retry at any layer; every failure path
+ * surfaces honestly instead.
  */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -53,6 +59,7 @@ object NetworkModule {
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(false)
             .addInterceptor(authInterceptor)
             .addInterceptor(errorInterceptor)
             .apply {

@@ -88,9 +88,16 @@ class TransactionsViewModel @Inject constructor(
                         // must NOT propagate — it would cancel this whole
                         // collect coroutine and freeze the pipeline. Drop
                         // the stale result instead: no emit, no publish.
+                        // The same-user resume contract still applies —
+                        // arm the retry flag and release the pending
+                        // state markPending() just set, so onVisible()
+                        // re-runs the aborted load.
                         val result = try {
                             fetch(q.filters)
                         } catch (e: SessionEndedException) {
+                            expiredMidLoad = true
+                            (_state.value as? TransactionsUiState.Content)
+                                ?.let { _state.value = it.copy(isRefreshing = false) }
                             null
                         }
                         if (result != null) emit(result to q.tick)
@@ -173,6 +180,10 @@ class TransactionsViewModel @Inject constructor(
         viewModelScope.launch {
             val accounts = try {
                 accountRepository.list()
+            } catch (e: SessionEndedException) {
+                // Dead-generation write — resume reloads via onVisible.
+                optionsExpired = true
+                return@launch
             } catch (e: AppErrorException) {
                 // Expiry → overlay owns it; same-user resume reloads via
                 // onVisible. Other failures degrade to empty options.
@@ -184,6 +195,9 @@ class TransactionsViewModel @Inject constructor(
             }
             val categories = try {
                 categoryRepository.list()
+            } catch (e: SessionEndedException) {
+                optionsExpired = true
+                return@launch
             } catch (e: AppErrorException) {
                 if (e.error is AppError.SessionExpired) {
                     optionsExpired = true

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.spendwise.android.core.network.AppError
 import com.spendwise.android.core.network.AppErrorException
 import com.spendwise.android.data.repository.AccountRepository
+import com.spendwise.android.data.repository.SessionEndedException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,7 +39,6 @@ class AccountsViewModel @Inject constructor(
             }
             try {
                 val accounts = accountRepository.list(refresh = !initial)
-                loadSettled = true
                 _state.value = if (accounts.isEmpty()) {
                     AccountsUiState.Empty
                 } else {
@@ -47,17 +47,24 @@ class AccountsViewModel @Inject constructor(
                         mixedCurrencies = accounts.map { it.balance.currency }.distinct().size > 1,
                     )
                 }
+            } catch (e: SessionEndedException) {
+                // Dead-generation publish — the session ended between
+                // dispatch and response. Same resume contract as the 401
+                // path: arm the retry flag and release the pending state
+                // so onVisible() re-runs the aborted load.
+                expiredMidLoad = true
+                (current as? AccountsUiState.Content)
+                    ?.let { _state.value = it.copy(isRefreshing = false) }
             } catch (e: AppErrorException) {
                 if (e.error is AppError.SessionExpired) {
                     // The expired overlay is being pushed over this screen;
-                    // the same-user resume re-composition calls onVisible(),
-                    // which re-runs the aborted load.
-                    expiredMidLoad = !loadSettled
+                    // a load was in flight, so the same-user resume
+                    // re-composition calls onVisible() and re-runs it.
+                    expiredMidLoad = true
                     (current as? AccountsUiState.Content)
                         ?.let { _state.value = it.copy(isRefreshing = false) }
                     return@launch
                 }
-                loadSettled = true
                 // MIN-1: a failed refresh over live content keeps the list
                 // and reports inline; only an initial-load failure flips
                 // to the full-screen error state.
@@ -68,7 +75,6 @@ class AccountsViewModel @Inject constructor(
         }
     }
 
-    private var loadSettled = false
     private var expiredMidLoad = false
 
     /**

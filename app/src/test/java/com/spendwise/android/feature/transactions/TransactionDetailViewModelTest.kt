@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import com.spendwise.android.core.model.TransactionType
 import com.spendwise.android.core.network.AppError
 import com.spendwise.android.core.network.AppErrorException
+import com.spendwise.android.data.repository.SessionEndedException
 import com.spendwise.android.fakes.FakeAccountRepository
 import com.spendwise.android.fakes.FakeTransactionRepository
 import com.spendwise.android.fakes.MainDispatcherRule
@@ -96,6 +97,30 @@ class TransactionDetailViewModelTest {
         assertTrue(viewModel.state.value is TransactionDetailUiState.Loading)
 
         expired = false
+        viewModel.onVisible()
+
+        val state = viewModel.state.value as TransactionDetailUiState.Content
+        assertEquals(TransactionType.INCOME, state.transaction.type)
+    }
+
+    @Test
+    fun `dead-generation mid-load stays Loading and reloads on resume`() = runTest {
+        // EXT-MAJOR-1: the dead-generation path must arm the same
+        // resume-retry as the 401 path — not leave a stuck skeleton.
+        val txns = FakeTransactionRepository()
+        var dead = true
+        txns.findByIdResult = { id ->
+            if (dead) {
+                throw SessionEndedException()
+            } else {
+                FakeTransactionRepository.transaction(id = id, type = TransactionType.INCOME)
+            }
+        }
+        val viewModel = vm(txns = txns)
+
+        assertTrue(viewModel.state.value is TransactionDetailUiState.Loading)
+
+        dead = false
         viewModel.onVisible()
 
         val state = viewModel.state.value as TransactionDetailUiState.Content

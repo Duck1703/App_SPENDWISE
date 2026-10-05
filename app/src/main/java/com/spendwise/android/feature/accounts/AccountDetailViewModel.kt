@@ -65,9 +65,13 @@ class AccountDetailViewModel @Inject constructor(
                     history = fetchHistory(),
                 )
             } catch (e: SessionEndedException) {
-                // Dead-generation write — this surface is being torn
-                // down, or the overlay/resume path already owns
-                // recovery. Unwind this launch quietly.
+                // Dead-generation publish — the session ended between
+                // dispatch and response. Same resume contract as the 401
+                // path: arm the retry flag and release the pending state
+                // so onVisible() re-runs the aborted load.
+                expiredMidLoad = true
+                (current as? AccountDetailUiState.Content)
+                    ?.let { _state.value = it.copy(isRefreshing = false) }
             } catch (e: AppErrorException) {
                 if (e.error is AppError.SessionExpired) {
                     // Expired overlay is being pushed; a load was in
@@ -100,6 +104,10 @@ class AccountDetailViewModel @Inject constructor(
             AccountDetailUiState.AccountHistory.Items(
                 transactionRepository.list(accountId = accountId),
             )
+        } catch (e: SessionEndedException) {
+            // Dead-generation write — resume reloads via onVisible.
+            historyExpired = true
+            AccountDetailUiState.AccountHistory.Loading
         } catch (e: AppErrorException) {
             if (e.error is AppError.SessionExpired) {
                 historyExpired = true

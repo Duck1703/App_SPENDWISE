@@ -56,8 +56,13 @@ class TransactionDetailViewModel @Inject constructor(
                 }.getOrNull()
                 _state.value = TransactionDetailUiState.Content(transaction, accountName)
             } catch (e: SessionEndedException) {
-                // Dead-generation write — this surface is being torn
-                // down, or the overlay/resume path owns recovery.
+                // Dead-generation publish — the session ended between
+                // dispatch and response. Same resume contract as the 401
+                // path: arm the retry flag and release the pending state
+                // so onVisible() re-runs the aborted load.
+                expiredMidLoad = true
+                (current as? TransactionDetailUiState.Content)
+                    ?.let { _state.value = it.copy(isRefreshing = false) }
             } catch (e: AppErrorException) {
                 if (e.error is AppError.SessionExpired) {
                     // A load was in flight — resume always re-runs it.

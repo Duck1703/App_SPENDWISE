@@ -4,6 +4,7 @@ import app.cash.turbine.test
 import com.spendwise.android.core.model.AccountType
 import com.spendwise.android.core.network.AppError
 import com.spendwise.android.core.network.AppErrorException
+import com.spendwise.android.data.repository.SessionEndedException
 import com.spendwise.android.fakes.FakeAccountRepository
 import com.spendwise.android.fakes.MainDispatcherRule
 import kotlinx.coroutines.test.runTest
@@ -238,6 +239,33 @@ class CreateAccountViewModelTest {
 
         // After the overlay resumes the preserved form, resubmission works.
         repo.createResult = { _, _, _ -> FakeAccountRepository.account(id = "retry-1") }
+        vm.submit()
+
+        assertEquals(2, repo.createCalls.size)
+    }
+
+    @Test
+    fun `dead-generation submit releases the lock with the ambiguous form error`() = runTest {
+        // EXT-MAJOR-1: a response landing after the generation boundary
+        // throws SessionEndedException — the write almost certainly
+        // committed, so the lock releases AND the ambiguous copy marks
+        // the outcome honestly; the preserved draft resubmits by hand.
+        val repo = FakeAccountRepository()
+        repo.createResult = { _, _, _ -> throw SessionEndedException() }
+        val vm = viewModel(repo)
+        vm.onNameChange("Jar")
+        vm.onOpeningBalanceChange("1500")
+
+        vm.submit()
+
+        assertTrue(!vm.state.value.isSubmitting)
+        assertEquals(
+            CreateAccountUiState.CreateFormError.Network, // ambiguous copy
+            vm.state.value.formError,
+        )
+        assertEquals("Jar", vm.state.value.name)
+
+        repo.createResult = { _, _, _ -> FakeAccountRepository.account(id = "retry-9") }
         vm.submit()
 
         assertEquals(2, repo.createCalls.size)

@@ -8,6 +8,7 @@ import com.spendwise.android.core.network.AppErrorException
 import com.spendwise.android.core.model.CurrencyCode
 import com.spendwise.android.core.model.Money
 import com.spendwise.android.data.repository.AccountRepository
+import com.spendwise.android.data.repository.SessionEndedException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -81,6 +82,18 @@ class CreateAccountViewModel @Inject constructor(
                     ),
                 )
                 _events.send(Event.Created(account.id))
+            } catch (e: SessionEndedException) {
+                // Dead-generation publish — the response already landed
+                // (the repository throws only after it), so the account
+                // almost certainly exists server-side. Release the
+                // submit lock; the ambiguous copy (CreateFormError.
+                // Network) says "couldn't confirm — check your accounts"
+                // and the preserved draft is resubmitted only by the
+                // user. Never auto-replay a non-idempotent POST.
+                _state.value = _state.value.copy(
+                    isSubmitting = false,
+                    formError = CreateAccountUiState.CreateFormError.Network,
+                )
             } catch (e: AppErrorException) {
                 if (e.error is AppError.SessionExpired) {
                     // Overlay pushed; release the submit lock so the preserved
