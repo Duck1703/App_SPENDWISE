@@ -22,11 +22,14 @@ High-level phase plan. Milestone briefs are created per phase by ATLAS using
 | M5 | CSV / TPBank PDF Import (select/upload/result) | EXTERNAL AUDIT ACCEPTED — remediated (`0db8b3a`), pending human sign-off (see [milestones/M5-CSV-PDF-IMPORT.md](milestones/M5-CSV-PDF-IMPORT.md), [reviews/M5-EXTERNAL-AUDIT-SUMMARY.md](reviews/M5-EXTERNAL-AUDIT-SUMMARY.md)) |
 | M6 | Planning (recurring, budgets, categorization rules) | EXTERNAL AUDIT ACCEPTED — no remediation needed (0 blockers/majors/minors), pending human sign-off (see [milestones/M6-PLANNING.md](milestones/M6-PLANNING.md), [reviews/M6-EXTERNAL-AUDIT-SUMMARY.md](reviews/M6-EXTERNAL-AUDIT-SUMMARY.md), [reviews/M6-SENTINEL-REVIEW.md](reviews/M6-SENTINEL-REVIEW.md), [reviews/M6-ARGUS-REVIEW.md](reviews/M6-ARGUS-REVIEW.md)) |
 | M7 | Hardening / UX / Testing | COMPLETE — external audit ACCEPTED (0 blockers/majors; 1 deferred minor), human-approved via conditional authorization (see [milestones/M7-HARDENING.md](milestones/M7-HARDENING.md), [reviews/M7-EXTERNAL-AUDIT-SUMMARY.md](reviews/M7-EXTERNAL-AUDIT-SUMMARY.md), [reviews/M7-SENTINEL-REVIEW.md](reviews/M7-SENTINEL-REVIEW.md), [reviews/M7-ARGUS-REVIEW.md](reviews/M7-ARGUS-REVIEW.md)) |
+| M8 | V1 Release Acceptance & Device Validation | CURRENT — Human-authorized validation-only milestone: device/emulator runtime evidence, secure storage, session/privacy, V1 flows, IME/large-font/accessibility, lazy lists, minified release. No new product features (see [milestones/M8-V1-RELEASE-ACCEPTANCE.md](milestones/M8-V1-RELEASE-ACCEPTANCE.md)) |
 
-**Canonical sequence M0–M7 fully delivered.** No M8 is defined in this
-roadmap or ARCHITECTURE §34 — M7 was the final planned milestone. Any
-post-V1 work (backend-gated capabilities BE-001…BE-011 per PRODUCT §41)
-requires a new milestone authorized by THE HUMAN.
+**Canonical sequence M0–M7 fully delivered.** M8 was subsequently
+authorized by THE HUMAN as a validation-only milestone — it converts
+compile-only evidence into Android-runtime release evidence and adds no
+product scope. Any post-V1 work (backend-gated capabilities
+BE-001…BE-011 per PRODUCT §41) requires a future milestone authorized
+by THE HUMAN. M9 is not defined.
 
 ## Important
 
