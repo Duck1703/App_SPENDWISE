@@ -24,11 +24,18 @@ High-level phase plan. Milestone briefs are created per phase by ATLAS using
 | M7 | Hardening / UX / Testing | COMPLETE — external audit ACCEPTED (0 blockers/majors; 1 deferred minor), human-approved via conditional authorization (see [milestones/M7-HARDENING.md](milestones/M7-HARDENING.md), [reviews/M7-EXTERNAL-AUDIT-SUMMARY.md](reviews/M7-EXTERNAL-AUDIT-SUMMARY.md), [reviews/M7-SENTINEL-REVIEW.md](reviews/M7-SENTINEL-REVIEW.md), [reviews/M7-ARGUS-REVIEW.md](reviews/M7-ARGUS-REVIEW.md)) |
 | M8 | V1 Release Acceptance & Device Validation | COMPLETE — external release audit ACCEPTED (0 blockers/majors; 4 minor remediated), human-approved via conditional authorization; verified on fresh audit AVD **and physical Pixel 4 XL** (see [milestones/M8-V1-RELEASE-ACCEPTANCE.md](milestones/M8-V1-RELEASE-ACCEPTANCE.md), [reviews/M8-EXTERNAL-RELEASE-AUDIT.md](reviews/M8-EXTERNAL-RELEASE-AUDIT.md), [reviews/M8-SENTINEL-REVIEW.md](reviews/M8-SENTINEL-REVIEW.md), [reviews/M8-ARGUS-REVIEW.md](reviews/M8-ARGUS-REVIEW.md), [POST-V1-BACKEND-GATES.md](POST-V1-BACKEND-GATES.md), [POST-V1-ROADMAP-PROPOSAL.md](POST-V1-ROADMAP-PROPOSAL.md)) |
 
+| M9 | Ledger Export (server-generated CSV → SAF save) | HUMAN_AUTHORIZED — CURRENT (see [milestones/M9-LEDGER-EXPORT.md](milestones/M9-LEDGER-EXPORT.md), [M9-DECISION-BRIEF.md](M9-DECISION-BRIEF.md)) |
+
 **Canonical sequence M0–M8 fully delivered and release-accepted.** V1
 was validated on emulator AND physical hardware (135/135 connected ×2
 each, R8 release smoke on-device, TEE-backed Keystore confirmed). Any
 post-V1 work (backend-gated capabilities BE-001…BE-011 per PRODUCT §41)
-requires a future milestone authorized by THE HUMAN. M9 is not defined.
+requires a future milestone authorized by THE HUMAN.
+
+**M9 (Ledger Export) is authorized and current** — the Human approved
+export-only scope (import-pointer store and this-device import history
+explicitly REJECTED; FX deferred; dates/mutations backend-gated).
+M10 is not defined.
 
 ## Important
 
