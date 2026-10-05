@@ -152,6 +152,30 @@ class ImportViewModelTest {
         assertEquals("acc-2", form(viewModel).selectedAccountId)
     }
 
+    @Test
+    fun `out-of-order pick completions keep the latest pick`() = runTest {
+        val accounts = FakeAccountRepository()
+        accounts.listResult = { _ -> twoAccounts() }
+        val imports = FakeImportRepository()
+        val viewModel = vm(accounts, imports)
+
+        val slow = CompletableDeferred<SelectedStatement>()
+        imports.describeResult = { u ->
+            if (u == "uri:a") slow.await() else SelectedStatement(u, "b.csv", 10L)
+        }
+        viewModel.onFilePicked("uri:a")
+        runCurrent()
+        viewModel.onFilePicked("uri:b")
+        runCurrent()
+        assertEquals("b.csv", form(viewModel).file?.displayName)
+
+        // The stale pick resolving last must not clobber the newer pick.
+        slow.complete(SelectedStatement("uri:a", "a.csv", 10L))
+        runCurrent()
+        assertEquals("b.csv", form(viewModel).file?.displayName)
+        assertNull(form(viewModel).error)
+    }
+
     // ── Submit ──────────────────────────────────────────────────────
 
     @Test

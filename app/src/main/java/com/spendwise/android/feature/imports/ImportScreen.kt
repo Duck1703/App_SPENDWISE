@@ -381,12 +381,12 @@ private fun ImportResult(batch: ImportBatch, onDone: () -> Unit) {
                 text = stringResource(R.string.import_result_empty_body),
                 kind = SwBannerKind.Info,
             )
-            batch.successCount == 0 && batch.failedCount == 0 -> SwBanner(
+            batch.duplicateCount == batch.totalRows -> SwBanner(
                 title = stringResource(R.string.import_all_duplicates_title),
                 text = stringResource(R.string.import_all_duplicates_body),
                 kind = SwBannerKind.Info,
             )
-            batch.successCount == 0 -> SwBanner(
+            batch.failedCount == batch.totalRows -> SwBanner(
                 title = stringResource(R.string.import_all_failed_title),
                 text = stringResource(R.string.import_all_failed_body),
                 kind = SwBannerKind.Error,

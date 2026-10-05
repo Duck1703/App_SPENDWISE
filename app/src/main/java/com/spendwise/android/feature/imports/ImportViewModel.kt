@@ -82,34 +82,48 @@ class ImportViewModel @Inject constructor(
     fun onFilePicked(uri: String) {
         val form = _state.value as? ImportUiState.Form ?: return
         _state.value = form.copy(error = null)
+        // Latest-pick-wins: a slow provider response for an earlier pick
+        // must never overwrite a newer selection.
+        val seq = ++pickSeq
         viewModelScope.launch {
             val current = _state.value as? ImportUiState.Form ?: return@launch
             try {
                 val file = importRepository.describe(uri)
+                if (seq != pickSeq) return@launch
+                val latest = _state.value as? ImportUiState.Form ?: return@launch
                 val name = file.displayName.lowercase()
                 when {
                     !name.endsWith(".csv") && !name.endsWith(".pdf") ->
-                        _state.value = current.copy(error = ImportError.UnsupportedFile)
+                        _state.value = latest.copy(error = ImportError.UnsupportedFile)
                     file.sizeBytes > MAX_FILE_BYTES ->
-                        _state.value = current.copy(error = ImportError.FileTooLarge)
+                        _state.value = latest.copy(error = ImportError.FileTooLarge)
                     else ->
-                        _state.value = current.copy(file = file, error = null)
+                        _state.value = latest.copy(file = file, error = null)
                 }
             } catch (e: SessionEndedException) {
                 expiredMidLoad = true
             } catch (e: AppErrorException) {
+                if (seq != pickSeq) return@launch
                 if (e.error is AppError.SessionExpired) {
                     expiredMidLoad = true
                     return@launch
                 }
-                _state.value = current.copy(error = e.error.toImportError())
+                (_state.value as? ImportUiState.Form)?.let {
+                    _state.value = it.copy(error = e.error.toImportError())
+                }
             } catch (e: Exception) {
-                _state.value = current.copy(error = ImportError.Generic)
+                if (seq != pickSeq) return@launch
+                (_state.value as? ImportUiState.Form)?.let {
+                    _state.value = it.copy(error = ImportError.Generic)
+                }
             }
         }
     }
 
+    private var pickSeq = 0
+
     fun onFileCleared() {
+        pickSeq++ // an in-flight pick must not resurrect a cleared file
         (_state.value as? ImportUiState.Form)?.let {
             _state.value = it.copy(file = null, error = null)
         }
