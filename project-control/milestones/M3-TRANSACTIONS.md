@@ -81,17 +81,17 @@ rule-matching hint, never persisted. Validation: `amount
 
 ## Tests
 
-`testDebugUnitTest`: **246/246 PASS** (+75 over M2's 171) — wire
+`testDebugUnitTest`: **258/258 PASS** (+87 over M2's 171) — wire
 contract (7), transaction repository (9), generation-stamp concurrency
-(4), categories (3), ViewModels (34 + 4 history), routes (+1), plus the
-full M1+M2 regression in the same run. androidTest: 23 Compose cases
-across the transaction screens + updated account-detail suite —
-**compile-verified; no device** (`adb devices` empty). Real-backend E2E:
-not run (no local backend provisioned).
+(4), categories (3), ViewModels (46 + 4 history), routes (+1), network
+config (1), plus the full M1+M2 regression in the same run. androidTest:
+23 Compose cases across the transaction screens + updated account-detail
+suite — **compile-verified; no device** (`adb devices` empty).
+Real-backend E2E: not run (no local backend provisioned).
 
 ## Quality gates
 
-`assembleDebug` PASS · `testDebugUnitTest` PASS (246/246) ·
+`assembleDebug` PASS · `testDebugUnitTest` PASS (258/258) ·
 `lintDebug` PASS (0 errors; 20 informational warnings — same class as
 M2) · `compileDebugAndroidTestKotlin` PASS · `assembleRelease` PASS ·
 detekt **0 findings**.
@@ -103,6 +103,16 @@ detekt **0 findings**.
   PASS; 0 blockers, 0 majors (1 reconciled: session-expiry on a
   mid-refresh/name-lookup load misclassified resume state — fixed +
   locked by regression test), 3 minors reconciled, 6 notes.
+- External audit:
+  [reviews/M3-EXTERNAL-AUDIT-SUMMARY.md](../reviews/M3-EXTERNAL-AUDIT-SUMMARY.md)
+  — FINDINGS (0 blockers, 1 major, 1 minor), remediated:
+  `EXT-MAJOR-1` dead-generation (`SessionEndedException`) paths left
+  pending state armed and skipped resume-retry across nine sites —
+  including two permanently-locked submit locks; all sites now arm the
+  resume flag and release pending state, submit paths mark the outcome
+  ambiguous. `EXT-MIN-1` OkHttp transparent POST retry — disabled
+  (`retryOnConnectionFailure=false`). +12 regression tests; all gates
+  re-verified post-remediation.
 
 ## Scope exclusions honored
 
@@ -124,7 +134,8 @@ Backend, reference, prototype untouched; private fixtures never read.
 ```
 M3_SENTINEL=PASS
 M3_ARGUS=PASS (0 blockers, 0 majors)
-M3_JVM_TESTS=246/246
+M3_EXTERNAL_AUDIT=FINDINGS → REMEDIATED (EXT-MAJOR-1 + EXT-MIN-1, see reviews/M3-EXTERNAL-AUDIT-SUMMARY.md)
+M3_JVM_TESTS=258/258
 M3_CONNECTED_INSTRUMENTATION=NOT_RUN_NO_DEVICE
 M3_GATES=assembleDebug+testDebugUnitTest+lintDebug+compileDebugAndroidTestKotlin+assembleRelease+detekt: PASS
 M3_READY_FOR_EXTERNAL_AUDIT=YES
