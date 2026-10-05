@@ -1,8 +1,7 @@
 # M3 — Transactions
 
-Status: **READY_FOR_EXTERNAL_AUDIT**
-(`M3_READY_FOR_EXTERNAL_AUDIT=YES`; `M3_HUMAN_APPROVED=NO`;
-`M4_STARTED=NO`; `SAFE_TO_AUDIT=YES`)
+Status: **HUMAN_APPROVED — COMPLETE**
+(`M3_HUMAN_APPROVED=YES`; M4 authorized)
 
 ## Authorization
 
@@ -129,7 +128,7 @@ Backend, reference, prototype untouched; private fixtures never read.
 - Prototype `D:\app_spendwise\spendwise-ui-prototype`: unchanged
   (read-only design source).
 
-## External-audit gate
+## External-audit gate (state at audit time — superseded by the Human gate below)
 
 ```
 M3_SENTINEL=PASS
@@ -144,5 +143,24 @@ M4_STARTED=NO
 SAFE_TO_AUDIT=YES
 ```
 
-Next action: **external audit → Human gate.** M4 (Home / Dashboard) is
-not authorized until THE HUMAN closes M3.
+Next action: **M4 — Home / Dashboard.**
+
+## Human gate
+
+`M3_EXTERNAL_AUDIT_VERDICT=FINDINGS` (`BLOCKER=0`, `MAJOR=1` —
+EXT-MAJOR-1 dead-generation paths left pending state and skipped
+resume-retry across nine sites, including two permanently-locked
+submit locks; `MINOR=1` — EXT-MIN-1 OkHttp transparent POST retry).
+Remediation `2f2b447` resolved both: every dead-generation path arms
+the matching resume-retry flag and releases pending state, submit
+paths mark the outcome ambiguous, and
+`retryOnConnectionFailure=false` closes the transport-retry hole.
+Verification recorded in `348de2b` and
+[reviews/M3-EXTERNAL-AUDIT-SUMMARY.md](../reviews/M3-EXTERNAL-AUDIT-SUMMARY.md).
+
+`M3_EXT_MAJOR_1=RESOLVED`, `M3_EXT_MIN_1=RESOLVED`,
+`M3_POST_REMEDIATION_VERIFICATION=PASS`,
+`M3_FINAL_JVM_TESTS=258/258`,
+`M3_CONNECTED_INSTRUMENTATION=NOT_RUN_NO_DEVICE`,
+`M3_HUMAN_APPROVED=YES`, `M3_STATUS=COMPLETE`,
+`M4_AUTHORIZED_TO_START=YES`.
