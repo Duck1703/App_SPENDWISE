@@ -2,7 +2,7 @@ package com.spendwise.android.feature.transactions
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -31,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -130,6 +132,7 @@ private fun CreateForm(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
+            .imePadding()
             .padding(horizontal = SwSpacing.Lg),
         verticalArrangement = Arrangement.spacedBy(SwSpacing.Md),
     ) {
@@ -340,7 +343,12 @@ private fun CategoryChoice(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .clip(RoundedCornerShape(SwRadii.Md))
-            .clickable(enabled = enabled, onClick = onClick)
+            .selectable(
+                selected = selected,
+                enabled = enabled,
+                role = Role.RadioButton,
+                onClick = onClick,
+            )
             .padding(horizontal = 6.dp, vertical = 4.dp),
     ) {
         Box(

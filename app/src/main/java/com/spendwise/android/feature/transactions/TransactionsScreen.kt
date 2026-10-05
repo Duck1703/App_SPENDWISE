@@ -15,12 +15,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -311,23 +311,20 @@ private fun TransactionsContent(
                     modifier = Modifier.padding(start = 2.dp),
                 )
             }
-            item(key = "list") {
+            // M7 perf: the ledger is unbounded (backend has no
+            // pagination) — rows must be real lazy items with stable
+            // keys, not a Column inside one item that composes eagerly.
+            items(
+                items = state.items,
+                key = { it.id },
+                contentType = { "transaction" },
+            ) { transaction ->
                 SwCard {
-                    Column {
-                        state.items.forEachIndexed { index, transaction ->
-                            if (index > 0) {
-                                HorizontalDivider(
-                                    color = SwColors.Line,
-                                    modifier = Modifier.padding(horizontal = SwSpacing.Md),
-                                )
-                            }
-                            TransactionRow(
-                                transaction = transaction,
-                                accountName = state.accountNames[transaction.accountId],
-                                onClick = { onOpenTransaction(transaction.id) },
-                            )
-                        }
-                    }
+                    TransactionRow(
+                        transaction = transaction,
+                        accountName = state.accountNames[transaction.accountId],
+                        onClick = { onOpenTransaction(transaction.id) },
+                    )
                 }
             }
             item(key = "list-note") {

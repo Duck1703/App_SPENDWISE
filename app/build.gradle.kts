@@ -25,8 +25,11 @@ android {
         applicationId = "com.spendwise.android"
         minSdk = 26
         targetSdk = 36
+        // M7: V1 surface is complete (S01–S25 shipped M0–M6). Release
+        // versioning/signing ownership stays with THE HUMAN per Q4;
+        // this is the internal/direct-install V1 build.
         versionCode = 1
-        versionName = "0.1.0-m0"
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

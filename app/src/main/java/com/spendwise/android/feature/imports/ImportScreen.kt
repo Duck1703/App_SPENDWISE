@@ -5,15 +5,19 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -56,6 +60,7 @@ import com.spendwise.android.core.designsystem.SwSkeletonRows
 import com.spendwise.android.core.designsystem.SwSpacing
 import com.spendwise.android.core.designsystem.SwStateBlock
 import com.spendwise.android.core.model.ImportBatch
+import com.spendwise.android.core.model.ImportRow
 import com.spendwise.android.core.model.ImportRowStatus
 
 /**
@@ -178,6 +183,7 @@ private fun ImportForm(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
+            .imePadding()
             .padding(horizontal = SwSpacing.Lg),
         verticalArrangement = Arrangement.spacedBy(SwSpacing.Md),
     ) {
@@ -355,93 +361,104 @@ private fun FormatTruthBlock() {
 /** S14 — counts first, rows on demand; duplicates are calm, never errors. */
 @Composable
 private fun ImportResult(batch: ImportBatch, onDone: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = SwSpacing.Lg),
+    var rowsExpanded by remember { mutableStateOf(false) }
+    // M7 perf: a 1 MB statement can carry thousands of rows — every
+    // row list (failures + the on-demand full list) must compose lazily.
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = SwSpacing.Lg),
         verticalArrangement = Arrangement.spacedBy(SwSpacing.Md),
     ) {
-        Text(
-            text = batch.fileName,
-            style = MaterialTheme.typography.bodyMedium,
-            color = SwColors.Muted,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            text = stringResource(R.string.import_result_rows, batch.totalRows),
-            style = MaterialTheme.typography.titleMedium,
-            color = SwColors.Ink,
-        )
+        item(key = "filename") {
+            Text(
+                text = batch.fileName,
+                style = MaterialTheme.typography.bodyMedium,
+                color = SwColors.Muted,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        item(key = "count") {
+            Text(
+                text = stringResource(R.string.import_result_rows, batch.totalRows),
+                style = MaterialTheme.typography.titleMedium,
+                color = SwColors.Ink,
+            )
+        }
 
         when {
-            batch.totalRows == 0 -> SwBanner(
-                title = stringResource(R.string.import_result_empty_title),
-                text = stringResource(R.string.import_result_empty_body),
-                kind = SwBannerKind.Info,
-            )
-            batch.duplicateCount == batch.totalRows -> SwBanner(
-                title = stringResource(R.string.import_all_duplicates_title),
-                text = stringResource(R.string.import_all_duplicates_body),
-                kind = SwBannerKind.Info,
-            )
-            batch.failedCount == batch.totalRows -> SwBanner(
-                title = stringResource(R.string.import_all_failed_title),
-                text = stringResource(R.string.import_all_failed_body),
-                kind = SwBannerKind.Error,
-            )
+            batch.totalRows == 0 -> item(key = "banner") {
+                SwBanner(
+                    title = stringResource(R.string.import_result_empty_title),
+                    text = stringResource(R.string.import_result_empty_body),
+                    kind = SwBannerKind.Info,
+                )
+            }
+            batch.duplicateCount == batch.totalRows -> item(key = "banner") {
+                SwBanner(
+                    title = stringResource(R.string.import_all_duplicates_title),
+                    text = stringResource(R.string.import_all_duplicates_body),
+                    kind = SwBannerKind.Info,
+                )
+            }
+            batch.failedCount == batch.totalRows -> item(key = "banner") {
+                SwBanner(
+                    title = stringResource(R.string.import_all_failed_title),
+                    text = stringResource(R.string.import_all_failed_body),
+                    kind = SwBannerKind.Error,
+                )
+            }
         }
 
         // Three status tiles (P3A §6): imported / already-imported
         // (calm) / couldn't-import — count + label, merged semantics.
-        Row(horizontalArrangement = Arrangement.spacedBy(SwSpacing.Sm)) {
-            ResultTile(
-                count = batch.successCount,
-                label = stringResource(R.string.import_status_imported),
-                tint = SwColors.Income,
-                modifier = Modifier.weight(1f),
-            )
-            ResultTile(
-                count = batch.duplicateCount,
-                label = stringResource(R.string.import_status_duplicate),
-                tint = SwColors.Muted,
-                modifier = Modifier.weight(1f),
-            )
-            ResultTile(
-                count = batch.failedCount,
-                label = stringResource(R.string.import_status_failed),
-                tint = SwColors.Expense,
-                modifier = Modifier.weight(1f),
-            )
+        item(key = "tiles") {
+            Row(horizontalArrangement = Arrangement.spacedBy(SwSpacing.Sm)) {
+                ResultTile(
+                    count = batch.successCount,
+                    label = stringResource(R.string.import_status_imported),
+                    tint = SwColors.Income,
+                    modifier = Modifier.weight(1f),
+                )
+                ResultTile(
+                    count = batch.duplicateCount,
+                    label = stringResource(R.string.import_status_duplicate),
+                    tint = SwColors.Muted,
+                    modifier = Modifier.weight(1f),
+                )
+                ResultTile(
+                    count = batch.failedCount,
+                    label = stringResource(R.string.import_status_failed),
+                    tint = SwColors.Expense,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
 
         val failures = batch.rows.filter { it.status == ImportRowStatus.FAILED }
         if (failures.isNotEmpty()) {
-            SwCard {
-                Column {
-                    Text(
-                        text = stringResource(R.string.import_failures_section),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = SwColors.Expense,
-                        modifier = Modifier.padding(SwSpacing.Md),
+            item(key = "failures-header") {
+                Text(
+                    text = stringResource(R.string.import_failures_section),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = SwColors.Expense,
+                    modifier = Modifier.padding(horizontal = 2.dp),
+                )
+            }
+            items(
+                items = failures,
+                key = { "fail-${it.rowNumber}" },
+                contentType = { "import-row" },
+            ) { row ->
+                SwCard {
+                    ImportRowLine(
+                        text = if (row.reason.isNullOrBlank()) {
+                            stringResource(R.string.import_row_failed_no_reason, row.rowNumber)
+                        } else {
+                            stringResource(R.string.import_row_failed, row.rowNumber, row.reason)
+                        },
+                        failed = true,
                     )
-                    failures.forEach { row ->
-                        HorizontalDivider(
-                            color = SwColors.Line,
-                            modifier = Modifier.padding(horizontal = SwSpacing.Md),
-                        )
-                        Text(
-                            text = if (row.reason.isNullOrBlank()) {
-                                stringResource(R.string.import_row_failed_no_reason, row.rowNumber)
-                            } else {
-                                stringResource(R.string.import_row_failed, row.rowNumber, row.reason)
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = SwColors.Muted,
-                            modifier = Modifier.padding(SwSpacing.Md),
-                        )
-                    }
                 }
             }
         }
@@ -449,9 +466,8 @@ private fun ImportResult(batch: ImportBatch, onDone: () -> Unit) {
         // Rows on demand (P3A §6): the full per-row list stays one
         // tap away — duplicates read "already imported", never errors.
         if (batch.rows.isNotEmpty()) {
-            var rowsExpanded by remember { mutableStateOf(false) }
-            SwCard {
-                Column {
+            item(key = "rows-toggle") {
+                SwCard {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -479,66 +495,56 @@ private fun ImportResult(batch: ImportBatch, onDone: () -> Unit) {
                             modifier = Modifier.size(18.dp),
                         )
                     }
-                    if (rowsExpanded) {
-                        batch.rows.forEach { row ->
-                            HorizontalDivider(
-                                color = SwColors.Line,
-                                modifier = Modifier.padding(horizontal = SwSpacing.Md),
-                            )
-                            Text(
-                                text = when (row.status) {
-                                    ImportRowStatus.OK ->
-                                        stringResource(
-                                            R.string.import_row_ok,
-                                            row.rowNumber,
-                                        )
-                                    ImportRowStatus.DUPLICATE ->
-                                        stringResource(
-                                            R.string.import_row_duplicate,
-                                            row.rowNumber,
-                                        )
-                                    ImportRowStatus.FAILED ->
-                                        if (row.reason.isNullOrBlank()) {
-                                            stringResource(
-                                                R.string.import_row_failed_no_reason,
-                                                row.rowNumber,
-                                            )
-                                        } else {
-                                            stringResource(
-                                                R.string.import_row_failed,
-                                                row.rowNumber,
-                                                row.reason,
-                                            )
-                                        }
-                                    ImportRowStatus.UNKNOWN ->
-                                        stringResource(
-                                            R.string.import_row_unknown,
-                                            row.rowNumber,
-                                        )
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = when (row.status) {
-                                    ImportRowStatus.FAILED -> SwColors.Expense
-                                    else -> SwColors.Muted
-                                },
-                                modifier = Modifier.padding(SwSpacing.Md),
-                            )
-                        }
-                    }
+                }
+            }
+            if (rowsExpanded) {
+                items(
+                    items = batch.rows,
+                    key = { "row-${it.rowNumber}" },
+                    contentType = { "import-row" },
+                ) { row ->
+                    SwCard { ImportRowLine(text = importRowText(row), failed = row.status == ImportRowStatus.FAILED) }
                 }
             }
         }
 
-        Button(
-            onClick = onDone,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp),
-        ) {
-            Text(stringResource(R.string.import_result_done))
+        item(key = "done") {
+            Column {
+                Button(
+                    onClick = onDone,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                ) {
+                    Text(stringResource(R.string.import_result_done))
+                }
+                Spacer(Modifier.height(SwSpacing.Lg))
+            }
         }
-        Spacer(Modifier.height(SwSpacing.Lg))
     }
+}
+
+@Composable
+private fun importRowText(row: ImportRow): String = when (row.status) {
+    ImportRowStatus.OK -> stringResource(R.string.import_row_ok, row.rowNumber)
+    ImportRowStatus.DUPLICATE -> stringResource(R.string.import_row_duplicate, row.rowNumber)
+    ImportRowStatus.FAILED ->
+        if (row.reason.isNullOrBlank()) {
+            stringResource(R.string.import_row_failed_no_reason, row.rowNumber)
+        } else {
+            stringResource(R.string.import_row_failed, row.rowNumber, row.reason)
+        }
+    ImportRowStatus.UNKNOWN -> stringResource(R.string.import_row_unknown, row.rowNumber)
+}
+
+@Composable
+private fun ImportRowLine(text: String, failed: Boolean) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodySmall,
+        color = if (failed) SwColors.Expense else SwColors.Muted,
+        modifier = Modifier.padding(SwSpacing.Md),
+    )
 }
 
 @Composable
