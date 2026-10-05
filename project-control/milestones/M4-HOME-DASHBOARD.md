@@ -1,8 +1,8 @@
 # M4 — Home / Dashboard
 
-Status: **DELIVERED — awaiting external-audit gate**
-(`M4_STARTED=YES`; `M4_HUMAN_APPROVED=NO`;
-`M4_READY_FOR_EXTERNAL_AUDIT=YES`)
+Status: **COMPLETE**
+(`M4_STARTED=YES`; `M4_HUMAN_APPROVED=YES`; `M4_STATUS=COMPLETE`;
+`M5_AUTHORIZED_TO_START=YES`)
 
 ## Authorization
 
@@ -252,5 +252,19 @@ params, no new dependencies. Backend `8194daa` unchanged; reference
 
 ## Human gate
 
-`M4_EXTERNAL_AUDIT_VERDICT=PENDING` — awaiting the external audit and
-the human closeout that authorizes M5.
+`M4_EXTERNAL_AUDIT_VERDICT=FINDINGS` (`BLOCKER=0`, `MAJOR=0` —
+`MINOR=2`: collapsed FAB unlabeled; inline actions under the 48dp
+touch floor + unmerged hero-figure semantics). Remediation `9312904`
+resolved both: the FAB announces its action in expanded and compact
+forms, the three inline actions meet `SwSpacing.TouchTargetMin`, and
+hero figure rows read as one semantic unit. Verification and full
+audit evidence recorded in
+[reviews/M4-EXTERNAL-AUDIT-SUMMARY.md](../reviews/M4-EXTERNAL-AUDIT-SUMMARY.md).
+
+`M4_EXT_MIN_1=RESOLVED`, `M4_EXT_MIN_2=RESOLVED`,
+`M4_POST_REMEDIATION_VERIFICATION=PASS`,
+`M4_FINAL_JVM_TESTS=301/301`,
+`M4_CONNECTED_INSTRUMENTATION=NOT_RUN_NO_DEVICE`,
+`M4_HUMAN_APPROVED=YES` (conditional overnight authority — all gate
+conditions met), `M4_STATUS=COMPLETE`,
+`M5_AUTHORIZED_TO_START=YES`.
