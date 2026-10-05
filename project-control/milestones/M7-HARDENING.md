@@ -95,10 +95,40 @@ M7_SESSION_PRIVACY=PASS (generation guards, resume wiring, backup exclusion, cle
 M6_COMPLETE=YES
 M7_TECHNICAL_COMPLETE=YES
 M7_READY_FOR_EXTERNAL_AUDIT=YES
-M7_HUMAN_APPROVED=NO
-M8_STARTED=NO
 SAFE_TO_AUDIT=YES
 ```
+
+## External audit (post-delivery)
+
+Independent audit of `b9d8503..54993ed` — see
+[reviews/M7-EXTERNAL-AUDIT-SUMMARY.md](../reviews/M7-EXTERNAL-AUDIT-SUMMARY.md):
+
+```
+M7_EXTERNAL_AUDIT_FINAL=ACCEPTED
+BLOCKER=0  MAJOR=0  MINOR=1  NOTE=4
+Release falsification: pre-M7 rules -> 0 $$serializer names in DEX;
+M7 rules -> 28/28 (expected set independently derived: 22 DTOs +
+6 data-class routes; 16 object routes need no $$serializer).
+MINOR M7-EXT-01 deferred: residual grouped-card eager lists
+(Accounts/Budgets/Rules/Recurring) — domain-bounded, visual redesign
+not hardening fix.
+```
+
+## Human closeout (conditional authorization exercised)
+
+```
+M7_HUMAN_APPROVED=YES (conditional authorization — all gates met)
+M7_STATUS=COMPLETE
+M8_STATUS=DOES NOT EXIST IN CANONICAL GOVERNANCE
+```
+
+Canonical milestone sequence per ARCHITECTURE §34 and ROADMAP is
+M0–M7 — **M7 is the final planned milestone**; no M8 exists in
+ROADMAP, ARCHITECTURE, or PRODUCT. Backend-gated future capabilities
+(BE-001…BE-011, PRODUCT §41) have no scheduled milestone until a
+backend contract exists and THE HUMAN authorizes one. Attempting to
+resolve "canonical M8" therefore hits the explicit stop condition —
+no M8 work was started.
 
 ## Scope exclusions honored
 
