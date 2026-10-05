@@ -1,6 +1,7 @@
 # M8 — V1 Release Acceptance & Device Validation
 
-Status: **CURRENT**
+Status: **COMPLETE** — external release audit ACCEPTED, human-approved
+via conditional authorization.
 Starting SHA: `948a2ff` (M7 approved — canonical M0–M7 sequence complete)
 
 ## Human authorization
@@ -92,9 +93,12 @@ task. Compile-only evidence is NOT sufficient for M8.
 
 ### Runtime evidence (on-device)
 
-- **Keystore (§19):** AES/GCM round-trip on the real TEE key; GCM tag
-  rejects a tampered byte; fresh `KeystoreCipher` decrypts existing
-  blobs (cold-start); key invalidation reads as signed-out, not crash.
+- **Keystore (§19):** AES/GCM round-trip on the real Android Keystore
+  key; GCM tag rejects a tampered byte; fresh `KeystoreCipher` decrypts
+  existing blobs (cold-start); key invalidation reads as signed-out, not
+  crash. External audit measured `KeyInfo.securityLevel`: emulator
+  **SOFTWARE** (keystore2 daemon), physical Pixel 4 XL
+  **TRUSTED_ENVIRONMENT** — hardware backing confirmed on real silicon.
 - **DataStore (§20):** save→load round-trip; plaintext token never on
   disk (raw file verified); a new store over the same file restores the
   session (cold-start); `clearToken` drops only the credential;
@@ -154,3 +158,15 @@ task. Compile-only evidence is NOT sufficient for M8.
 
 - M7-EXT-01 (MINOR, deferred): grouped-card eager lists on
   Accounts/Budgets/Rules/Recurring — re-evaluated at runtime here.
+- TRUE_PROCESS_RESTART=PARTIAL: test-UID Keystore keys can't seed the
+  app process (UID-namespaced); store-level restore + UI routing +
+  SessionManager JVM coverage stand in — documented, not a defect.
+
+## External release audit
+
+`project-control/reviews/M8-EXTERNAL-RELEASE-AUDIT.md` — **ACCEPTED**
+(0 BLOCKER / 0 MAJOR / 4 MINOR fixed / 2 NOTE). Independent adversarial
+review on a fresh audit AVD **and** a physical Pixel 4 XL (API 33,
+arm64, vi-VN): 135/135 ×2 physical runs, release smoke on hardware,
+TEE-backing measured, locale-fragile test literals caught and fixed
+(en-US separators were invisible on the emulator's locale).
