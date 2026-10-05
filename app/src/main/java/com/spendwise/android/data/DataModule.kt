@@ -6,12 +6,18 @@ import com.spendwise.android.data.repository.CategoryRepository
 import com.spendwise.android.data.repository.ContentResolverStatementStore
 import com.spendwise.android.data.repository.DashboardRepository
 import com.spendwise.android.data.repository.ImportRepository
+import com.spendwise.android.data.repository.BudgetRepository
+import com.spendwise.android.data.repository.RecurringRepository
 import com.spendwise.android.data.repository.RemoteAccountRepository
 import com.spendwise.android.data.repository.RemoteAuthRepository
+import com.spendwise.android.data.repository.RemoteBudgetRepository
 import com.spendwise.android.data.repository.RemoteCategoryRepository
 import com.spendwise.android.data.repository.RemoteDashboardRepository
 import com.spendwise.android.data.repository.RemoteImportRepository
+import com.spendwise.android.data.repository.RemoteRecurringRepository
+import com.spendwise.android.data.repository.RemoteRuleRepository
 import com.spendwise.android.data.repository.RemoteTransactionRepository
+import com.spendwise.android.data.repository.RuleRepository
 import com.spendwise.android.data.repository.StatementStore
 import com.spendwise.android.data.repository.TransactionRepository
 import dagger.Binds
@@ -52,4 +58,16 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindStatementStore(impl: ContentResolverStatementStore): StatementStore
+
+    @Binds
+    @Singleton
+    abstract fun bindBudgetRepository(impl: RemoteBudgetRepository): BudgetRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindRecurringRepository(impl: RemoteRecurringRepository): RecurringRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindRuleRepository(impl: RemoteRuleRepository): RuleRepository
 }

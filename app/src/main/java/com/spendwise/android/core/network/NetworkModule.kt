@@ -3,10 +3,13 @@ package com.spendwise.android.core.network
 import com.spendwise.android.BuildConfig
 import com.spendwise.android.core.serialization.BigDecimalSerializer
 import com.spendwise.android.data.remote.AccountsService
+import com.spendwise.android.data.remote.BudgetsService
 import com.spendwise.android.data.remote.AuthService
 import com.spendwise.android.data.remote.CategoriesService
 import com.spendwise.android.data.remote.DashboardService
 import com.spendwise.android.data.remote.ImportsService
+import com.spendwise.android.data.remote.RecurringService
+import com.spendwise.android.data.remote.RulesService
 import com.spendwise.android.data.remote.TransactionsService
 import dagger.Module
 import dagger.Provides
@@ -115,4 +118,19 @@ object NetworkModule {
     @Singleton
     fun provideImportsService(retrofit: Retrofit): ImportsService =
         retrofit.create(ImportsService::class.java)
+
+    @Provides
+    @Singleton
+    fun provideBudgetsService(retrofit: Retrofit): BudgetsService =
+        retrofit.create(BudgetsService::class.java)
+
+    @Provides
+    @Singleton
+    fun provideRecurringService(retrofit: Retrofit): RecurringService =
+        retrofit.create(RecurringService::class.java)
+
+    @Provides
+    @Singleton
+    fun provideRulesService(retrofit: Retrofit): RulesService =
+        retrofit.create(RulesService::class.java)
 }

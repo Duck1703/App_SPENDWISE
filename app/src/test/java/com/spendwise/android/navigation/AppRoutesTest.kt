@@ -64,4 +64,95 @@ class AppRoutesTest {
             ).accountId,
         )
     }
+
+    // ── M6 planning routes ──────────────────────────────────────────
+
+    @Test
+    fun `recurring detail route round-trips its templateId`() {
+        val route = RecurringDetailRoute(templateId = "tpl-4")
+
+        val restored = Json.decodeFromString(
+            RecurringDetailRoute.serializer(),
+            Json.encodeToString(RecurringDetailRoute.serializer(), route),
+        )
+
+        assertEquals(route, restored)
+        assertEquals("tpl-4", restored.templateId)
+    }
+
+    @Test
+    fun `budget detail route round-trips its budgetId`() {
+        val route = BudgetDetailRoute(budgetId = "b-42")
+
+        val restored = Json.decodeFromString(
+            BudgetDetailRoute.serializer(),
+            Json.encodeToString(BudgetDetailRoute.serializer(), route),
+        )
+
+        assertEquals(route, restored)
+        assertEquals("b-42", restored.budgetId)
+    }
+
+    @Test
+    fun `rule detail route round-trips its ruleId`() {
+        val route = RuleDetailRoute(ruleId = "rl-7")
+
+        val restored = Json.decodeFromString(
+            RuleDetailRoute.serializer(),
+            Json.encodeToString(RuleDetailRoute.serializer(), route),
+        )
+
+        assertEquals(route, restored)
+        assertEquals("rl-7", restored.ruleId)
+    }
+
+    @Test
+    fun `planning list routes serialize as no-arg objects`() {
+        assertEquals(
+            RecurringListRoute,
+            Json.decodeFromString(
+                RecurringListRoute.serializer(),
+                Json.encodeToString(RecurringListRoute.serializer(), RecurringListRoute),
+            ),
+        )
+        assertEquals(
+            BudgetsRoute,
+            Json.decodeFromString(
+                BudgetsRoute.serializer(),
+                Json.encodeToString(BudgetsRoute.serializer(), BudgetsRoute),
+            ),
+        )
+        assertEquals(
+            RulesRoute,
+            Json.decodeFromString(
+                RulesRoute.serializer(),
+                Json.encodeToString(RulesRoute.serializer(), RulesRoute),
+            ),
+        )
+    }
+
+    @Test
+    fun `planning create routes serialize as no-arg objects`() {
+        assertEquals(
+            RecurringCreateRoute,
+            Json.decodeFromString(
+                RecurringCreateRoute.serializer(),
+                Json.encodeToString(RecurringCreateRoute.serializer(), RecurringCreateRoute),
+            ),
+        )
+        assertEquals(
+            BudgetCreateRoute,
+            Json.decodeFromString(
+                BudgetCreateRoute.serializer(),
+                Json.encodeToString(BudgetCreateRoute.serializer(), BudgetCreateRoute),
+            ),
+        )
+        assertEquals(
+            RuleCreateRoute,
+            Json.decodeFromString(
+                RuleCreateRoute.serializer(),
+                Json.encodeToString(RuleCreateRoute.serializer(), RuleCreateRoute),
+            ),
+        )
+    }
 }

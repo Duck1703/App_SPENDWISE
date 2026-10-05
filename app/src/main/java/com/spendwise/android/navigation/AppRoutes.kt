@@ -92,3 +92,34 @@ data class TransactionDetailRoute(val transactionId: String) : AppRoute
  */
 @Serializable
 data object ImportRoute : AppRoute
+
+/**
+ * Planning surfaces (M6, PRODUCT §30 S15–S23) — pushed over the
+ * preserved shell from the More tab; details take their id argument.
+ */
+@Serializable
+data object RecurringListRoute : AppRoute
+
+@Serializable
+data object RecurringCreateRoute : AppRoute
+
+@Serializable
+data class RecurringDetailRoute(val templateId: String) : AppRoute
+
+@Serializable
+data object BudgetsRoute : AppRoute
+
+@Serializable
+data object BudgetCreateRoute : AppRoute
+
+@Serializable
+data class BudgetDetailRoute(val budgetId: String) : AppRoute
+
+@Serializable
+data object RulesRoute : AppRoute
+
+@Serializable
+data object RuleCreateRoute : AppRoute
+
+@Serializable
+data class RuleDetailRoute(val ruleId: String) : AppRoute

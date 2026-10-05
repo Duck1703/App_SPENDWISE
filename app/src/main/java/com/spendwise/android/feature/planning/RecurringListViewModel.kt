@@ -1,0 +1,105 @@
+package com.spendwise.android.feature.planning
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.spendwise.android.core.network.AppError
+import com.spendwise.android.core.network.AppErrorException
+import com.spendwise.android.data.repository.AccountRepository
+import com.spendwise.android.data.repository.RecurringRepository
+import com.spendwise.android.data.repository.SessionEndedException
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+/**
+ * Recurring list (S15, PRODUCT §30). Latest-wins loads via [loadSerial]
+ * — a superseded response can never overwrite newer state (§52).
+ * Successful create/deactivate emits [RecurringRepository.mutations]
+ * which reloads the list. A 401 mid-load arms [expiredMidLoad] so a
+ * same-user resume re-runs via [onVisible]; a dead-generation result is
+ * discarded, never published.
+ */
+@dagger.hilt.android.lifecycle.HiltViewModel
+class RecurringListViewModel @Inject constructor(
+    private val recurringRepository: RecurringRepository,
+    private val accountRepository: AccountRepository,
+) : ViewModel() {
+
+    private val _state = MutableStateFlow<RecurringListState>(RecurringListState.Loading)
+    val state: StateFlow<RecurringListState> = _state.asStateFlow()
+
+    private var loadSerial = 0L
+    private var expiredMidLoad = false
+
+    init {
+        refresh()
+        viewModelScope.launch {
+            recurringRepository.mutations.collect { refresh() }
+        }
+    }
+
+    fun refresh() = load()
+
+    private fun load() {
+        val serial = ++loadSerial
+        viewModelScope.launch {
+            (_state.value as? RecurringListState.Content)
+                ?.let { _state.value = it.copy(isRefreshing = true, refreshError = null) }
+            try {
+                val templates = recurringRepository.list()
+                if (serial != loadSerial) return@launch
+                _state.value = if (templates.isEmpty()) {
+                    RecurringListState.Empty
+                } else {
+                    RecurringListState.Content(
+                        templates = templates,
+                        accountNames = accountNames(),
+                    )
+                }
+            } catch (e: SessionEndedException) {
+                expiredMidLoad = true
+                (_state.value as? RecurringListState.Content)
+                    ?.let { _state.value = it.copy(isRefreshing = false) }
+            } catch (e: AppErrorException) {
+                if (e.error is AppError.SessionExpired) {
+                    expiredMidLoad = true
+                    (_state.value as? RecurringListState.Content)
+                        ?.let { _state.value = it.copy(isRefreshing = false) }
+                    return@launch
+                }
+                if (serial != loadSerial) return@launch
+                val kind = e.error.toPlanningError()
+                _state.value = (_state.value as? RecurringListState.Content)
+                    ?.copy(isRefreshing = false, refreshError = kind)
+                    ?: RecurringListState.Error(kind)
+            }
+        }
+    }
+
+    /** Account labels are display-only context — a failure degrades to ids. */
+    private suspend fun accountNames(): Map<String, String> =
+        try {
+            accountRepository.list().associate { it.id to it.name }
+        } catch (e: AppErrorException) {
+            if (e.error is AppError.SessionExpired) throw e
+            emptyMap()
+        } catch (e: SessionEndedException) {
+            throw e
+        }
+
+    /** Re-runs an aborted load after a same-user resume pops the overlay. */
+    fun onVisible() {
+        if (expiredMidLoad) {
+            expiredMidLoad = false
+            refresh()
+        }
+    }
+
+    private fun AppError.toPlanningError(): PlanningError = when (this) {
+        AppError.NetworkUnavailable -> PlanningError.Network
+        is AppError.Server -> PlanningError.Server
+        else -> PlanningError.Generic
+    }
+}

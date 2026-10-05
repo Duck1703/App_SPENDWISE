@@ -20,7 +20,7 @@ High-level phase plan. Milestone briefs are created per phase by ATLAS using
 | M3 | Transactions (list/filters/detail, income/expense entry; read-only history per Human P3A override) | HUMAN_APPROVED — COMPLETE (external audit FINDINGS — remediated; see [milestones/M3-TRANSACTIONS.md](milestones/M3-TRANSACTIONS.md), [reviews/M3-EXTERNAL-AUDIT-SUMMARY.md](reviews/M3-EXTERNAL-AUDIT-SUMMARY.md), [reviews/M3-SENTINEL-REVIEW.md](reviews/M3-SENTINEL-REVIEW.md), [reviews/M3-ARGUS-REVIEW.md](reviews/M3-ARGUS-REVIEW.md)) |
 | M4 | Home / Dashboard (hero month totals, carousel, recent activity, mixed-currency state) | HUMAN_APPROVED — COMPLETE (external audit FINDINGS — remediated; see [milestones/M4-HOME-DASHBOARD.md](milestones/M4-HOME-DASHBOARD.md), [reviews/M4-EXTERNAL-AUDIT-SUMMARY.md](reviews/M4-EXTERNAL-AUDIT-SUMMARY.md), [reviews/M4-SENTINEL-REVIEW.md](reviews/M4-SENTINEL-REVIEW.md), [reviews/M4-ARGUS-REVIEW.md](reviews/M4-ARGUS-REVIEW.md)) |
 | M5 | CSV / TPBank PDF Import (select/upload/result) | EXTERNAL AUDIT ACCEPTED — remediated (`0db8b3a`), pending human sign-off (see [milestones/M5-CSV-PDF-IMPORT.md](milestones/M5-CSV-PDF-IMPORT.md), [reviews/M5-EXTERNAL-AUDIT-SUMMARY.md](reviews/M5-EXTERNAL-AUDIT-SUMMARY.md)) |
-| M6 | Planning (recurring, budgets, categorization rules) | PLANNED |
+| M6 | Planning (recurring, budgets, categorization rules) | READY FOR EXTERNAL AUDIT — pending human sign-off (see [milestones/M6-PLANNING.md](milestones/M6-PLANNING.md), [reviews/M6-SENTINEL-REVIEW.md](reviews/M6-SENTINEL-REVIEW.md), [reviews/M6-ARGUS-REVIEW.md](reviews/M6-ARGUS-REVIEW.md)) |
 | M7 | Hardening / UX / Testing | PLANNED |
 
 ## Important

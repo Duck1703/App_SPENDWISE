@@ -47,6 +47,9 @@ fun MoreScreen(
     onSignOut: () -> Unit,
     onOpenImport: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenRecurring: () -> Unit = {},
+    onOpenBudgets: () -> Unit = {},
+    onOpenRules: () -> Unit = {},
 ) {
     var confirmVisible by remember { mutableStateOf(false) }
 
@@ -67,6 +70,24 @@ fun MoreScreen(
                 description = stringResource(R.string.more_import_desc),
                 icon = R.drawable.ic_lucide_upload,
                 onClick = onOpenImport,
+            )
+            MoreRow(
+                label = stringResource(R.string.more_recurring_label),
+                description = stringResource(R.string.more_recurring_desc),
+                icon = R.drawable.ic_lucide_repeat,
+                onClick = onOpenRecurring,
+            )
+            MoreRow(
+                label = stringResource(R.string.more_budgets_label),
+                description = stringResource(R.string.more_budgets_desc),
+                icon = R.drawable.ic_lucide_banknote,
+                onClick = onOpenBudgets,
+            )
+            MoreRow(
+                label = stringResource(R.string.more_rules_label),
+                description = stringResource(R.string.more_rules_desc),
+                icon = R.drawable.ic_lucide_ticket,
+                onClick = onOpenRules,
             )
             Spacer(Modifier.height(SwSpacing.Lg))
             HorizontalDivider()

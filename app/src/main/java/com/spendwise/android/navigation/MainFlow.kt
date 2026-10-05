@@ -15,6 +15,15 @@ import com.spendwise.android.feature.accounts.AccountDetailDestination
 import com.spendwise.android.feature.auth.LoginDestination
 import com.spendwise.android.feature.auth.SessionExpiredScreen
 import com.spendwise.android.feature.imports.ImportDestination
+import com.spendwise.android.feature.planning.BudgetDetailDestination
+import com.spendwise.android.feature.planning.BudgetsDestination
+import com.spendwise.android.feature.planning.CreateBudgetDestination
+import com.spendwise.android.feature.planning.CreateRecurringDestination
+import com.spendwise.android.feature.planning.CreateRuleDestination
+import com.spendwise.android.feature.planning.RecurringDetailDestination
+import com.spendwise.android.feature.planning.RecurringListDestination
+import com.spendwise.android.feature.planning.RuleDetailDestination
+import com.spendwise.android.feature.planning.RulesDestination
 import com.spendwise.android.feature.transactions.TransactionCreateDestination
 import com.spendwise.android.feature.transactions.TransactionDetailDestination
 
@@ -88,6 +97,9 @@ fun MainFlow(
                     navController.navigate(TransactionCreateRoute(accountId))
                 },
                 onOpenImport = { navController.navigate(ImportRoute) },
+                onOpenRecurring = { navController.navigate(RecurringListRoute) },
+                onOpenBudgets = { navController.navigate(BudgetsRoute) },
+                onOpenRules = { navController.navigate(RulesRoute) },
                 openTransactionsTab = openTransactionsTab,
                 onConsumePendingTab = {
                     entry.savedStateHandle[KEY_OPEN_TRANSACTIONS_TAB] = false
@@ -125,6 +137,61 @@ fun MainFlow(
                 onDone = { navController.popBackStack() },
                 onBack = { navController.popBackStack() },
                 onCreateAccount = { navController.navigate(AccountCreateRoute) },
+            )
+        }
+        // ── Planning (M6, S15–S23) ───────────────────────────────────
+        composable<RecurringListRoute> {
+            RecurringListDestination(
+                onOpenTemplate = { navController.navigate(RecurringDetailRoute(it)) },
+                onCreate = { navController.navigate(RecurringCreateRoute) },
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable<RecurringCreateRoute> {
+            CreateRecurringDestination(
+                onCreated = { navController.popBackStack() },
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable<RecurringDetailRoute> {
+            RecurringDetailDestination(
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable<BudgetsRoute> {
+            BudgetsDestination(
+                onOpenBudget = { navController.navigate(BudgetDetailRoute(it)) },
+                onCreate = { navController.navigate(BudgetCreateRoute) },
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable<BudgetCreateRoute> {
+            CreateBudgetDestination(
+                onCreated = { navController.popBackStack() },
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable<BudgetDetailRoute> {
+            BudgetDetailDestination(
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable<RulesRoute> {
+            RulesDestination(
+                onOpenRule = { navController.navigate(RuleDetailRoute(it)) },
+                onCreate = { navController.navigate(RuleCreateRoute) },
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable<RuleCreateRoute> {
+            CreateRuleDestination(
+                onCreated = { navController.popBackStack() },
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable<RuleDetailRoute> {
+            RuleDetailDestination(
+                onBack = { navController.popBackStack() },
             )
         }
         composable<TransactionCreateRoute> {
