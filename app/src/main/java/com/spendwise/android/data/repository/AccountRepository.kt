@@ -17,6 +17,9 @@ import com.spendwise.android.data.remote.CreateAccountRequestDto
 import java.io.IOException
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -56,6 +59,9 @@ interface AccountRepository {
      * balances locally.
      */
     suspend fun invalidate()
+
+    /** Emitted once per successful [create] — account surfaces reload. */
+    val mutations: SharedFlow<Unit>
 }
 
 @Singleton
@@ -66,6 +72,9 @@ class RemoteAccountRepository @Inject constructor(
 ) : AccountRepository {
 
     private val cache = SessionCache<List<Account>>(sessionManager)
+
+    private val _mutations = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    override val mutations: SharedFlow<Unit> = _mutations.asSharedFlow()
 
     init {
         // Prompt cleanup only — isolation is already enforced by the
@@ -126,6 +135,7 @@ class RemoteAccountRepository @Inject constructor(
         }.toDomain()
         cache.update(generation) { current -> current?.plus(account) }
         if (cache.generation() != generation) throw SessionEndedException()
+        _mutations.tryEmit(Unit)
         return account
     }
 

@@ -138,8 +138,25 @@
 
     <!-- Home -->
     <string name="home_title">Home</string>
-    <string name="home_placeholder">Your monthly overview arrives with the dashboard milestone.</string>
     <string name="home_add_transaction">Add transaction</string>
+    <string name="home_this_month">This month</string>
+    <string name="home_income_label">Income</string>
+    <string name="home_expense_label">Spent</string>
+    <string name="home_totals_loading">Loading this month’s summary…</string>
+    <string name="home_totals_failed">This month’s summary couldn’t be loaded.</string>
+    <string name="home_totals_unavailable_title">Combined totals unavailable</string>
+    <string name="home_totals_unavailable_body">Your accounts use different currencies.</string>
+    <string name="home_accounts_section">Accounts</string>
+    <string name="home_activity_section">Recent activity</string>
+    <string name="home_activity_see_all">See all</string>
+    <string name="home_activity_loading">Loading activity…</string>
+    <string name="home_activity_empty">No activity yet — record a transaction to see it here.</string>
+    <string name="home_activity_failed">Activity couldn’t be loaded.</string>
+    <string name="home_empty_title">Create your first account</string>
+    <string name="home_empty_body">Accounts hold your money — add one to see balances and this month’s summary.</string>
+    <string name="home_empty_action">Add account</string>
+    <string name="home_refresh_error_title">Couldn’t refresh</string>
+    <string name="home_refresh_error_body">Showing the last figures we have.</string>
 
     <!-- Transactions list (S09) -->
     <string name="transactions_title">Transactions</string>

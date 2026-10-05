@@ -5,6 +5,7 @@ import com.spendwise.android.core.serialization.BigDecimalSerializer
 import com.spendwise.android.data.remote.AccountsService
 import com.spendwise.android.data.remote.AuthService
 import com.spendwise.android.data.remote.CategoriesService
+import com.spendwise.android.data.remote.DashboardService
 import com.spendwise.android.data.remote.TransactionsService
 import dagger.Module
 import dagger.Provides
@@ -103,4 +104,9 @@ object NetworkModule {
     @Singleton
     fun provideCategoriesService(retrofit: Retrofit): CategoriesService =
         retrofit.create(CategoriesService::class.java)
+
+    @Provides
+    @Singleton
+    fun provideDashboardService(retrofit: Retrofit): DashboardService =
+        retrofit.create(DashboardService::class.java)
 }

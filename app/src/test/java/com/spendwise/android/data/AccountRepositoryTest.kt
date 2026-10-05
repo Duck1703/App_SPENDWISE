@@ -7,6 +7,8 @@ import com.spendwise.android.core.session.SessionManager
 import com.spendwise.android.data.repository.RemoteAccountRepository
 import com.spendwise.android.fakes.FakeAccountsService
 import com.spendwise.android.fakes.FakeTokenStore
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -123,6 +125,32 @@ class AccountRepositoryTest {
         assertEquals("VND", call.currency)
         assertEquals(setOf("a1", "new"), repository.list().map { it.id }.toSet())
         assertEquals(1, service.listCalls)
+    }
+
+    @Test
+    fun `create emits one mutation signal — Home surfaces reload`() = runTest {
+        // M4: the create→mutations contract lets balance-bearing
+        // surfaces (Home carousel) refresh without polling.
+        val (service, _, repository) = harness()
+        service.createResponse = cash("new", balance = "1500.50")
+        val emissions = mutableListOf<Unit>()
+        val job = backgroundScope.launch {
+            repository.mutations.collect { emissions += it }
+        }
+        testScheduler.runCurrent() // attach the collector before the emit
+
+        repository.create(
+            name = "Jar",
+            type = com.spendwise.android.core.model.AccountType.CASH,
+            openingBalance = com.spendwise.android.core.model.Money(
+                BigDecimal("1500.50"),
+                com.spendwise.android.core.model.CurrencyCode("VND"),
+            ),
+        )
+
+        testScheduler.runCurrent() // pump the collector
+        assertEquals(1, emissions.size)
+        job.cancel()
     }
 
     @Test

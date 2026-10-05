@@ -27,7 +27,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.spendwise.android.R
 import com.spendwise.android.feature.accounts.AccountsDestination
-import com.spendwise.android.feature.home.HomeScreen
+import com.spendwise.android.feature.home.HomeDestination
 import com.spendwise.android.feature.more.MoreDestination
 import com.spendwise.android.feature.transactions.TransactionsDestination
 
@@ -120,7 +120,21 @@ fun SpendwiseMainShell(
             modifier = Modifier.padding(innerPadding),
         ) {
             composable<HomeRoute> {
-                HomeScreen(onAddTransaction = { onCreateTransaction(null) })
+                HomeDestination(
+                    onAddTransaction = { onCreateTransaction(null) },
+                    onOpenAccount = onOpenAccount,
+                    onOpenTransaction = onOpenTransaction,
+                    onSeeAllActivity = {
+                        navController.navigate(TransactionsRoute) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    onCreateAccount = onCreateAccount,
+                )
             }
             composable<TransactionsRoute> {
                 TransactionsDestination(

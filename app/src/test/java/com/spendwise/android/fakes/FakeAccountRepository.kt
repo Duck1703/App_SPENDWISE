@@ -6,6 +6,9 @@ import com.spendwise.android.core.model.CurrencyCode
 import com.spendwise.android.core.model.Money
 import com.spendwise.android.data.repository.AccountRepository
 import java.math.BigDecimal
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 
 /** Scripted [AccountRepository] for ViewModel tests — records calls, runs configured results. */
 class FakeAccountRepository : AccountRepository {
@@ -20,6 +23,12 @@ class FakeAccountRepository : AccountRepository {
     val findByIdCalls = mutableListOf<Pair<String, Boolean>>()
     val createCalls = mutableListOf<Triple<String, AccountType, Money>>()
     var invalidateCalls = 0
+
+    private val _mutations = MutableSharedFlow<Unit>(extraBufferCapacity = 8)
+    override val mutations: SharedFlow<Unit> = _mutations.asSharedFlow()
+
+    /** Test hook — simulate an account write landing. */
+    suspend fun emitMutation() = _mutations.emit(Unit)
 
     override suspend fun list(refresh: Boolean): List<Account> {
         listCalls += refresh
