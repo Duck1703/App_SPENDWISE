@@ -6,6 +6,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.spendwise.android.R
 import com.spendwise.android.core.designsystem.SpendwiseTheme
 import com.spendwise.android.core.model.AccountType
 import com.spendwise.android.core.model.CurrencyCode
@@ -127,7 +128,9 @@ class AccountsScreenTest {
         val harness = Harness()
         screen(AccountsUiState.Error(AccountsError.Network), harness)
 
-        composeRule.onNodeWithText("Can’t reach Spendwise").assertIsDisplayed()
+        composeRule.onNodeWithText(
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.state_network_title),
+        ).assertIsDisplayed()
         composeRule.onNodeWithText("Try again").performClick()
         assertEquals(1, harness.retries)
     }
@@ -181,7 +184,9 @@ class AccountsScreenTest {
             ),
         )
 
-        composeRule.onNodeWithText("Couldn’t refresh").assertIsDisplayed()
+        composeRule.onNodeWithText(
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.accounts_refresh_error_title),
+        ).assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Wallet, Cash, balance 1,000 VND")
             .assertIsDisplayed()
     }

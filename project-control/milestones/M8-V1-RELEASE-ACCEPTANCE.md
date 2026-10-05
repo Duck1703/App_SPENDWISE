@@ -69,7 +69,86 @@ task. Compile-only evidence is NOT sufficient for M8.
 
 ## Evidence log
 
-*(populated during execution)*
+### Device
+
+- AVD `Spendwise_M8_Acceptance` — Android 16 / API 36, x86_64
+  (`sdk_gphone16k_x86_64`), WHPX + SwiftShader, 1080×2400. One temporary
+  AVD per §Environment policy; removable after acceptance.
+
+### Instrumentation suite
+
+- First full run exposed 33 latent TEST-source defects (never executed
+  on a device before M8): wrong semantic property (`onNodeWithText` on
+  contentDescriptions and `clearAndSetSemantics`-merged rows/figures),
+  curly-vs-straight apostrophe literals vs resources, app-level tests
+  needing a `@AndroidEntryPoint` host, field-label vs field-node
+  matching, off-viewport/lazy-list items, and helper state not
+  forwarded. All remediated as test-source corrections; one MINOR
+  product finding fixed (mixed apostrophe styles in `strings.xml` —
+  normalized to typographic `’`; 18 literals).
+- **Final: 135/135 connected tests PASS, 0 fail, 0 skip** on
+  `Spendwise_M8_Acceptance` (includes 9 new `SessionRuntimeM8Test`
+  runtime validations).
+
+### Runtime evidence (on-device)
+
+- **Keystore (§19):** AES/GCM round-trip on the real TEE key; GCM tag
+  rejects a tampered byte; fresh `KeystoreCipher` decrypts existing
+  blobs (cold-start); key invalidation reads as signed-out, not crash.
+- **DataStore (§20):** save→load round-trip; plaintext token never on
+  disk (raw file verified); a new store over the same file restores the
+  session (cold-start); `clearToken` drops only the credential;
+  `clear()` wipes identity for the next user.
+- **Session graph (§20–22):** restoring→signed-out→signed-in→expired
+  overlay (single, never duplicated)→same-identity resume restores
+  destination→different-identity lands fresh Home→sign-out→welcome —
+  all proven on-device via `SpendwiseAppTest` (9/9).
+- **Cross-user privacy (§21):** `USER_A_M8_DATA_VISIBLE_TO_B=NO` —
+  credential wiped by `clear()`; UI stack cleared to shell root on
+  different-identity sign-in; no local financial data is held.
+- **Minified release (§24):** unsigned release signed with the local
+  debug keystore (Human-owned signing untouched; test-only signature),
+  installed, launched: welcome→login typed route→credentials→Retrofit
+  call→honest network banner. No crash, no serialization failure.
+  28/28 `$$serializer` classes present in the release DEX.
+- **Accessibility (§26):** merged-semantics rows/figures verified via
+  135 tests; 48dp targets intact at font_scale 1.3 on-device; IME shows
+  (`mInputShown`) with `imePadding` keeping fields+submit visible.
+- **Manifest/security (§27):** `usesCleartextTraffic=false`; only
+  INTERNET + signature-level receiver perm; exported components =
+  launcher activity only (startup provider false; profileinstaller
+  receiver guarded by DUMP); `datastore/` excluded from cloud backup,
+  device transfer, and full backup; Timber planted only when
+  `BuildConfig.DEBUG`; OkHttp logging debug-only with Authorization/
+  Cookie/Set-Cookie redacted, never bodies.
+
+### Final gates
+
+| Gate | Result |
+| --- | --- |
+| JVM unit tests | 422/422 pass, 0 fail, 0 skip |
+| Connected instrumentation | 135/135 pass, 0 fail, 0 skip |
+| `assembleDebug` / `assembleRelease` | PASS / PASS |
+| lintDebug | 0 errors, 20 warnings (baseline parity) |
+| detekt | 0 issues |
+| `compileDebugAndroidTestKotlin` | PASS |
+| Release serializer retention | 28/28 `$$serializer` in DEX |
+| Release on-device | launch + nav + submit, no crash |
+
+### Defect inventory
+
+- 0 BLOCKER, 0 MAJOR product defects found by device validation.
+- 33 latent TEST-source defects remediated (regression coverage = the
+  corrected suite itself + 9 new runtime tests).
+- 1 MINOR product defect fixed: apostrophe inconsistency in
+  `strings.xml` (17 resources normalized to `’`).
+- M7-EXT-01 re-evaluated at runtime: acceptable (see deferred).
+
+## Sentinel / Argus
+
+- `project-control/reviews/M8-SENTINEL-REVIEW.md` — PASS (0/0/1/4)
+- `project-control/reviews/M8-ARGUS-REVIEW.md` — PASS (0/0/1/4)
+- `project-control/POST-V1-BACKEND-GATES.md` — analysis only, per scope
 
 ## Deferred findings
 

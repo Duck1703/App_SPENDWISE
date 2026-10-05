@@ -8,7 +8,10 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.text.AnnotatedString
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.spendwise.android.core.designsystem.SpendwiseTheme
 import org.junit.Assert.assertEquals
@@ -23,6 +26,9 @@ import org.junit.runner.RunWith
  */
 @RunWith(AndroidJUnit4::class)
 class LoginScreenTest {
+
+    private fun SemanticsNodeInteraction.typeViaSemantics(text: String) =
+        performSemanticsAction(SemanticsActions.SetText) { it(AnnotatedString(text)) }
 
     @get:Rule
     val composeRule = createComposeRule()
@@ -58,7 +64,9 @@ class LoginScreenTest {
         composeRule.onNodeWithText("Username").assertIsDisplayed()
         composeRule.onNodeWithText("Password").assertIsDisplayed()
         composeRule.onNodeWithText("Sign in").assertIsDisplayed()
-        composeRule.onNodeWithText("Show password").assertIsDisplayed()
+        // The visibility toggle is an IconButton — its label is a
+        // contentDescription, not text.
+        composeRule.onNodeWithContentDescription("Show password").assertIsDisplayed()
     }
 
     @Test
@@ -66,8 +74,11 @@ class LoginScreenTest {
         val harness = Harness()
         screen(LoginUiState(), harness)
 
-        composeRule.onNodeWithText("Username").performTextInput("ana")
-        composeRule.onNodeWithText("Password").performTextInput("secret")
+        // Invoke SetText directly — the IME input path is unreliable on
+        // headless/emulator hosts; the field's SetText lambda still calls
+        // the real onValueChange, so the contract under test is identical.
+        composeRule.onNodeWithText("Username").typeViaSemantics("ana")
+        composeRule.onNodeWithText("Password").typeViaSemantics("secret")
         composeRule.onNodeWithText("Sign in").performClick()
 
         assertEquals("ana", harness.usernameValue)
@@ -79,7 +90,7 @@ class LoginScreenTest {
     fun passwordVisibilityToggle_swapsIconAndSemantics() {
         val state = screen(LoginUiState())
 
-        composeRule.onNodeWithText("Password").performTextInput("secret")
+        composeRule.onNodeWithText("Password").typeViaSemantics("secret")
         composeRule.onNodeWithContentDescription("Show password").performClick()
 
         state.value = state.value.copy(passwordVisible = true)

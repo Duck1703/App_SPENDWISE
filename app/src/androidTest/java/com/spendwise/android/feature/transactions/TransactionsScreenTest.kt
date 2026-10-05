@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.spendwise.android.R
 import com.spendwise.android.core.designsystem.SpendwiseTheme
 import com.spendwise.android.core.model.Account
 import com.spendwise.android.core.model.AccountType
@@ -135,14 +136,18 @@ class TransactionsScreenTest {
         )
 
         // Signed, labelled rows — direction carried by sign + word + icon.
-        composeRule.onNodeWithText("Food").assertIsDisplayed()
-        composeRule.onNodeWithText("Salary").assertIsDisplayed()
-        composeRule.onNodeWithText("−25.50 USD").assertIsDisplayed()
-        composeRule.onNodeWithText("+25.50 USD").assertIsDisplayed()
+        // Rows are clearAndSetSemantics nodes: label text lives inside the
+        // merged contentDescription, so assert on the row CD, not Text.
+        composeRule.onNodeWithContentDescription(
+            "Expense −25.50 USD Food on Wallet, Manual",
+        ).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(
+            "Income +25.50 USD Salary on Wallet, Manual",
+        ).assertIsDisplayed()
         // Count text + the server-order honesty note.
         composeRule.onNodeWithText("2 transactions").assertIsDisplayed()
         composeRule.onNodeWithText(
-            "Entries appear in the order Spendwise returns them — dates aren’t available in this version.",
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.transactions_list_note),
         ).assertIsDisplayed()
         // Header add action, not a FAB.
         composeRule.onNodeWithContentDescription("Add transaction").performClick()
@@ -161,9 +166,11 @@ class TransactionsScreenTest {
             harness = harness,
         )
 
-        // Merged row semantics — single clickable node.
-        composeRule.onNodeWithContentDescription("Expense −25.50 USD Food on Wallet")
-            .performClick()
+        // Merged row semantics — single clickable node (provenance suffix
+        // included: MANUAL renders "…, Manual").
+        composeRule.onNodeWithContentDescription(
+            "Expense −25.50 USD Food on Wallet, Manual",
+        ).performClick()
         assertEquals("t7", harness.opened)
     }
 
@@ -214,8 +221,12 @@ class TransactionsScreenTest {
             ),
         )
 
-        composeRule.onNodeWithText("Couldn’t refresh").assertIsDisplayed()
-        composeRule.onNodeWithText("Food").assertIsDisplayed()
+        composeRule.onNodeWithText(
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.transactions_refresh_error_title),
+        ).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(
+            "Expense −25.50 USD Food on Wallet, Manual",
+        ).assertIsDisplayed()
     }
 
     @Test
@@ -223,7 +234,9 @@ class TransactionsScreenTest {
         val harness = Harness()
         screen(TransactionsUiState.Error(TransactionsError.Network), harness = harness)
 
-        composeRule.onNodeWithText("Can’t reach Spendwise").assertIsDisplayed()
+        composeRule.onNodeWithText(
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.state_network_title),
+        ).assertIsDisplayed()
         composeRule.onNodeWithText("Try again").performClick()
         assertEquals(1, harness.retries)
     }
@@ -241,7 +254,13 @@ class TransactionsScreenTest {
             ),
         )
 
-        // Imported badge visible; the manual row carries no badge text.
-        composeRule.onNodeWithText("Imported").assertIsDisplayed()
+        // Imported badge visible inside the merged row CD; the manual row
+        // carries a "Manual" provenance suffix instead.
+        composeRule.onNodeWithContentDescription(
+            "Expense −25.50 USD Food on Transaction, Imported",
+        ).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(
+            "Expense −25.50 USD Salary on Transaction, Manual",
+        ).assertIsDisplayed()
     }
 }

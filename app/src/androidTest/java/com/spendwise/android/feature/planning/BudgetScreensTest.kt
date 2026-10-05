@@ -75,7 +75,8 @@ class BudgetScreensTest {
             .fetchSemanticsNodes()
             .isNotEmpty()
             .let { assert(it) }
-        composeRule.onAllNodesWithContentDescription("FOOD", substring = true)[0].performClick()
+        // Merged row CD is "Food budget, <period>, limit <limit>".
+        composeRule.onAllNodesWithContentDescription("Food budget", substring = true)[0].performClick()
         assertEquals("b1", opened)
     }
 
@@ -106,7 +107,10 @@ class BudgetScreensTest {
                 )
             }
         }
-        composeRule.onNodeWithText("Budgets can’t be edited yet").assertIsDisplayed()
+        composeRule.onNodeWithText(
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+                .targetContext.getString(com.spendwise.android.R.string.budget_readonly_title),
+        ).assertIsDisplayed()
     }
 
     @Test

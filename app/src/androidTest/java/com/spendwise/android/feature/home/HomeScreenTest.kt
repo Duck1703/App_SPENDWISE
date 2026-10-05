@@ -1,5 +1,6 @@
 package com.spendwise.android.feature.home
 
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -16,7 +17,6 @@ import com.spendwise.android.core.model.Money
 import com.spendwise.android.core.model.Transaction
 import com.spendwise.android.core.model.TransactionType
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -119,8 +119,9 @@ class HomeScreenTest {
         // Merged figure semantics — figures read as one unit.
         composeRule.onNodeWithContentDescription("Income 4,500 VND").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Spent −1,200 VND").assertIsDisplayed()
-        // The VND label appears on both hero figures and the card.
-        assertTrue(composeRule.onAllNodesWithText("VND").fetchSemanticsNodes().size >= 2)
+        // Currency is announced inside the merged figure CDs — no stray
+        // unlabeled "VND" text node should exist alongside them.
+        composeRule.onAllNodesWithText("VND").assertCountEquals(0)
     }
 
     @Test
@@ -256,7 +257,10 @@ class HomeScreenTest {
         val harness = Harness()
         screen(HomeUiState.Error(HomeError.Network), harness)
 
-        composeRule.onNodeWithText("Can’t reach Spendwise").assertIsDisplayed()
+        composeRule.onNodeWithText(
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+                .targetContext.getString(com.spendwise.android.R.string.state_network_title),
+        ).assertIsDisplayed()
         composeRule.onNodeWithText("Try again").performClick()
         assertEquals(1, harness.refreshClicks)
     }

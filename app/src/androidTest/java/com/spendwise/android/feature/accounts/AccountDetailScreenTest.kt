@@ -4,7 +4,9 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.spendwise.android.R
 import com.spendwise.android.core.designsystem.SpendwiseTheme
 import androidx.compose.ui.test.onNodeWithContentDescription
 import com.spendwise.android.core.model.Account
@@ -84,7 +86,9 @@ class AccountDetailScreenTest {
         val harness = Harness()
         screen(AccountDetailUiState.Error(AccountsError.Network), harness)
 
-        composeRule.onNodeWithText("Can’t reach Spendwise").assertIsDisplayed()
+        composeRule.onNodeWithText(
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.state_network_title),
+        ).assertIsDisplayed()
         composeRule.onNodeWithText("Try again").performClick()
         assertEquals(1, harness.retries)
     }
@@ -112,8 +116,10 @@ class AccountDetailScreenTest {
         )
 
         composeRule.onNodeWithText("Transactions").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Expense −25.50 USD Food on Everyday cash")
-            .performClick()
+        // Merged row CD carries the provenance suffix (…, Manual).
+        composeRule.onNodeWithContentDescription(
+            "Expense −25.50 USD Food on Everyday cash, Manual",
+        ).performScrollTo().performClick()
         assertEquals("t1", harness.openedTxn)
     }
 
@@ -147,8 +153,10 @@ class AccountDetailScreenTest {
 
         // The account header stays intact — only the section failed.
         composeRule.onNodeWithText("Everyday cash").assertIsDisplayed()
-        composeRule.onNodeWithText("Couldn’t load this account’s transactions.").assertIsDisplayed()
-        composeRule.onNodeWithText("Try again").performClick()
+        composeRule.onNodeWithText(
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.account_detail_history_error),
+        ).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Try again").performScrollTo().performClick()
         assertEquals(1, harness.historyRetries)
     }
 }

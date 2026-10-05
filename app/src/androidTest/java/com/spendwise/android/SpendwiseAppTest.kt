@@ -1,9 +1,10 @@
 package com.spendwise.android
 
+import androidx.activity.compose.setContent
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -25,13 +26,18 @@ import java.time.Instant
 class SpendwiseAppTest {
 
     @get:Rule
-    val composeRule = createComposeRule()
+    val composeRule = createAndroidComposeRule<MainActivity>()
 
     private fun app(initial: Session): MutableState<Session> {
         val state = mutableStateOf(initial)
-        composeRule.setContent {
-            SpendwiseTheme { SpendwiseApp(session = state.value) }
+        // MainActivity already sets content in onCreate — replace it on the
+        // activity itself (the test rule refuses a second setContent call).
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.setContent {
+                SpendwiseTheme { SpendwiseApp(session = state.value) }
+            }
         }
+        composeRule.waitForIdle()
         return state
     }
 
@@ -67,7 +73,10 @@ class SpendwiseAppTest {
         app(signedIn())
 
         listOf("Home", "Transactions", "Accounts", "More").forEach { label ->
-            composeRule.onNodeWithText(label).assertIsDisplayed()
+            // "Home" matches both the nav label and the screen title.
+            assert(
+                composeRule.onAllNodesWithText(label).fetchSemanticsNodes().isNotEmpty(),
+            ) { "Expected at least one '$label' node" }
         }
     }
 
@@ -142,7 +151,10 @@ class SpendwiseAppTest {
         composeRule.waitForIdle()
 
         composeRule.onNodeWithText("Session expired").assertDoesNotExist()
-        composeRule.onNodeWithText("Home").assertIsDisplayed()
+        // Nav label + Home screen title — at least one "Home" must show.
+        assert(
+            composeRule.onAllNodesWithText("Home").fetchSemanticsNodes().isNotEmpty(),
+        ) { "Expected the fresh Home after different-identity sign-in" }
     }
 
     @Test

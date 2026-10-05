@@ -65,7 +65,10 @@ class RegisterScreenTest {
         screen(RegisterUiState(formError = AuthFormError.UsernamePossiblyTaken))
 
         composeRule.onNodeWithText(
-            "We couldn't create your account. This username may already be taken — try another one.",
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+                .targetContext.getString(
+                    com.spendwise.android.R.string.auth_error_username_taken,
+                ),
         ).assertIsDisplayed()
     }
 

@@ -3,6 +3,7 @@ package com.spendwise.android.feature.planning
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -59,7 +60,9 @@ class RuleScreensTest {
                 )
             }
         }
-        composeRule.onNodeWithText("Inactive").assertIsDisplayed()
+        // Rows are clearAndSetSemantics-merged — status lives only in the CD.
+        composeRule.onNodeWithContentDescription("Inactive", substring = true)
+            .assertIsDisplayed()
     }
 
     @Test
@@ -75,7 +78,8 @@ class RuleScreensTest {
             }
         }
         composeRule.waitForIdle()
-        composeRule.onNodeWithText("coffee", substring = true).performClick()
+        composeRule.onNodeWithContentDescription("coffee", substring = true)
+            .performClick()
         assertEquals("rl1", opened)
     }
 

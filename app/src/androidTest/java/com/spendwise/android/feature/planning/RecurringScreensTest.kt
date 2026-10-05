@@ -6,8 +6,11 @@ import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.spendwise.android.core.designsystem.SpendwiseTheme
+import com.spendwise.android.core.model.Account
+import com.spendwise.android.core.model.AccountType
 import com.spendwise.android.core.model.CurrencyCode
 import com.spendwise.android.core.model.Money
 import com.spendwise.android.core.model.RecurringFrequency
@@ -140,7 +143,19 @@ class RecurringScreensTest {
         composeRule.setContent {
             SpendwiseTheme {
                 CreateRecurringScreen(
-                    state = CreateRecurringState(optionsLoading = false),
+                    // The form only renders once a target account exists.
+                    state = CreateRecurringState(
+                        optionsLoading = false,
+                        accounts = listOf(
+                            Account(
+                                id = "a1",
+                                name = "Wallet",
+                                type = AccountType.CASH,
+                                openingBalance = Money(BigDecimal("0"), CurrencyCode("VND")),
+                                balance = Money(BigDecimal("0"), CurrencyCode("VND")),
+                            ),
+                        ),
+                    ),
                     onDirectionChange = {}, onAccountChange = {}, onAmountChange = {},
                     onCategoryChange = {}, onFrequencyChange = {}, onNextDueDateChange = {},
                     onEndDateChange = {}, onSubmit = {}, onRetryOptions = {}, onBack = {},
@@ -148,6 +163,7 @@ class RecurringScreensTest {
             }
         }
         composeRule.onNodeWithText("New recurring item").assertIsDisplayed()
-        composeRule.onNodeWithText("Save recurring item").assertIsDisplayed()
+        // Long form — the submit sits below the fold.
+        composeRule.onNodeWithText("Save recurring item").performScrollTo().assertIsDisplayed()
     }
 }

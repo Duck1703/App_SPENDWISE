@@ -24,7 +24,7 @@
     <string name="auth_error_required">This field is required</string>
     <string name="auth_error_password_min">Use at least %1$d characters</string>
     <string name="auth_error_invalid_credentials">Incorrect username or password.</string>
-    <string name="auth_error_username_taken">We couldn\'t create your account. This username may already be taken — try another one.</string>
+    <string name="auth_error_username_taken">We couldn\’t create your account. This username may already be taken — try another one.</string>
     <string name="auth_error_network">No connection. Check your network and try again.</string>
     <string name="auth_error_server">Something went wrong on our side. Try again in a moment.</string>
     <string name="auth_error_generic">Something went wrong. Try again.</string>
@@ -34,7 +34,7 @@
     <string name="login_title_resume">Sign in again</string>
     <string name="login_subtitle">Enter your credentials to continue.</string>
     <string name="login_submit">Sign in</string>
-    <string name="login_no_account">Don\'t have an account?</string>
+    <string name="login_no_account">Don\’t have an account?</string>
     <string name="login_create_link">Create one</string>
     <string name="login_banner_account_created">Account created — sign in to continue.</string>
 
@@ -48,7 +48,7 @@
 
     <!-- Session expired -->
     <string name="session_expired_title">Session expired</string>
-    <string name="session_expired_message">Your session has expired. Sign in again to continue — you\'ll return to where you were.</string>
+    <string name="session_expired_message">Your session has expired. Sign in again to continue — you\’ll return to where you were.</string>
     <string name="session_expired_sign_in">Sign in again</string>
     <string name="session_expired_sign_out">Sign out</string>
     <string name="session_expired_signed_in_as">Signed in as %1$s</string>
@@ -61,7 +61,7 @@
     <string name="more_sign_out">Sign out</string>
     <string name="more_signing_out">Signing out…</string>
     <string name="sign_out_dialog_title">Sign out of Spendwise?</string>
-    <string name="sign_out_dialog_body">You\'ll need to sign in again to see your finances.</string>
+    <string name="sign_out_dialog_body">You\’ll need to sign in again to see your finances.</string>
     <string name="sign_out_dialog_confirm">Sign out</string>
     <string name="sign_out_dialog_cancel">Cancel</string>
 
@@ -69,7 +69,7 @@
     <string name="cd_navigate_back">Back</string>
     <string name="action_try_again">Try again</string>
     <string name="state_loading">Loading</string>
-    <string name="state_network_title">Can\'t reach Spendwise</string>
+    <string name="state_network_title">Can\’t reach Spendwise</string>
     <string name="state_network_body">Check your connection and try again. Nothing was changed.</string>
     <string name="state_server_title">Something went wrong on our side</string>
     <string name="state_server_body">Your data is safe. Please try again in a moment.</string>
@@ -90,7 +90,7 @@
     </plurals>
     <string name="accounts_mixed_banner_title">Multiple currencies</string>
     <string name="accounts_mixed_banner_body">Each balance stays in its own currency — Spendwise never converts or mixes totals.</string>
-    <string name="accounts_refresh_error_title">Couldn\'t refresh</string>
+    <string name="accounts_refresh_error_title">Couldn\’t refresh</string>
     <string name="accounts_refresh_error_body">Showing your saved accounts — pull down to try again.</string>
     <string name="accounts_add">Add account</string>
     <string name="accounts_empty_title">No accounts yet</string>
@@ -103,7 +103,7 @@
 
     <!-- Create account (S07) -->
     <string name="account_create_title">New account</string>
-    <string name="account_create_subtitle">Name it, pick a type and currency — you can\'t mix currencies later.</string>
+    <string name="account_create_subtitle">Name it, pick a type and currency — you can\’t mix currencies later.</string>
     <string name="account_create_name_label">Account name</string>
     <string name="account_create_name_hint">Shown on your dashboard and lists.</string>
     <string name="account_create_name_placeholder">e.g. Everyday cash</string>
@@ -115,11 +115,11 @@
     <string name="account_create_balance_placeholder">0.00</string>
     <string name="account_create_submit">Create account</string>
     <string name="account_create_submitting">Creating…</string>
-    <string name="account_create_error_ambiguous">We couldn\'t confirm whether the account was created — check your accounts before trying again.</string>
+    <string name="account_create_error_ambiguous">We couldn\’t confirm whether the account was created — check your accounts before trying again.</string>
     <string name="account_error_name_required">Give the account a name.</string>
     <string name="account_error_name_long">Keep it under 255 characters.</string>
     <string name="account_error_balance_invalid">Enter a valid amount, like 1500 or 1500.50.</string>
-    <string name="account_error_balance_negative">Opening balance can\'t be negative.</string>
+    <string name="account_error_balance_negative">Opening balance can\’t be negative.</string>
     <string name="account_error_balance_precise">Use at most 2 decimal places.</string>
     <string name="account_error_balance_large">That amount is too large.</string>
 
@@ -134,7 +134,7 @@
     <string name="account_detail_back_to_accounts">Back to accounts</string>
     <string name="account_detail_history_title">Transactions</string>
     <string name="account_detail_history_empty">No activity yet — record an expense or import a statement.</string>
-    <string name="account_detail_history_error">Couldn\'t load this account\'s transactions.</string>
+    <string name="account_detail_history_error">Couldn\’t load this account\’s transactions.</string>
     <string name="account_detail_add_transaction">Add transaction</string>
 
     <!-- Home -->
@@ -174,8 +174,8 @@
         <item quantity="one">%1$d transaction</item>
         <item quantity="other">%1$d transactions</item>
     </plurals>
-    <string name="transactions_list_note">Entries appear in the order Spendwise returns them — dates aren\'t available in this version.</string>
-    <string name="transactions_refresh_error_title">Couldn\'t refresh</string>
+    <string name="transactions_list_note">Entries appear in the order Spendwise returns them — dates aren\’t available in this version.</string>
+    <string name="transactions_refresh_error_title">Couldn\’t refresh</string>
     <string name="transactions_refresh_error_body">Showing your saved list — pull down to try again.</string>
 
     <!-- Filters (P3A §3: one horizontal row, selected value replaces the label) -->
@@ -212,14 +212,14 @@
     <string name="txn_detail_field_account">Account</string>
     <string name="txn_detail_field_currency">Currency</string>
     <string name="txn_detail_field_source">Source</string>
-    <string name="txn_detail_readonly">Existing entries can\'t be edited right now.</string>
+    <string name="txn_detail_readonly">Existing entries can\’t be edited right now.</string>
     <string name="txn_detail_notfound_title">Transaction not found</string>
-    <string name="txn_detail_notfound_body">It may not exist in this sign-in\'s history.</string>
+    <string name="txn_detail_notfound_body">It may not exist in this sign-in\’s history.</string>
     <string name="txn_detail_back_to_list">Back to transactions</string>
 
     <!-- Create transaction (S11) -->
     <string name="txn_create_title">Add transaction</string>
-    <string name="txn_create_subtitle">Record income or an expense — entries can\'t be edited afterwards.</string>
+    <string name="txn_create_subtitle">Record income or an expense — entries can\’t be edited afterwards.</string>
     <string name="txn_create_type_label">Type</string>
     <string name="txn_create_amount_label">Amount</string>
     <string name="txn_create_amount_hint">Enter a positive amount. The type sets the direction.</string>
@@ -231,13 +231,13 @@
     <string name="txn_create_category_label">Category (optional)</string>
     <string name="txn_create_category_none">No category</string>
     <string name="txn_create_hint_label">Categorization hint (optional)</string>
-    <string name="txn_create_hint_support">Used once by categorization rules to suggest a category — it isn\'t saved with the transaction.</string>
+    <string name="txn_create_hint_support">Used once by categorization rules to suggest a category — it isn\’t saved with the transaction.</string>
     <string name="txn_create_hint_placeholder">e.g. lunch with team</string>
     <string name="txn_create_today">Recorded as today</string>
     <string name="txn_create_submit">Save transaction</string>
     <string name="txn_create_submitting">Saving…</string>
     <string name="txn_create_cancel">Cancel</string>
-    <string name="txn_create_error_ambiguous">We couldn\'t confirm whether this transaction was recorded — check your transactions before trying again.</string>
+    <string name="txn_create_error_ambiguous">We couldn\’t confirm whether this transaction was recorded — check your transactions before trying again.</string>
     <string name="txn_create_error_account_gone">That account is no longer available — pick another one.</string>
     <string name="txn_error_amount_required">Enter an amount.</string>
     <string name="txn_error_amount_invalid">Enter a valid amount, like 1500 or 1500.50.</string>

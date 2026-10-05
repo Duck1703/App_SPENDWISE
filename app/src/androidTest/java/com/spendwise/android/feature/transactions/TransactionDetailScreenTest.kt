@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.spendwise.android.R
 import com.spendwise.android.core.designsystem.SpendwiseTheme
 import com.spendwise.android.core.model.CurrencyCode
 import com.spendwise.android.core.model.Money
@@ -70,8 +71,9 @@ class TransactionDetailScreenTest {
     fun content_isReadOnly_noEditDeleteOrCorrectAffordance() {
         screen(TransactionDetailUiState.Content(txn(), accountName = "Wallet"))
 
-        composeRule.onNodeWithText("Existing entries can’t be edited right now.")
-            .assertIsDisplayed()
+        composeRule.onNodeWithText(
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.txn_detail_readonly),
+        ).assertIsDisplayed()
         composeRule.onAllNodesWithText("Edit", substring = true).assertCountEquals(0)
         composeRule.onAllNodesWithText("Delete", substring = true).assertCountEquals(0)
         composeRule.onAllNodesWithText("Correct", substring = true).assertCountEquals(0)
@@ -106,7 +108,9 @@ class TransactionDetailScreenTest {
         val harness = Harness()
         screen(TransactionDetailUiState.Error(TransactionsError.Network), harness)
 
-        composeRule.onNodeWithText("Can’t reach Spendwise").assertIsDisplayed()
+        composeRule.onNodeWithText(
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.state_network_title),
+        ).assertIsDisplayed()
         composeRule.onNodeWithText("Try again").performClick()
         assertEquals(1, harness.retries)
     }

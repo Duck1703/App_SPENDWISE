@@ -3,10 +3,16 @@ package com.spendwise.android.feature.accounts
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.text.AnnotatedString
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.spendwise.android.R
 import com.spendwise.android.core.designsystem.SpendwiseTheme
 import com.spendwise.android.core.model.AccountType
 import org.junit.Assert.assertEquals
@@ -17,6 +23,9 @@ import org.junit.runner.RunWith
 /** Stateless-screen tests for the create-account form (S07). */
 @RunWith(AndroidJUnit4::class)
 class CreateAccountScreenTest {
+
+    private fun SemanticsNodeInteraction.typeViaSemantics(text: String) =
+        performSemanticsAction(SemanticsActions.SetText) { it(AnnotatedString(text)) }
 
     @get:Rule
     val composeRule = createComposeRule()
@@ -63,8 +72,11 @@ class CreateAccountScreenTest {
         val harness = Harness()
         screen(harness = harness)
 
-        composeRule.onNodeWithText("Account name").performTextInput("Jar")
-        composeRule.onNodeWithText("Opening balance").performTextInput("1500")
+        // Field nodes carry contentDescription = label; the visible label is a
+        // separate Text node with no input actions. SetText is invoked
+        // directly (IME path is unreliable on headless emulator hosts).
+        composeRule.onNodeWithContentDescription("Account name").typeViaSemantics("Jar")
+        composeRule.onNodeWithContentDescription("Opening balance").typeViaSemantics("1500")
         composeRule.onNodeWithText("Create account").performClick()
 
         assertEquals("Jar", harness.name)
@@ -92,7 +104,9 @@ class CreateAccountScreenTest {
         )
 
         composeRule.onNodeWithText("Give the account a name.").assertIsDisplayed()
-        composeRule.onNodeWithText("Opening balance can’t be negative.").assertIsDisplayed()
+        composeRule.onNodeWithText(
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.account_error_balance_negative),
+        ).assertIsDisplayed()
     }
 
     @Test
@@ -122,8 +136,11 @@ class CreateAccountScreenTest {
             ),
         )
 
-        composeRule.onNodeWithText("No connection. Check your network and try again.")
-            .assertIsDisplayed()
+        // Network loss on create is deliberately "ambiguous" copy (MIN-4 —
+        // the POST may already have landed server-side).
+        composeRule.onNodeWithText(
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.account_create_error_ambiguous),
+        ).assertIsDisplayed()
     }
 
     @Test
@@ -131,11 +148,14 @@ class CreateAccountScreenTest {
         val harness = Harness()
         screen(harness = harness)
 
-        composeRule.onNodeWithText("Currency").performClick()
+        // The clickable anchor is the field (contentDescription = "Currency"),
+        // not the visible label Text.
+        composeRule.onNodeWithContentDescription("Currency").performClick()
         composeRule.waitForIdle()
 
-        // The open ISO set — JDK-provided — includes common codes.
-        composeRule.onNodeWithText("USD — US Dollar").assertIsDisplayed()
+        // The open ISO set — JDK-provided — includes common codes. "USD" sits
+        // deep in the scrollable menu — scroll before asserting.
+        composeRule.onNodeWithText("USD — US Dollar").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("USD — US Dollar").performClick()
 
         assertEquals("USD", harness.currency)

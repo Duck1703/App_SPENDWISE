@@ -45,6 +45,7 @@ class CreateTransactionScreenTest {
         categories = listOf("FOOD", "TRANSPORT", "HOUSING", "ENTERTAINMENT", "SALARY"),
         optionsLoading = false,
         amount = "25.50",
+        isSubmitting = isSubmitting,
     )
 
     private data class Harness(
@@ -127,7 +128,12 @@ class CreateTransactionScreenTest {
     fun submitting_locksTheButton() {
         screen(loadedState(isSubmitting = true))
 
-        composeRule.onNodeWithText("Saving…").assertIsNotEnabled()
+        composeRule.onNodeWithText(
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+                .targetContext.getString(
+                    com.spendwise.android.R.string.txn_create_submitting,
+                ),
+        ).assertIsNotEnabled()
     }
 
     @Test
@@ -168,7 +174,10 @@ class CreateTransactionScreenTest {
         )
 
         composeRule.onNodeWithText(
-            "We couldn’t confirm whether this transaction was recorded — check your transactions before trying again.",
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+                .targetContext.getString(
+                    com.spendwise.android.R.string.txn_create_error_ambiguous,
+                ),
             substring = true,
         ).assertIsDisplayed()
     }
