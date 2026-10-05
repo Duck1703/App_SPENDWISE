@@ -1,6 +1,6 @@
 # M6 — Planning (recurring, budgets, categorization rules)
 
-Status: **READY FOR EXTERNAL AUDIT**
+Status: **COMPLETE — conditionally approved via authorized pipeline gate**
 Starting SHA: `5c0f344f4ae4685fea6887f639a81778dfe1d224`
 
 ## Authorized scope
@@ -82,19 +82,42 @@ BACKEND GAP report, stop the affected slice.
 
 ## External-audit gate
 
+Independent external audit performed on `5c0f344..efd34c3` — see
+`reviews/M6-EXTERNAL-AUDIT-SUMMARY.md`. Fresh gate run executed at
+audit time on the committed tree (not carried from the delivery
+report).
+
 ```
 M6_SENTINEL=PASS (0 blockers — see reviews/M6-SENTINEL-REVIEW.md)
 M6_ARGUS=PASS (0 blockers, 0 majors — see reviews/M6-ARGUS-REVIEW.md)
-M6_JVM_TESTS=419/419 (86 M6-scoped: 14 contract + 20 repo + 26 VM + 20 Compose compile-verified + 5 route; suite grew 338 → 419)
-M6_CONNECTED_INSTRUMENTATION=NOT_RUN_NO_DEVICE (adb devices = 0; androidTest compile-verified, 20 new Compose tests)
-M6_GATES=assembleDebug+testDebugUnitTest+lintDebug+compileDebugAndroidTestKotlin+assembleRelease+detekt: PASS
-M6_LINT=informational warnings only, 0 errors
-M6_DETEKT=0 code smells
+M6_EXTERNAL_AUDIT=PASS (0 blockers, 0 majors, 0 minors — 3 notes)
+M6_JVM_TESTS=419/419 verified fresh at audit (86 M6-scoped: 14 contract + 23 repo + 38 VM + 18 Compose compile-verified + 9 route)
+M6_CONNECTED_INSTRUMENTATION=NOT_RUN_NO_DEVICE (adb devices = 0 at audit time; androidTest compile-verified)
+M6_GATES=assembleDebug+testDebugUnitTest+lintDebug+compileDebugAndroidTestKotlin+assembleRelease+detekt: PASS (re-verified at audit)
+M6_LINT=informational warnings only, 0 errors (re-verified)
+M6_DETEKT=0 code smells (re-verified)
+M6_CORE_CORRECTNESS=PASS
+M6_FINANCIAL_CORRECTNESS=PASS
+M6_SECURITY_PRIVACY=PASS
+M6_CONTRACT_FIDELITY=PASS
+M6_TEST_EVIDENCE=PASS
 M6_READY_FOR_EXTERNAL_AUDIT=YES
-M6_HUMAN_APPROVED=NO
-M7_STARTED=NO
+M6_HUMAN_APPROVED=NO (remains NO until THE HUMAN signs off — see Human gate)
+M6_COMPLETE=YES (conditionally closed — all gate conditions met)
+M7_STARTED=YES (authorized by conditional gate)
 SAFE_TO_AUDIT=YES
 ```
+
+## Human gate
+
+`M6_EXTERNAL_AUDIT_VERDICT=ACCEPTED` — independent external audit ran on
+`efd34c3` (see [reviews/M6-EXTERNAL-AUDIT-SUMMARY.md](../reviews/M6-EXTERNAL-AUDIT-SUMMARY.md)):
+0 blockers / 0 majors / 0 minors / 3 notes (dead `initial` param +
+no serial guard on detail VMs — matches M2/M3 precedent; Compose test
+count 18 vs reported 20; `MoreScreen` root not scrollable —
+pre-existing pattern). No remediation required. Human-approved
+conditional closeout authorized M7 to proceed; `M6_HUMAN_APPROVED`
+remains `NO` until THE HUMAN signs off.
 
 ## In-review defect reconciliation
 
