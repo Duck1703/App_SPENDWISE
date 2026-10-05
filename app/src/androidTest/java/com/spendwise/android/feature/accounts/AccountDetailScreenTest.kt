@@ -6,10 +6,13 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.spendwise.android.core.designsystem.SpendwiseTheme
+import androidx.compose.ui.test.onNodeWithContentDescription
 import com.spendwise.android.core.model.Account
 import com.spendwise.android.core.model.AccountType
 import com.spendwise.android.core.model.CurrencyCode
 import com.spendwise.android.core.model.Money
+import com.spendwise.android.core.model.Transaction
+import com.spendwise.android.core.model.TransactionType
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -23,7 +26,13 @@ class AccountDetailScreenTest {
     @get:Rule
     val composeRule = createComposeRule()
 
-    private data class Harness(var retries: Int = 0, var backs: Int = 0)
+    private data class Harness(
+        var retries: Int = 0,
+        var backs: Int = 0,
+        var openedTxn: String? = null,
+        var addFor: String? = null,
+        var historyRetries: Int = 0,
+    )
 
     private fun screen(state: AccountDetailUiState, harness: Harness = Harness()) {
         composeRule.setContent {
@@ -32,6 +41,9 @@ class AccountDetailScreenTest {
                     state = state,
                     onRetry = { harness.retries++ },
                     onNavigateBack = { harness.backs++ },
+                    onOpenTransaction = { harness.openedTxn = it },
+                    onAddTransaction = { harness.addFor = it },
+                    onRetryHistory = { harness.historyRetries++ },
                 )
             }
         }
@@ -75,5 +87,68 @@ class AccountDetailScreenTest {
         composeRule.onNodeWithText("Can’t reach Spendwise").assertIsDisplayed()
         composeRule.onNodeWithText("Try again").performClick()
         assertEquals(1, harness.retries)
+    }
+
+    // ── M3: account-scoped transaction history ────────────────────────────
+
+    private fun txn(id: String, type: TransactionType = TransactionType.EXPENSE) = Transaction(
+        id = id,
+        accountId = "a1",
+        type = type,
+        amount = Money(BigDecimal("25.50"), CurrencyCode("USD")),
+        category = "FOOD",
+        sourceRef = "MANUAL:$id",
+    )
+
+    @Test
+    fun history_listsRowsAndOpensThem() {
+        val harness = Harness()
+        screen(
+            AccountDetailUiState.Content(
+                account(),
+                history = AccountDetailUiState.AccountHistory.Items(listOf(txn("t1"))),
+            ),
+            harness,
+        )
+
+        composeRule.onNodeWithText("Transactions").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Expense −25.50 USD Food on Everyday cash")
+            .performClick()
+        assertEquals("t1", harness.openedTxn)
+    }
+
+    @Test
+    fun history_addTransactionCarriesThisAccount() {
+        val harness = Harness()
+        screen(
+            AccountDetailUiState.Content(
+                account(),
+                history = AccountDetailUiState.AccountHistory.Items(emptyList()),
+            ),
+            harness,
+        )
+
+        composeRule.onNodeWithText("No activity yet — record an expense or import a statement.")
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("Add transaction").performClick()
+        assertEquals("a1", harness.addFor)
+    }
+
+    @Test
+    fun historyError_retriesOnlyTheSection() {
+        val harness = Harness()
+        screen(
+            AccountDetailUiState.Content(
+                account(),
+                history = AccountDetailUiState.AccountHistory.Error,
+            ),
+            harness,
+        )
+
+        // The account header stays intact — only the section failed.
+        composeRule.onNodeWithText("Everyday cash").assertIsDisplayed()
+        composeRule.onNodeWithText("Couldn’t load this account’s transactions.").assertIsDisplayed()
+        composeRule.onNodeWithText("Try again").performClick()
+        assertEquals(1, harness.historyRetries)
     }
 }

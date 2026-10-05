@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import com.spendwise.android.core.network.AppError
 import com.spendwise.android.core.network.AppErrorException
 import com.spendwise.android.fakes.FakeAccountRepository
+import com.spendwise.android.fakes.FakeTransactionRepository
 import com.spendwise.android.fakes.MainDispatcherRule
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -19,9 +20,11 @@ class AccountDetailViewModelTest {
     private fun viewModel(
         id: String = "acc-1",
         repo: FakeAccountRepository = FakeAccountRepository(),
+        txns: FakeTransactionRepository = FakeTransactionRepository(),
     ) = AccountDetailViewModel(
         savedStateHandle = SavedStateHandle(mapOf("accountId" to id)),
         accountRepository = repo,
+        transactionRepository = txns,
     )
 
     @Test
@@ -96,5 +99,70 @@ class AccountDetailViewModelTest {
         val state = vm.state.value as AccountDetailUiState.Content
         assertEquals("acc-1", state.account.id)
         assertEquals(listOf("acc-1" to false, "acc-1" to true), repo.findByIdCalls)
+    }
+
+    // ── M3: account-scoped history section ────────────────────────────────
+
+    @Test
+    fun `content carries the account-scoped history`() = runTest {
+        val txns = FakeTransactionRepository()
+        txns.listResult = { _, _, _ ->
+            listOf(FakeTransactionRepository.transaction(id = "t1", accountId = "acc-1"))
+        }
+
+        val vm = viewModel(txns = txns)
+
+        val state = vm.state.value as AccountDetailUiState.Content
+        val history = state.history as AccountDetailUiState.AccountHistory.Items
+        assertEquals(listOf("t1"), history.transactions.map { it.id })
+        // Scoped to this account via the real server filter param.
+        assertEquals("acc-1", txns.listCalls.single().accountId)
+    }
+
+    @Test
+    fun `history failure degrades the section, never the header`() = runTest {
+        val txns = FakeTransactionRepository()
+        txns.listResult = { _, _, _ -> throw AppErrorException(AppError.Server(500)) }
+
+        val vm = viewModel(txns = txns)
+
+        val state = vm.state.value as AccountDetailUiState.Content
+        assertEquals("acc-1", state.account.id)
+        assertEquals(AccountDetailUiState.AccountHistory.Error, state.history)
+    }
+
+    @Test
+    fun `history retry reloads only the section`() = runTest {
+        val txns = FakeTransactionRepository()
+        var fail = true
+        txns.listResult = { _, _, _ ->
+            if (fail) {
+                throw AppErrorException(AppError.NetworkUnavailable)
+            } else {
+                listOf(FakeTransactionRepository.transaction(id = "t1"))
+            }
+        }
+        val repo = FakeAccountRepository()
+        val vm = viewModel(repo = repo, txns = txns)
+
+        fail = false
+        vm.retryHistory()
+
+        val state = vm.state.value as AccountDetailUiState.Content
+        assertTrue(state.history is AccountDetailUiState.AccountHistory.Items)
+        // The account itself was not re-requested.
+        assertEquals(1, repo.findByIdCalls.size)
+    }
+
+    @Test
+    fun `a create mutation reloads account and history`() = runTest {
+        val repo = FakeAccountRepository()
+        val txns = FakeTransactionRepository()
+        val vm = viewModel(repo = repo, txns = txns)
+
+        txns.emitMutation()
+
+        assertEquals(listOf("acc-1" to false, "acc-1" to true), repo.findByIdCalls)
+        assertEquals(2, txns.listCalls.size)
     }
 }

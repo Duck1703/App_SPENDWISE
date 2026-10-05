@@ -13,6 +13,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -25,9 +26,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.spendwise.android.R
-import com.spendwise.android.app.FoundationPlaceholder
 import com.spendwise.android.feature.accounts.AccountsDestination
+import com.spendwise.android.feature.home.HomeScreen
 import com.spendwise.android.feature.more.MoreDestination
+import com.spendwise.android.feature.transactions.TransactionsDestination
 
 private data class TopLevelDestination(
     val route: AppRoute,
@@ -43,18 +45,40 @@ private val topLevelDestinations = listOf(
 )
 
 /**
- * Authenticated shell (AD-004/AD-019): the four top-level destinations with
- * a bottom NavigationBar. Tab content is foundation-only in M0 — no FAB,
- * no headers, no feature actions (those arrive with their milestones).
+ * Authenticated shell (AD-004/AD-019): the four top-level destinations
+ * with a bottom NavigationBar.
+ *
+ * [openTransactionsTab] + [onConsumePendingTab] implement the post-create
+ * landing: a successful `TransactionCreateRoute` sets the flag on this
+ * entry's savedStateHandle and pops back; the shell then selects the
+ * Transactions tab once (single-shot — consumed, never sticky).
  */
 @Composable
 fun SpendwiseMainShell(
     navController: NavHostController = rememberNavController(),
     onOpenAccount: (accountId: String) -> Unit = {},
     onCreateAccount: () -> Unit = {},
+    onOpenTransaction: (transactionId: String) -> Unit = {},
+    onCreateTransaction: (accountId: String?) -> Unit = {},
+    openTransactionsTab: Boolean = false,
+    onConsumePendingTab: () -> Unit = {},
 ) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
+
+    // Post-create landing: select the Transactions tab exactly once.
+    LaunchedEffect(openTransactionsTab) {
+        if (openTransactionsTab) {
+            onConsumePendingTab()
+            navController.navigate(TransactionsRoute) {
+                popUpTo(navController.graph.findStartDestination().id) {
+                    saveState = true
+                }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
+    }
 
     Scaffold(
         bottomBar = {
@@ -96,15 +120,13 @@ fun SpendwiseMainShell(
             modifier = Modifier.padding(innerPadding),
         ) {
             composable<HomeRoute> {
-                FoundationPlaceholder(
-                    title = "Home",
-                    detail = "Dashboard foundation — content arrives in M4.",
-                )
+                HomeScreen(onAddTransaction = { onCreateTransaction(null) })
             }
             composable<TransactionsRoute> {
-                FoundationPlaceholder(
-                    title = "Transactions",
-                    detail = "Transaction list foundation — content arrives in M3.",
+                TransactionsDestination(
+                    onOpenTransaction = onOpenTransaction,
+                    onCreateTransaction = { onCreateTransaction(null) },
+                    onCreateAccount = onCreateAccount,
                 )
             }
             composable<AccountsRoute> {

@@ -4,6 +4,8 @@ import com.spendwise.android.BuildConfig
 import com.spendwise.android.core.serialization.BigDecimalSerializer
 import com.spendwise.android.data.remote.AccountsService
 import com.spendwise.android.data.remote.AuthService
+import com.spendwise.android.data.remote.CategoriesService
+import com.spendwise.android.data.remote.TransactionsService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -84,4 +86,14 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideAccountsService(retrofit: Retrofit): AccountsService = retrofit.create(AccountsService::class.java)
+
+    @Provides
+    @Singleton
+    fun provideTransactionsService(retrofit: Retrofit): TransactionsService =
+        retrofit.create(TransactionsService::class.java)
+
+    @Provides
+    @Singleton
+    fun provideCategoriesService(retrofit: Retrofit): CategoriesService =
+        retrofit.create(CategoriesService::class.java)
 }

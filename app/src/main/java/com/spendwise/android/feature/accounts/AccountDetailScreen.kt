@@ -7,15 +7,21 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -32,6 +38,7 @@ import com.spendwise.android.core.designsystem.SwServerError
 import com.spendwise.android.core.designsystem.SwSkeletonRows
 import com.spendwise.android.core.designsystem.SwSpacing
 import com.spendwise.android.core.designsystem.SwStateBlock
+import com.spendwise.android.core.designsystem.TransactionRow
 import com.spendwise.android.core.model.Account
 import com.spendwise.android.core.model.AccountType
 import com.spendwise.android.core.ui.format.MoneyFormat
@@ -41,6 +48,9 @@ fun AccountDetailScreen(
     state: AccountDetailUiState,
     onRetry: () -> Unit,
     onNavigateBack: () -> Unit,
+    onOpenTransaction: (String) -> Unit,
+    onAddTransaction: (String) -> Unit,
+    onRetryHistory: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize()) {
@@ -82,14 +92,23 @@ fun AccountDetailScreen(
                 modifier = Modifier.align(Alignment.CenterHorizontally),
             )
             is AccountDetailUiState.Content -> AccountDetailContent(
-                account = state.account,
+                state = state,
+                onOpenTransaction = onOpenTransaction,
+                onAddTransaction = onAddTransaction,
+                onRetryHistory = onRetryHistory,
             )
         }
     }
 }
 
 @Composable
-private fun AccountDetailContent(account: Account) {
+private fun AccountDetailContent(
+    state: AccountDetailUiState.Content,
+    onOpenTransaction: (String) -> Unit,
+    onAddTransaction: (String) -> Unit,
+    onRetryHistory: () -> Unit,
+) {
+    val account = state.account
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -148,7 +167,118 @@ private fun AccountDetailContent(account: Account) {
                 )
             }
         }
+
+        // Account-scoped history (P3A §11): section owns its own failure
+        // — the header above is never sunk by it.
+        HistorySection(
+            history = state.history,
+            account = account,
+            onOpenTransaction = onOpenTransaction,
+            onAddTransaction = { onAddTransaction(account.id) },
+            onRetryHistory = onRetryHistory,
+        )
         Spacer(Modifier.height(SwSpacing.Md))
+    }
+}
+
+@Composable
+private fun HistorySection(
+    history: AccountDetailUiState.AccountHistory,
+    account: Account,
+    onOpenTransaction: (String) -> Unit,
+    onAddTransaction: () -> Unit,
+    onRetryHistory: () -> Unit,
+) {
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.account_detail_history_title),
+                style = MaterialTheme.typography.titleMedium,
+                color = SwColors.Ink,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(start = 2.dp),
+            )
+            Spacer(Modifier.weight(1f))
+            TextButton(
+                onClick = onAddTransaction,
+                modifier = Modifier.heightIn(min = SwSpacing.TouchTargetMin),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_lucide_plus),
+                    contentDescription = null,
+                    tint = SwColors.Brand,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = stringResource(R.string.account_detail_add_transaction),
+                    color = SwColors.Brand,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
+        Spacer(Modifier.height(SwSpacing.Xs))
+        when (history) {
+            AccountDetailUiState.AccountHistory.Loading -> SwSkeletonRows(count = 2)
+            AccountDetailUiState.AccountHistory.Error -> SwCard {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(SwSpacing.Md),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_lucide_circle_alert),
+                        contentDescription = null,
+                        tint = SwColors.Error,
+                        modifier = Modifier.size(20.dp),
+                    )
+                    Spacer(Modifier.width(SwSpacing.Sm))
+                    Text(
+                        text = stringResource(R.string.account_detail_history_error),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = SwColors.Muted,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(
+                        onClick = onRetryHistory,
+                        modifier = Modifier.heightIn(min = SwSpacing.TouchTargetMin),
+                    ) {
+                        Text(stringResource(R.string.action_try_again))
+                    }
+                }
+            }
+            is AccountDetailUiState.AccountHistory.Items ->
+                if (history.transactions.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.account_detail_history_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = SwColors.Muted,
+                        modifier = Modifier.padding(horizontal = 2.dp, vertical = SwSpacing.Sm),
+                    )
+                } else {
+                    SwCard {
+                        Column {
+                            history.transactions.forEachIndexed { index, transaction ->
+                                if (index > 0) {
+                                    HorizontalDivider(
+                                        color = SwColors.Line,
+                                        modifier = Modifier.padding(horizontal = SwSpacing.Md),
+                                    )
+                                }
+                                TransactionRow(
+                                    transaction = transaction,
+                                    accountName = account.name,
+                                    onClick = { onOpenTransaction(transaction.id) },
+                                )
+                            }
+                        }
+                    }
+                }
+        }
     }
 }
 

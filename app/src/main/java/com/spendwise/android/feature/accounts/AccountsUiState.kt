@@ -2,6 +2,7 @@ package com.spendwise.android.feature.accounts
 
 import com.spendwise.android.core.model.Account
 import com.spendwise.android.core.model.AccountType
+import com.spendwise.android.core.model.Transaction
 
 /** Accounts list screen state (S06, PRODUCT §18). */
 sealed interface AccountsUiState {
@@ -66,13 +67,28 @@ data class CreateAccountUiState(
     }
 }
 
-/** Account detail state (S08 — header scope for M2; history lands in M3). */
+/** Account detail state (S08): header plus the account-scoped ledger slice. */
 sealed interface AccountDetailUiState {
 
     data object Loading : AccountDetailUiState
 
-    data class Content(val account: Account, val isRefreshing: Boolean = false) :
-        AccountDetailUiState
+    data class Content(
+        val account: Account,
+        val isRefreshing: Boolean = false,
+        /**
+         * `GET /api/transactions?accountId=…` for this account — a
+         * failure here never sinks the account header; it renders an
+         * inline retry instead (non-fatal section, P3A §11).
+         */
+        val history: AccountHistory = AccountHistory.Loading,
+    ) : AccountDetailUiState
+
+    /** The account-scoped transaction list — read-only like the ledger. */
+    sealed interface AccountHistory {
+        data object Loading : AccountHistory
+        data class Items(val transactions: List<Transaction>) : AccountHistory
+        data object Error : AccountHistory
+    }
 
     data object NotFound : AccountDetailUiState
 

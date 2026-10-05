@@ -70,10 +70,12 @@ fun AccountCreateDestination(
     }
 }
 
-/** Pushed destination — account detail (S08 header scope for M2). */
+/** Pushed destination — account detail (S08): header + account history. */
 @Composable
 fun AccountDetailDestination(
     onNavigateBack: () -> Unit,
+    onOpenTransaction: (String) -> Unit,
+    onAddTransaction: (String) -> Unit,
     viewModel: AccountDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -88,6 +90,9 @@ fun AccountDetailDestination(
             state = state,
             onRetry = viewModel::refresh,
             onNavigateBack = onNavigateBack,
+            onOpenTransaction = onOpenTransaction,
+            onAddTransaction = onAddTransaction,
+            onRetryHistory = viewModel::retryHistory,
         )
     }
 }

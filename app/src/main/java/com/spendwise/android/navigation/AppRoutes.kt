@@ -64,3 +64,23 @@ data object AccountCreateRoute : AppRoute
 
 @Serializable
 data class AccountDetailRoute(val accountId: String) : AppRoute
+
+/**
+ * Full-screen transaction flows pushed over the preserved shell — same
+ * contract as the account routes: the shell stays beneath, the expiry
+ * overlay can cover them, and an unsent create draft survives a
+ * same-user resume (AD-011 — the transaction draft is the product's
+ * explicitly promised restoration).
+ *
+ * @param accountId optional prefill when launched from an account's
+ *   detail screen — the user may still change it.
+ */
+@Serializable
+data class TransactionCreateRoute(val accountId: String? = null) : AppRoute
+
+/**
+ * Read-only detail derived from already-fetched list data — the backend
+ * has no `GET /api/transactions/{id}`.
+ */
+@Serializable
+data class TransactionDetailRoute(val transactionId: String) : AppRoute

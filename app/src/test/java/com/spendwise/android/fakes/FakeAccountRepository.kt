@@ -19,6 +19,7 @@ class FakeAccountRepository : AccountRepository {
     val listCalls = mutableListOf<Boolean>()
     val findByIdCalls = mutableListOf<Pair<String, Boolean>>()
     val createCalls = mutableListOf<Triple<String, AccountType, Money>>()
+    var invalidateCalls = 0
 
     override suspend fun list(refresh: Boolean): List<Account> {
         listCalls += refresh
@@ -33,6 +34,10 @@ class FakeAccountRepository : AccountRepository {
     override suspend fun create(name: String, type: AccountType, openingBalance: Money): Account {
         createCalls += Triple(name, type, openingBalance)
         return createResult(name, type, openingBalance)
+    }
+
+    override suspend fun invalidate() {
+        invalidateCalls++
     }
 
     companion object {

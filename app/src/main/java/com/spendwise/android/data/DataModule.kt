@@ -2,8 +2,12 @@ package com.spendwise.android.data
 
 import com.spendwise.android.data.repository.AccountRepository
 import com.spendwise.android.data.repository.AuthRepository
+import com.spendwise.android.data.repository.CategoryRepository
 import com.spendwise.android.data.repository.RemoteAccountRepository
 import com.spendwise.android.data.repository.RemoteAuthRepository
+import com.spendwise.android.data.repository.RemoteCategoryRepository
+import com.spendwise.android.data.repository.RemoteTransactionRepository
+import com.spendwise.android.data.repository.TransactionRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -22,4 +26,12 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindAccountRepository(impl: RemoteAccountRepository): AccountRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindTransactionRepository(impl: RemoteTransactionRepository): TransactionRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindCategoryRepository(impl: RemoteCategoryRepository): CategoryRepository
 }

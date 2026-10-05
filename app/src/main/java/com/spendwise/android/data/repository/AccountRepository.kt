@@ -46,6 +46,16 @@ interface AccountRepository {
     suspend fun findById(id: String, refresh: Boolean = false): Account
 
     suspend fun create(name: String, type: AccountType, openingBalance: Money): Account
+
+    /**
+     * Drop the in-memory account list so the next [list]/[findById]
+     * reloads from the server. Called after any write that mutates
+     * balances server-side (e.g. transaction creation — the ledger
+     * insert applies the amount inside the same DB transaction, so a
+     * cached balance is immediately stale). The client never recomputes
+     * balances locally.
+     */
+    suspend fun invalidate()
 }
 
 @Singleton
@@ -118,6 +128,8 @@ class RemoteAccountRepository @Inject constructor(
         if (cache.generation() != generation) throw SessionEndedException()
         return account
     }
+
+    override suspend fun invalidate() = cache.invalidate()
 
     private suspend fun fetchAccounts(): List<Account> =
         try {

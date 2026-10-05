@@ -131,4 +131,103 @@
     <string name="account_detail_notfound_title">Account not found</string>
     <string name="account_detail_notfound_body">It may have been removed or belongs to another sign-in.</string>
     <string name="account_detail_back_to_accounts">Back to accounts</string>
+    <string name="account_detail_history_title">Transactions</string>
+    <string name="account_detail_history_empty">No activity yet — record an expense or import a statement.</string>
+    <string name="account_detail_history_error">Couldn\'t load this account\'s transactions.</string>
+    <string name="account_detail_add_transaction">Add transaction</string>
+
+    <!-- Home -->
+    <string name="home_title">Home</string>
+    <string name="home_placeholder">Your monthly overview arrives with the dashboard milestone.</string>
+    <string name="home_add_transaction">Add transaction</string>
+
+    <!-- Transactions list (S09) -->
+    <string name="transactions_title">Transactions</string>
+    <string name="transactions_subtitle">Everything you have recorded</string>
+    <string name="transactions_add_cd">Add transaction</string>
+    <string name="transactions_empty_title">No transactions yet</string>
+    <string name="transactions_empty_body">Record an expense or import a statement to start your history.</string>
+    <string name="transactions_empty_action">Add transaction</string>
+    <string name="transactions_empty_no_account_action">Add your first account</string>
+    <string name="transactions_filtered_empty_title">No matches</string>
+    <string name="transactions_filtered_empty_body">No transactions fit these filters.</string>
+    <string name="transactions_filtered_empty_action">Clear filters</string>
+    <plurals name="transactions_count">
+        <item quantity="one">%1$d transaction</item>
+        <item quantity="other">%1$d transactions</item>
+    </plurals>
+    <string name="transactions_list_note">Entries appear in the order Spendwise returns them — dates aren\'t available in this version.</string>
+    <string name="transactions_refresh_error_title">Couldn\'t refresh</string>
+    <string name="transactions_refresh_error_body">Showing your saved list — pull down to try again.</string>
+
+    <!-- Filters (P3A §3: one horizontal row, selected value replaces the label) -->
+    <string name="filter_account">Account</string>
+    <string name="filter_type">Type</string>
+    <string name="filter_category">Category</string>
+    <string name="filter_source">Source</string>
+    <string name="filter_all">All</string>
+    <string name="filter_uncategorized">Uncategorized</string>
+    <string name="filter_cd_selected">%1$s filter: %2$s</string>
+    <string name="filter_cd_default">%1$s filter: all</string>
+
+    <!-- Transaction type + provenance labels -->
+    <string name="txn_type_income">Income</string>
+    <string name="txn_type_expense">Expense</string>
+    <string name="txn_type_transfer">Transfer</string>
+    <string name="txn_type_unknown">Transaction</string>
+    <string name="txn_source_manual">Manual</string>
+    <string name="txn_source_imported">Imported</string>
+    <string name="txn_source_recurring">Recurring</string>
+    <string name="txn_source_transfer">Transfer</string>
+    <string name="txn_row_cd">%1$s %2$s %3$s %4$s on %5$s%6$s</string>
+    <string name="txn_category_uncategorized">Uncategorized</string>
+
+    <!-- Category names (server codes — unknown codes render humanized) -->
+    <string name="category_food">Food</string>
+    <string name="category_transport">Transport</string>
+    <string name="category_housing">Housing</string>
+    <string name="category_entertainment">Entertainment</string>
+    <string name="category_salary">Salary</string>
+
+    <!-- Transaction detail (S10) -->
+    <string name="txn_detail_title">Transaction</string>
+    <string name="txn_detail_field_account">Account</string>
+    <string name="txn_detail_field_currency">Currency</string>
+    <string name="txn_detail_field_source">Source</string>
+    <string name="txn_detail_readonly">Existing entries can\'t be edited right now.</string>
+    <string name="txn_detail_notfound_title">Transaction not found</string>
+    <string name="txn_detail_notfound_body">It may not exist in this sign-in\'s history.</string>
+    <string name="txn_detail_back_to_list">Back to transactions</string>
+
+    <!-- Create transaction (S11) -->
+    <string name="txn_create_title">Add transaction</string>
+    <string name="txn_create_subtitle">Record income or an expense — entries can\'t be edited afterwards.</string>
+    <string name="txn_create_type_label">Type</string>
+    <string name="txn_create_amount_label">Amount</string>
+    <string name="txn_create_amount_hint">Enter a positive amount. The type sets the direction.</string>
+    <string name="txn_create_amount_placeholder">0.00</string>
+    <string name="txn_create_account_label_from">From account</string>
+    <string name="txn_create_account_label_to">To account</string>
+    <string name="txn_create_account_hint">Currency is locked to the account.</string>
+    <string name="txn_create_currency_locked_cd">Currency locked to the account: %1$s</string>
+    <string name="txn_create_category_label">Category (optional)</string>
+    <string name="txn_create_category_none">No category</string>
+    <string name="txn_create_hint_label">Categorization hint (optional)</string>
+    <string name="txn_create_hint_support">Used once by categorization rules to suggest a category — it isn\'t saved with the transaction.</string>
+    <string name="txn_create_hint_placeholder">e.g. lunch with team</string>
+    <string name="txn_create_today">Recorded as today</string>
+    <string name="txn_create_submit">Save transaction</string>
+    <string name="txn_create_submitting">Saving…</string>
+    <string name="txn_create_cancel">Cancel</string>
+    <string name="txn_create_error_ambiguous">We couldn\'t confirm whether this transaction was recorded — check your transactions before trying again.</string>
+    <string name="txn_create_error_account_gone">That account is no longer available — pick another one.</string>
+    <string name="txn_error_amount_required">Enter an amount.</string>
+    <string name="txn_error_amount_invalid">Enter a valid amount, like 1500 or 1500.50.</string>
+    <string name="txn_error_amount_positive">Amount must be greater than zero.</string>
+    <string name="txn_error_amount_precise">Use at most 2 decimal places.</string>
+    <string name="txn_error_amount_large">That amount is too large.</string>
+    <string name="txn_error_account_required">Choose an account.</string>
+    <string name="txn_create_no_accounts_title">Create an account first</string>
+    <string name="txn_create_no_accounts_body">Transactions belong to an account.</string>
+    <string name="txn_create_no_accounts_action">Create account</string>
 </resources>

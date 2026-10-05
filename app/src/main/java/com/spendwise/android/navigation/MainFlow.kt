@@ -2,6 +2,8 @@ package com.spendwise.android.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -12,6 +14,11 @@ import com.spendwise.android.feature.accounts.AccountCreateDestination
 import com.spendwise.android.feature.accounts.AccountDetailDestination
 import com.spendwise.android.feature.auth.LoginDestination
 import com.spendwise.android.feature.auth.SessionExpiredScreen
+import com.spendwise.android.feature.transactions.TransactionCreateDestination
+import com.spendwise.android.feature.transactions.TransactionDetailDestination
+
+/** savedStateHandle flag — post-create landing selects the Transactions tab once. */
+private const val KEY_OPEN_TRANSACTIONS_TAB = "spendwise.openTransactionsTab"
 
 /**
  * Authenticated graph (AD-004, §13): the tab shell plus the
@@ -66,10 +73,23 @@ fun MainFlow(
         navController = navController,
         startDestination = MainShellRoute,
     ) {
-        composable<MainShellRoute> {
+        composable<MainShellRoute> { entry ->
+            val openTransactionsTab by entry.savedStateHandle
+                .getStateFlow(KEY_OPEN_TRANSACTIONS_TAB, false)
+                .collectAsStateWithLifecycle()
             SpendwiseMainShell(
                 onOpenAccount = { id -> navController.navigate(AccountDetailRoute(id)) },
                 onCreateAccount = { navController.navigate(AccountCreateRoute) },
+                onOpenTransaction = { id ->
+                    navController.navigate(TransactionDetailRoute(id))
+                },
+                onCreateTransaction = { accountId ->
+                    navController.navigate(TransactionCreateRoute(accountId))
+                },
+                openTransactionsTab = openTransactionsTab,
+                onConsumePendingTab = {
+                    entry.savedStateHandle[KEY_OPEN_TRANSACTIONS_TAB] = false
+                },
             )
         }
         composable<AccountCreateRoute> {
@@ -85,6 +105,34 @@ fun MainFlow(
         composable<AccountDetailRoute> {
             AccountDetailDestination(
                 onNavigateBack = { navController.popBackStack() },
+                onOpenTransaction = { id ->
+                    navController.navigate(TransactionDetailRoute(id))
+                },
+                onAddTransaction = { accountId ->
+                    navController.navigate(TransactionCreateRoute(accountId))
+                },
+            )
+        }
+        composable<TransactionDetailRoute> {
+            TransactionDetailDestination(
+                onNavigateBack = { navController.popBackStack() },
+            )
+        }
+        composable<TransactionCreateRoute> {
+            TransactionCreateDestination(
+                onNavigateBack = { navController.popBackStack() },
+                onCreated = {
+                    // Land on the Transactions tab when the shell sits
+                    // beneath (tab/Home launches); an account-detail
+                    // launch returns to that detail, which reloads via
+                    // the repository mutations signal.
+                    val previous = navController.previousBackStackEntry
+                    if (previous?.destination?.hasRoute<MainShellRoute>() == true) {
+                        previous.savedStateHandle[KEY_OPEN_TRANSACTIONS_TAB] = true
+                    }
+                    navController.popBackStack()
+                },
+                onCreateAccount = { navController.navigate(AccountCreateRoute) },
             )
         }
         composable<SessionExpiredRoute> {
