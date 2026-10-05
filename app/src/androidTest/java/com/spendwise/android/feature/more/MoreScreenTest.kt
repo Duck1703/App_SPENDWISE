@@ -3,6 +3,7 @@ package com.spendwise.android.feature.more
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -19,11 +20,32 @@ class MoreScreenTest {
     val composeRule = createComposeRule()
 
     @Test
+    fun importRow_launchesImport() {
+        var importClicks = 0
+        composeRule.setContent {
+            SpendwiseTheme {
+                MoreScreen(
+                    state = MoreUiState(),
+                    onSignOut = {},
+                    onOpenImport = { importClicks++ },
+                )
+            }
+        }
+
+        composeRule.onNodeWithContentDescription("Import statement").performClick()
+        assertEquals(1, importClicks)
+    }
+
+    @Test
     fun signOut_requiresConfirmation() {
         var signOutClicks = 0
         composeRule.setContent {
             SpendwiseTheme {
-                MoreScreen(state = MoreUiState(), onSignOut = { signOutClicks++ })
+                MoreScreen(
+                    state = MoreUiState(),
+                    onSignOut = { signOutClicks++ },
+                    onOpenImport = {},
+                )
             }
         }
 
@@ -42,7 +64,11 @@ class MoreScreenTest {
         var signOutClicks = 0
         composeRule.setContent {
             SpendwiseTheme {
-                MoreScreen(state = MoreUiState(), onSignOut = { signOutClicks++ })
+                MoreScreen(
+                    state = MoreUiState(),
+                    onSignOut = { signOutClicks++ },
+                    onOpenImport = {},
+                )
             }
         }
 

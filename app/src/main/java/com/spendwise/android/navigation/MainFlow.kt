@@ -14,6 +14,7 @@ import com.spendwise.android.feature.accounts.AccountCreateDestination
 import com.spendwise.android.feature.accounts.AccountDetailDestination
 import com.spendwise.android.feature.auth.LoginDestination
 import com.spendwise.android.feature.auth.SessionExpiredScreen
+import com.spendwise.android.feature.imports.ImportDestination
 import com.spendwise.android.feature.transactions.TransactionCreateDestination
 import com.spendwise.android.feature.transactions.TransactionDetailDestination
 
@@ -86,6 +87,7 @@ fun MainFlow(
                 onCreateTransaction = { accountId ->
                     navController.navigate(TransactionCreateRoute(accountId))
                 },
+                onOpenImport = { navController.navigate(ImportRoute) },
                 openTransactionsTab = openTransactionsTab,
                 onConsumePendingTab = {
                     entry.savedStateHandle[KEY_OPEN_TRANSACTIONS_TAB] = false
@@ -116,6 +118,13 @@ fun MainFlow(
         composable<TransactionDetailRoute> {
             TransactionDetailDestination(
                 onNavigateBack = { navController.popBackStack() },
+            )
+        }
+        composable<ImportRoute> {
+            ImportDestination(
+                onDone = { navController.popBackStack() },
+                onBack = { navController.popBackStack() },
+                onCreateAccount = { navController.navigate(AccountCreateRoute) },
             )
         }
         composable<TransactionCreateRoute> {

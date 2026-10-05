@@ -78,6 +78,7 @@ fun HomeScreen(
     onOpenAccount: (String) -> Unit,
     onOpenTransaction: (String) -> Unit,
     onSeeAllActivity: () -> Unit,
+    onImport: () -> Unit,
     onCreateAccount: () -> Unit,
     onRefresh: () -> Unit,
     onRetryTotals: () -> Unit,
@@ -169,6 +170,7 @@ fun HomeScreen(
                         onOpenAccount = onOpenAccount,
                         onOpenTransaction = onOpenTransaction,
                         onSeeAllActivity = onSeeAllActivity,
+                        onImport = onImport,
                         onRetryTotals = onRetryTotals,
                         onRetryActivity = onRetryActivity,
                     )
@@ -185,6 +187,7 @@ private fun HomeContent(
     onOpenAccount: (String) -> Unit,
     onOpenTransaction: (String) -> Unit,
     onSeeAllActivity: () -> Unit,
+    onImport: () -> Unit,
     onRetryTotals: () -> Unit,
     onRetryActivity: () -> Unit,
 ) {
@@ -212,6 +215,8 @@ private fun HomeContent(
         )
         AccountCarousel(accounts = state.accounts, onOpenAccount = onOpenAccount)
 
+        ImportQuickCard(onImport = onImport)
+
         ActivityPanel(
             activity = state.activity,
             accounts = state.accounts,
@@ -220,6 +225,49 @@ private fun HomeContent(
             onRetry = onRetryActivity,
         )
         Spacer(Modifier.height(96.dp)) // FAB clearance
+    }
+}
+
+/** M5 secondary entry (P3A §5): compact card — More stays the hub. */
+@Composable
+private fun ImportQuickCard(onImport: () -> Unit) {
+    val cd = stringResource(R.string.home_import_action)
+    SwCard {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = SwSpacing.TouchTargetMin)
+                .clearAndSetSemantics { contentDescription = cd }
+                .clickable(onClick = onImport)
+                .padding(SwSpacing.Md),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_lucide_upload),
+                contentDescription = null,
+                tint = SwColors.Brand,
+                modifier = Modifier.size(22.dp),
+            )
+            Spacer(Modifier.width(SwSpacing.Md))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.home_import_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = SwColors.Ink,
+                )
+                Text(
+                    text = stringResource(R.string.home_import_subtitle),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = SwColors.Muted,
+                )
+            }
+            Icon(
+                painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                contentDescription = null,
+                tint = SwColors.Muted,
+                modifier = Modifier.size(20.dp),
+            )
+        }
     }
 }
 

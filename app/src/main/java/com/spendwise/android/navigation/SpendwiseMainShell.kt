@@ -60,6 +60,7 @@ fun SpendwiseMainShell(
     onCreateAccount: () -> Unit = {},
     onOpenTransaction: (transactionId: String) -> Unit = {},
     onCreateTransaction: (accountId: String?) -> Unit = {},
+    onOpenImport: () -> Unit = {},
     openTransactionsTab: Boolean = false,
     onConsumePendingTab: () -> Unit = {},
 ) {
@@ -133,6 +134,7 @@ fun SpendwiseMainShell(
                             restoreState = true
                         }
                     },
+                    onImport = onOpenImport,
                     onCreateAccount = onCreateAccount,
                 )
             }
@@ -150,7 +152,7 @@ fun SpendwiseMainShell(
                 )
             }
             composable<MoreRoute> {
-                MoreDestination()
+                MoreDestination(onOpenImport = onOpenImport)
             }
         }
     }

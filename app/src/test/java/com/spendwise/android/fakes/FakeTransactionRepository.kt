@@ -38,6 +38,14 @@ class FakeTransactionRepository : TransactionRepository {
     /** Test hook — simulate a server-side write landing. */
     suspend fun emitMutation() = _mutations.emit(Unit)
 
+    var notifyLedgerChangedCalls = 0
+        private set
+
+    override suspend fun notifyLedgerChanged() {
+        notifyLedgerChangedCalls++
+        _mutations.emit(Unit)
+    }
+
     override suspend fun list(
         accountId: String?,
         type: TransactionType?,

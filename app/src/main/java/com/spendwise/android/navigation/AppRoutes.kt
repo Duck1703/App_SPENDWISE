@@ -84,3 +84,11 @@ data class TransactionCreateRoute(val accountId: String? = null) : AppRoute
  */
 @Serializable
 data class TransactionDetailRoute(val transactionId: String) : AppRoute
+
+/**
+ * Statement import (M5, PRODUCT §23–25) — pushed over the preserved
+ * shell so the synchronous processing state survives a session-expired
+ * overlay, and `Done` returns to the origin tab.
+ */
+@Serializable
+data object ImportRoute : AppRoute

@@ -36,6 +36,16 @@ class AppRoutesTest {
     }
 
     @Test
+    fun `import route serializes as a no-arg object`() {
+        val json = Json.encodeToString(ImportRoute.serializer(), ImportRoute)
+
+        assertEquals(
+            ImportRoute,
+            Json.decodeFromString(ImportRoute.serializer(), json),
+        )
+    }
+
+    @Test
     fun `transaction create route round-trips with and without account prefill`() {
         val bare = TransactionCreateRoute()
         val prefilled = TransactionCreateRoute(accountId = "acc-7")

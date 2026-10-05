@@ -68,6 +68,7 @@ class HomeScreenTest {
         var openedTransaction: String? = null,
         var seeAllClicks: Int = 0,
         var createAccountClicks: Int = 0,
+        var importClicks: Int = 0,
         var refreshClicks: Int = 0,
         var retryTotalsClicks: Int = 0,
         var retryActivityClicks: Int = 0,
@@ -82,6 +83,7 @@ class HomeScreenTest {
                     onOpenAccount = { harness.openedAccount = it },
                     onOpenTransaction = { harness.openedTransaction = it },
                     onSeeAllActivity = { harness.seeAllClicks++ },
+                    onImport = { harness.importClicks++ },
                     onCreateAccount = { harness.createAccountClicks++ },
                     onRefresh = { harness.refreshClicks++ },
                     onRetryTotals = { harness.retryTotalsClicks++ },
@@ -216,6 +218,19 @@ class HomeScreenTest {
             .assertHeightIsAtLeast(48.dp)
             .performClick()
         assertEquals(1, harness.seeAllClicks)
+    }
+
+    @Test
+    fun importQuickCard_reachesCallback() {
+        val harness = Harness()
+        screen(content(), harness)
+
+        composeRule.onNodeWithContentDescription(
+            "Import statement — CSV or TPBank statement PDF",
+        )
+            .assertHeightIsAtLeast(48.dp)
+            .performClick()
+        assertEquals(1, harness.importClicks)
     }
 
     @Test

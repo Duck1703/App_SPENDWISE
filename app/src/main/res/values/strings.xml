@@ -56,7 +56,8 @@
 
     <!-- More -->
     <string name="more_title">More</string>
-    <string name="more_placeholder">Settings and planning arrive with later milestones.</string>
+    <string name="more_import_label">Import statement</string>
+    <string name="more_import_desc">CSV file or TPBank statement PDF</string>
     <string name="more_sign_out">Sign out</string>
     <string name="more_signing_out">Signing out…</string>
     <string name="sign_out_dialog_title">Sign out of Spendwise?</string>
@@ -247,4 +248,59 @@
     <string name="txn_create_no_accounts_title">Create an account first</string>
     <string name="txn_create_no_accounts_body">Transactions belong to an account.</string>
     <string name="txn_create_no_accounts_action">Create account</string>
+
+    <!-- Import (S12–S14, PRODUCT §23–25, P3A §5–6) -->
+    <string name="import_title">Import statement</string>
+    <string name="import_account_label">Import into</string>
+    <string name="import_account_placeholder">Choose an account</string>
+    <string name="import_account_hint">Rows in the file must use this account’s currency.</string>
+    <string name="import_file_label">Statement file</string>
+    <string name="import_pick_file">Choose file</string>
+    <string name="import_change_file">Change</string>
+    <string name="import_submit">Import</string>
+    <string name="import_format_title">What formats are supported?</string>
+    <string name="import_format_summary">Spendwise CSV, or a machine-readable TPBank statement PDF — up to about 1 MB.</string>
+    <string name="import_format_csv_label">CSV — Spendwise format</string>
+    <string name="import_format_csv_body">Exact header above — no extra spaces, no BOM. Dates as yyyy-MM-dd. Negative amounts are expenses, positive are income. Currency must match the account.</string>
+    <string name="import_format_pdf_label">PDF — TPBank statement</string>
+    <string name="import_format_pdf_body">The original machine-readable account statement. Scans, photos, and password-protected files aren’t supported, and other banks’ PDFs aren’t supported yet.</string>
+    <string name="import_processing_title">Importing your statement…</string>
+    <string name="import_processing_body">This can take a moment — please keep this screen open.</string>
+    <string name="import_result_rows">Rows in file: %1$d</string>
+    <string name="import_result_done">Done</string>
+    <string name="import_status_imported">Imported</string>
+    <string name="import_status_duplicate">Already imported</string>
+    <string name="import_status_failed">Couldn’t import</string>
+    <string name="import_failures_section">Rows that couldn’t import</string>
+    <string name="import_row_failed">Row %1$d — %2$s</string>
+    <string name="import_row_failed_no_reason">Row %1$d — couldn’t import</string>
+    <string name="import_row_ok">Row %1$d — imported</string>
+    <string name="import_row_duplicate">Row %1$d — already imported</string>
+    <string name="import_row_unknown">Row %1$d — status not recognized</string>
+    <string name="import_rows_show">Show all rows</string>
+    <string name="import_rows_hide">Hide rows</string>
+    <string name="import_result_empty_title">Empty file</string>
+    <string name="import_result_empty_body">The file had no data rows.</string>
+    <string name="import_all_duplicates_title">Nothing new to import</string>
+    <string name="import_all_duplicates_body">Every row was already imported — duplicates are skipped safely.</string>
+    <string name="import_all_failed_title">Nothing could be imported</string>
+    <string name="import_all_failed_body">Check the file format and try again.</string>
+    <string name="import_empty_title">Create an account first</string>
+    <string name="import_empty_body">Imports attach rows to an account.</string>
+    <string name="import_empty_action">Create account</string>
+    <string name="import_ambiguous_title">Import may not have finished</string>
+    <string name="import_ambiguous_body">Some rows may already be imported — check your transactions. Re-uploading the same file is safe: imported rows are skipped as duplicates.</string>
+    <string name="import_error_network_title">No connection</string>
+    <string name="import_error_network_body">Check your connection, then try importing again.</string>
+    <string name="import_error_server_title">Import didn’t complete</string>
+    <string name="import_error_server_body">The server couldn’t finish this import — try again.</string>
+    <string name="import_error_unsupported_title">File not supported</string>
+    <string name="import_error_unsupported_body">Use a Spendwise CSV or the original TPBank statement PDF — scans, photos, and password-protected files aren’t supported.</string>
+    <string name="import_error_too_large_title">File too large</string>
+    <string name="import_error_too_large_body">Statements up to about 1 MB are supported.</string>
+    <string name="import_error_account_gone_title">Account unavailable</string>
+    <string name="import_error_account_gone_body">The chosen account is no longer available.</string>
+    <string name="home_import_title">Import statement</string>
+    <string name="home_import_subtitle">CSV or TPBank statement PDF</string>
+    <string name="home_import_action">Import statement — CSV or TPBank statement PDF</string>
 </resources>

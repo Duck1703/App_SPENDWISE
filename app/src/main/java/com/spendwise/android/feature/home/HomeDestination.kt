@@ -23,6 +23,7 @@ fun HomeDestination(
     onOpenTransaction: (String) -> Unit,
     onSeeAllActivity: () -> Unit,
     onCreateAccount: () -> Unit,
+    onImport: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -38,6 +39,7 @@ fun HomeDestination(
             onOpenAccount = onOpenAccount,
             onOpenTransaction = onOpenTransaction,
             onSeeAllActivity = onSeeAllActivity,
+            onImport = onImport,
             onCreateAccount = onCreateAccount,
             onRefresh = viewModel::refresh,
             onRetryTotals = viewModel::retryTotals,

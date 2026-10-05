@@ -88,6 +88,13 @@ interface TransactionRepository {
 
     /** Emitted once per successful [create] — list surfaces reload. */
     val mutations: SharedFlow<Unit>
+
+    /**
+     * Emit a ledger-changed signal for a server-side write that did NOT
+     * go through [create] (M5: statement import). Same contract: list
+     * surfaces (Home activity, Transactions) reload.
+     */
+    suspend fun notifyLedgerChanged()
 }
 
 @Singleton
@@ -176,6 +183,10 @@ class RemoteTransactionRepository @Inject constructor(
         if (cache.generation() != generation) throw SessionEndedException()
         _mutations.tryEmit(Unit)
         return transaction
+    }
+
+    override suspend fun notifyLedgerChanged() {
+        _mutations.tryEmit(Unit)
     }
 
     private suspend fun fetchTransactions(

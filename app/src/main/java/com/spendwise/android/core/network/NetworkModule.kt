@@ -6,6 +6,7 @@ import com.spendwise.android.data.remote.AccountsService
 import com.spendwise.android.data.remote.AuthService
 import com.spendwise.android.data.remote.CategoriesService
 import com.spendwise.android.data.remote.DashboardService
+import com.spendwise.android.data.remote.ImportsService
 import com.spendwise.android.data.remote.TransactionsService
 import dagger.Module
 import dagger.Provides
@@ -109,4 +110,9 @@ object NetworkModule {
     @Singleton
     fun provideDashboardService(retrofit: Retrofit): DashboardService =
         retrofit.create(DashboardService::class.java)
+
+    @Provides
+    @Singleton
+    fun provideImportsService(retrofit: Retrofit): ImportsService =
+        retrofit.create(ImportsService::class.java)
 }
