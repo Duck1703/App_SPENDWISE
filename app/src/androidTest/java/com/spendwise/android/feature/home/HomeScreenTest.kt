@@ -1,5 +1,6 @@
 package com.spendwise.android.feature.home
 
+import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -19,6 +20,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import androidx.compose.ui.unit.dp
 import java.math.BigDecimal
 
 /**
@@ -112,10 +114,9 @@ class HomeScreenTest {
         screen(content())
 
         composeRule.onNodeWithText("This month").assertIsDisplayed()
-        composeRule.onNodeWithText("Income").assertIsDisplayed()
-        composeRule.onNodeWithText("Spent").assertIsDisplayed()
-        // Figures render with the uniform account-currency label.
-        composeRule.onNodeWithText("4,500").assertIsDisplayed()
+        // Merged figure semantics — figures read as one unit.
+        composeRule.onNodeWithContentDescription("Income 4,500 VND").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Spent −1,200 VND").assertIsDisplayed()
         // The VND label appears on both hero figures and the card.
         assertTrue(composeRule.onAllNodesWithText("VND").fetchSemanticsNodes().size >= 2)
     }
@@ -137,7 +138,9 @@ class HomeScreenTest {
 
         composeRule.onNodeWithText("This month’s summary couldn’t be loaded.")
             .assertIsDisplayed()
-        composeRule.onNodeWithText("Try again").performClick()
+        composeRule.onNodeWithText("Try again")
+            .assertHeightIsAtLeast(48.dp)
+            .performClick()
         assertEquals(1, harness.retryTotalsClicks)
     }
 
@@ -198,7 +201,9 @@ class HomeScreenTest {
         screen(content(activity = ActivityState.Failed(HomeError.Server)), harness)
 
         composeRule.onNodeWithText("Activity couldn’t be loaded.").assertIsDisplayed()
-        composeRule.onNodeWithText("Try again").performClick()
+        composeRule.onNodeWithText("Try again")
+            .assertHeightIsAtLeast(48.dp)
+            .performClick()
         assertEquals(1, harness.retryActivityClicks)
     }
 
@@ -207,7 +212,9 @@ class HomeScreenTest {
         val harness = Harness()
         screen(content(), harness)
 
-        composeRule.onNodeWithText("See all").performClick()
+        composeRule.onNodeWithText("See all")
+            .assertHeightIsAtLeast(48.dp)
+            .performClick()
         assertEquals(1, harness.seeAllClicks)
     }
 
@@ -261,7 +268,8 @@ class HomeScreenTest {
         val harness = Harness()
         screen(content(), harness)
 
-        composeRule.onNodeWithText("Add transaction").performClick()
+        // Merged FAB semantics — labeled in expanded AND collapsed forms.
+        composeRule.onNodeWithContentDescription("Add transaction").performClick()
         assertEquals(1, harness.addClicks)
     }
 }

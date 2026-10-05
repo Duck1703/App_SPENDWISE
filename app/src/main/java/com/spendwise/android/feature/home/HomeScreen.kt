@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -91,6 +92,7 @@ fun HomeScreen(
         modifier = modifier.fillMaxSize(),
         containerColor = SwColors.Ground,
         floatingActionButton = {
+            val fabLabel = stringResource(R.string.home_add_transaction)
             ExtendedFloatingActionButton(
                 onClick = onAddTransaction,
                 expanded = !collapsed,
@@ -100,9 +102,15 @@ fun HomeScreen(
                         contentDescription = null,
                     )
                 },
-                text = { Text(stringResource(R.string.home_add_transaction)) },
+                text = { Text(fabLabel) },
                 containerColor = SwColors.Brand,
                 contentColor = SwColors.OnAccent,
+                // One merged label in BOTH forms — when the text is
+                // collapsed away the icon-only button still announces
+                // the action (was contentDescription=null on the icon).
+                modifier = Modifier.clearAndSetSemantics {
+                    contentDescription = fabLabel
+                },
             )
         },
     ) { innerPadding ->
@@ -273,8 +281,10 @@ private fun MonthHero(totals: MonthTotals, onRetry: () -> Unit) {
                     style = MaterialTheme.typography.bodyMedium,
                     color = SwColors.Mint,
                 )
-                Spacer(Modifier.height(SwSpacing.Sm))
-                TextButton(onClick = onRetry) {
+                TextButton(
+                    onClick = onRetry,
+                    modifier = Modifier.heightIn(min = SwSpacing.TouchTargetMin),
+                ) {
                     Text(
                         text = stringResource(R.string.action_try_again),
                         color = SwColors.OnAccent,
@@ -300,7 +310,15 @@ private fun MonthFigure(
     invert: Boolean = false,
 ) {
     val figureStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    // Merged figure semantics — "Income 4,500 VND" / "Spent −1,200 VND"
+    // read as one unit, never an orphan minus-sign node.
+    val figureCd = "$label ${if (invert) "−" else ""}${
+        MoneyFormat.format(amount, CurrencyCode(currency))
+    } $currency"
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.clearAndSetSemantics { contentDescription = figureCd },
+    ) {
         Icon(
             painter = painterResource(icon),
             contentDescription = null,
@@ -418,7 +436,10 @@ private fun ActivityPanel(
             color = SwColors.Ink,
             modifier = Modifier.weight(1f),
         )
-        TextButton(onClick = onSeeAll) {
+        TextButton(
+            onClick = onSeeAll,
+            modifier = Modifier.heightIn(min = SwSpacing.TouchTargetMin),
+        ) {
             Text(stringResource(R.string.home_activity_see_all))
         }
     }
@@ -468,7 +489,10 @@ private fun ActivityPanel(
                         color = SwColors.Muted,
                         modifier = Modifier.weight(1f),
                     )
-                    TextButton(onClick = onRetry) {
+                    TextButton(
+                        onClick = onRetry,
+                        modifier = Modifier.heightIn(min = SwSpacing.TouchTargetMin),
+                    ) {
                         Text(stringResource(R.string.action_try_again))
                     }
                 }
