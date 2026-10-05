@@ -205,8 +205,13 @@ SAFE_TO_AUDIT=YES
 
 ## Human gate
 
-`M5_EXTERNAL_AUDIT_VERDICT=` — pending (external audit required
-before approval; `M5_HUMAN_APPROVED=NO`, `M6_STARTED=NO`).
+`M5_EXTERNAL_AUDIT_VERDICT=ACCEPTED` — independent external audit ran on
+`dd74ba6` (see [reviews/M5-EXTERNAL-AUDIT-SUMMARY.md](../reviews/M5-EXTERNAL-AUDIT-SUMMARY.md)):
+0 blockers / 0 majors / 2 minors (pick race, banner anchoring) —
+remediated at `0db8b3a` and post-remediation falsification verified
+(20/20 import VM tests, contract/repo/route suites green, detekt clean).
+Human-approved conditional closeout authorized M6 to proceed;
+`M5_HUMAN_APPROVED` remains `NO` until THE HUMAN signs off.
 
 ## Scope exclusions honored
 
