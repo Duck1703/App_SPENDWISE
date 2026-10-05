@@ -84,7 +84,25 @@ write, not completed download.
   serializer scan re-derived from source; connected suite on physical
   device if available; Sentinel + Argus reviews; external audit gate.
 
+## Quality-gate evidence
+
+- JVM: **462/462** (`testDebugUnitTest`; +40 M9 tests: contract,
+  repository byte-identity/generation/save/discard, filename
+  sanitize, ViewModel).
+- Connected: **153/153** on physical Pixel 4 XL (API 33, vi-VN) —
+  incl. 18 new M9 androidTests (screen + real
+  `ContentResolver`/cacheDir store path).
+- `lintDebug`, `detekt` (0 smells), `assembleRelease` — all green.
+- Release DEX scan: **28/28** required serializers retained;
+  `LedgerExportRoute` (`data object`) correctly needs none.
+  Release SHA-256: `6b269a2e9335f0f546c9a50a0630cb15e1778c7529e5a6aa4368159a23aba332`.
+- Merged release manifest: INTERNET only — zero storage permissions.
+- Reviews: [M9-SENTINEL-REVIEW](../reviews/M9-SENTINEL-REVIEW.md)
+  PASS (0/0/3); [M9-ARGUS-REVIEW](../reviews/M9-ARGUS-REVIEW.md)
+  PASS (0/0/2).
+
 ## Status
 
-TECHNICAL_COMPLETE pending gates below; `M9_READY_FOR_EXTERNAL_AUDIT`
-set at closeout; `M9_HUMAN_APPROVED=NO` until external audit + Human.
+TECHNICAL_COMPLETE — `M9_READY_FOR_EXTERNAL_AUDIT=YES`;
+`M9_HUMAN_APPROVED=NO` until external audit + Human sign-off.
+M10 remains undefined.

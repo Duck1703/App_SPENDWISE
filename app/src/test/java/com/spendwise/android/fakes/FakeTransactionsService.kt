@@ -4,6 +4,10 @@ import com.spendwise.android.data.remote.CreateTransactionRequestDto
 import com.spendwise.android.data.remote.TransactionDto
 import com.spendwise.android.data.remote.TransactionsService
 import java.math.BigDecimal
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.ResponseBody
+import okhttp3.ResponseBody.Companion.toResponseBody
+import retrofit2.Response
 
 /**
  * Scripted [TransactionsService] — throws the configured error or returns
@@ -20,11 +24,13 @@ class FakeTransactionsService : TransactionsService {
     var listResponder: (suspend (accountId: String?, type: String?, category: String?) -> List<TransactionDto>)? =
         null
     var createResponder: (suspend (CreateTransactionRequestDto) -> TransactionDto)? = null
+    var exportResponder: (suspend (String?) -> Response<ResponseBody>)? = null
 
     data class ListCall(val accountId: String?, val type: String?, val category: String?)
 
     val listCalls = mutableListOf<ListCall>()
     val createCalls = mutableListOf<CreateTransactionRequestDto>()
+    val exportCalls = mutableListOf<String?>()
 
     override suspend fun list(
         accountId: String?,
@@ -44,7 +50,19 @@ class FakeTransactionsService : TransactionsService {
         return createResponse
     }
 
+    override suspend fun export(accountId: String?): Response<ResponseBody> {
+        exportCalls += accountId
+        exportResponder?.let { return it(accountId) }
+        return Response.success(
+            "occurredOn,type,amount,currency,category,sourceRef\n".toResponseBody(CSV_MEDIA_TYPE),
+            okhttp3.Headers.headersOf(
+                "Content-Disposition", "attachment; filename=\"transactions.csv\"",
+            ),
+        )
+    }
+
     companion object {
+        val CSV_MEDIA_TYPE = "text/csv".toMediaType()
         fun transactionDto(
             id: String = "txn-1",
             accountId: String = "acc-1",

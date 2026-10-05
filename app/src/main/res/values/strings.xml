@@ -437,4 +437,23 @@
     <string name="rule_disable_confirm">Disable</string>
     <string name="rule_disabled_title">Disabled</string>
     <string name="rule_disabled_body">This rule no longer assigns categories. Previously categorized transactions are unchanged.</string>
+    <string name="more_export_label">Ledger export</string>
+    <string name="more_export_desc">Download a CSV of your transactions</string>
+    <string name="export_title">Export ledger</string>
+    <string name="export_subtitle">Spendwise generates a CSV of your transactions — you choose where to save it.</string>
+    <string name="export_scope_label">Scope</string>
+    <string name="export_scope_all">All accounts</string>
+    <string name="export_scope_hint">The CSV includes every transaction in the chosen scope.</string>
+    <string name="export_action">Export CSV</string>
+    <string name="export_downloading">Preparing export…</string>
+    <string name="export_saving">Saving file…</string>
+    <string name="export_saved_title">Ledger exported</string>
+    <string name="export_saved_body">Your CSV was saved to the location you chose.</string>
+    <string name="export_error_title">Export failed</string>
+    <string name="export_error_network">No connection — check your network and try again.</string>
+    <string name="export_error_server">Couldn’t generate the export — try again later.</string>
+    <string name="export_error_generic_title">Export failed</string>
+    <string name="export_error_generic_body">Couldn’t generate the export.</string>
+    <string name="export_error_account">That account is no longer available.</string>
+    <string name="export_error_save">Couldn’t save the file — try exporting again.</string>
 </resources>

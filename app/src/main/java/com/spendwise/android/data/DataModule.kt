@@ -3,9 +3,12 @@ package com.spendwise.android.data
 import com.spendwise.android.data.repository.AccountRepository
 import com.spendwise.android.data.repository.AuthRepository
 import com.spendwise.android.data.repository.CategoryRepository
+import com.spendwise.android.data.repository.ContentResolverExportStore
 import com.spendwise.android.data.repository.ContentResolverStatementStore
 import com.spendwise.android.data.repository.DashboardRepository
+import com.spendwise.android.data.repository.ExportFileStore
 import com.spendwise.android.data.repository.ImportRepository
+import com.spendwise.android.data.repository.LedgerExportRepository
 import com.spendwise.android.data.repository.BudgetRepository
 import com.spendwise.android.data.repository.RecurringRepository
 import com.spendwise.android.data.repository.RemoteAccountRepository
@@ -14,6 +17,7 @@ import com.spendwise.android.data.repository.RemoteBudgetRepository
 import com.spendwise.android.data.repository.RemoteCategoryRepository
 import com.spendwise.android.data.repository.RemoteDashboardRepository
 import com.spendwise.android.data.repository.RemoteImportRepository
+import com.spendwise.android.data.repository.RemoteLedgerExportRepository
 import com.spendwise.android.data.repository.RemoteRecurringRepository
 import com.spendwise.android.data.repository.RemoteRuleRepository
 import com.spendwise.android.data.repository.RemoteTransactionRepository
@@ -70,4 +74,14 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindRuleRepository(impl: RemoteRuleRepository): RuleRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindLedgerExportRepository(
+        impl: RemoteLedgerExportRepository,
+    ): LedgerExportRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindExportFileStore(impl: ContentResolverExportStore): ExportFileStore
 }

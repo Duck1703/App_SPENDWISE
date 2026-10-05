@@ -12,6 +12,7 @@ fun MoreDestination(
     onOpenRecurring: () -> Unit = {},
     onOpenBudgets: () -> Unit = {},
     onOpenRules: () -> Unit = {},
+    onOpenLedgerExport: () -> Unit = {},
 ) {
     val viewModel: MoreViewModel = hiltViewModel()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -22,5 +23,6 @@ fun MoreDestination(
         onOpenRecurring = onOpenRecurring,
         onOpenBudgets = onOpenBudgets,
         onOpenRules = onOpenRules,
+        onOpenLedgerExport = onOpenLedgerExport,
     )
 }

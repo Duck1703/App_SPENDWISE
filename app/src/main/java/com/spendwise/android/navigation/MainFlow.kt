@@ -14,6 +14,7 @@ import com.spendwise.android.feature.accounts.AccountCreateDestination
 import com.spendwise.android.feature.accounts.AccountDetailDestination
 import com.spendwise.android.feature.auth.LoginDestination
 import com.spendwise.android.feature.auth.SessionExpiredScreen
+import com.spendwise.android.feature.export.ExportLedgerDestination
 import com.spendwise.android.feature.imports.ImportDestination
 import com.spendwise.android.feature.planning.BudgetDetailDestination
 import com.spendwise.android.feature.planning.BudgetsDestination
@@ -100,6 +101,7 @@ fun MainFlow(
                 onOpenRecurring = { navController.navigate(RecurringListRoute) },
                 onOpenBudgets = { navController.navigate(BudgetsRoute) },
                 onOpenRules = { navController.navigate(RulesRoute) },
+                onOpenLedgerExport = { navController.navigate(LedgerExportRoute) },
                 openTransactionsTab = openTransactionsTab,
                 onConsumePendingTab = {
                     entry.savedStateHandle[KEY_OPEN_TRANSACTIONS_TAB] = false
@@ -191,6 +193,11 @@ fun MainFlow(
         }
         composable<RuleDetailRoute> {
             RuleDetailDestination(
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable<LedgerExportRoute> {
+            ExportLedgerDestination(
                 onBack = { navController.popBackStack() },
             )
         }

@@ -123,3 +123,10 @@ data object RuleCreateRoute : AppRoute
 
 @Serializable
 data class RuleDetailRoute(val ruleId: String) : AppRoute
+
+/**
+ * Ledger export (M9) — pushed over the preserved shell from the More
+ * tab; the server-generated CSV artifact is opaque to the UI.
+ */
+@Serializable
+data object LedgerExportRoute : AppRoute

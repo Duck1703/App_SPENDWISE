@@ -64,6 +64,7 @@ fun SpendwiseMainShell(
     onOpenRecurring: () -> Unit = {},
     onOpenBudgets: () -> Unit = {},
     onOpenRules: () -> Unit = {},
+    onOpenLedgerExport: () -> Unit = {},
     openTransactionsTab: Boolean = false,
     onConsumePendingTab: () -> Unit = {},
 ) {
@@ -160,6 +161,7 @@ fun SpendwiseMainShell(
                     onOpenRecurring = onOpenRecurring,
                     onOpenBudgets = onOpenBudgets,
                     onOpenRules = onOpenRules,
+                    onOpenLedgerExport = onOpenLedgerExport,
                 )
             }
         }

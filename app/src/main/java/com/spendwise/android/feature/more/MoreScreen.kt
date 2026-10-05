@@ -52,6 +52,7 @@ fun MoreScreen(
     onOpenRecurring: () -> Unit = {},
     onOpenBudgets: () -> Unit = {},
     onOpenRules: () -> Unit = {},
+    onOpenLedgerExport: () -> Unit = {},
 ) {
     var confirmVisible by remember { mutableStateOf(false) }
 
@@ -91,6 +92,12 @@ fun MoreScreen(
                 description = stringResource(R.string.more_rules_desc),
                 icon = R.drawable.ic_lucide_ticket,
                 onClick = onOpenRules,
+            )
+            MoreRow(
+                label = stringResource(R.string.more_export_label),
+                description = stringResource(R.string.more_export_desc),
+                icon = R.drawable.ic_lucide_arrow_down,
+                onClick = onOpenLedgerExport,
             )
             Spacer(Modifier.height(SwSpacing.Lg))
             HorizontalDivider()

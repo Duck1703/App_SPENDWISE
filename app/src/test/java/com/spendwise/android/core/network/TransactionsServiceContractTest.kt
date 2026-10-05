@@ -13,6 +13,7 @@ import mockwebserver3.MockWebServer
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import org.junit.After
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -279,5 +280,102 @@ class TransactionsServiceContractTest {
         assertEquals("GET", request.method)
         assertEquals("/api/categories", request.url.encodedPath)
         assertEquals("Bearer live-token", request.headers["Authorization"])
+    }
+
+    // ── M9: GET /api/transactions/export ────────────────────────────
+
+    private fun csvResponse(
+        bytes: ByteArray = "occurredOn,type,amount,currency,category,sourceRef\n2026-01-05,EXPENSE,25.50,VND,FOOD,MANUAL:t1\n".toByteArray(),
+    ) = MockResponse(
+        code = 200,
+        body = String(bytes, Charsets.UTF_8),
+        headers = okhttp3.Headers.headersOf(
+            "Content-Type", "text/csv",
+            "Content-Disposition", "attachment; filename=\"transactions.csv\"",
+        ),
+    )
+
+    @Test
+    fun `export hits GET export with no accountId for all-accounts`() = runTest {
+        signIn()
+        server.enqueue(csvResponse())
+
+        transactions.export(null).body()!!.byteStream().use { it.readBytes() }
+
+        val request = server.takeRequest()
+        assertEquals("GET", request.method)
+        assertEquals("/api/transactions/export", request.url.encodedPath)
+        assertNull(request.url.query) // all-accounts omits the param entirely
+        assertEquals("Bearer live-token", request.headers["Authorization"])
+    }
+
+    @Test
+    fun `export sends the exact accountId for a selected account`() = runTest {
+        signIn()
+        server.enqueue(csvResponse())
+
+        transactions.export("acc-9").body()!!.byteStream().use { it.readBytes() }
+
+        val request = server.takeRequest()
+        assertEquals("acc-9", request.url.queryParameter("accountId"))
+    }
+
+    @Test
+    fun `export body arrives byte-identical and Content-Disposition is readable`() = runTest {
+        signIn()
+        val raw = ("occurredOn,type,amount,currency,category,sourceRef\r\n" +
+            "2026-01-05,EXPENSE,\"Tiền, café\",VND,FOOD,t1\r\n")
+            .toByteArray(Charsets.UTF_8)
+        server.enqueue(csvResponse(raw))
+
+        val response = transactions.export(null)
+
+        assertArrayEquals(raw, response.body()!!.byteStream().use { it.readBytes() })
+        assertEquals("attachment; filename=\"transactions.csv\"",
+            response.headers()["Content-Disposition"])
+        assertEquals("text/csv", response.body()!!.contentType()?.toString())
+    }
+
+    @Test
+    fun `export 404 surfaces ApiException for a foreign account`() = runTest {
+        signIn()
+        server.enqueue(MockResponse(code = 404, body = """{"title":"Not Found"}"""))
+
+        try {
+            transactions.export("acc-foreign")
+            throw AssertionError("Expected ApiException")
+        } catch (e: ApiException) {
+            assertEquals(404, e.status)
+        }
+    }
+
+    @Test
+    fun `export 401 expires the session`() = runTest {
+        signIn()
+        server.enqueue(MockResponse(code = 401))
+
+        try {
+            transactions.export(null)
+            throw AssertionError("Expected ApiException")
+        } catch (e: ApiException) {
+            assertEquals(401, e.status)
+        }
+        assertEquals(
+            Session.Expired::class,
+            sessionManager.session.value::class,
+        )
+    }
+
+    @Test
+    fun `export 500 surfaces ApiException`() = runTest {
+        signIn()
+        server.enqueue(MockResponse(code = 500))
+
+        try {
+            transactions.export(null)
+            throw AssertionError("Expected ApiException")
+        } catch (e: ApiException) {
+            assertEquals(500, e.status)
+        }
     }
 }
