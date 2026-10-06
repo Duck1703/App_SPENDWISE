@@ -9,6 +9,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @Composable
 fun MoreDestination(
     onOpenImport: () -> Unit = {},
+    onOpenImportHistory: () -> Unit = {},
     onOpenRecurring: () -> Unit = {},
     onOpenBudgets: () -> Unit = {},
     onOpenRules: () -> Unit = {},
@@ -20,6 +21,7 @@ fun MoreDestination(
         state = state,
         onSignOut = viewModel::signOut,
         onOpenImport = onOpenImport,
+        onOpenImportHistory = onOpenImportHistory,
         onOpenRecurring = onOpenRecurring,
         onOpenBudgets = onOpenBudgets,
         onOpenRules = onOpenRules,

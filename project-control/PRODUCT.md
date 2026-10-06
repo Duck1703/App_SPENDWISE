@@ -163,7 +163,7 @@ entering the primary path.
 | TPBank multi-page | V1_CORE | verified support boundary |
 | import result review | V1_CORE | `ImportBatchSummaryResponse` row report |
 | duplicate reporting | V1_CORE | per-row `DUPLICATE` + counts |
-| import history | POST_V1 | `GET /api/imports/{id}` exists but no list → one-shot result screen; BE-004/local-history decision later |
+| import history | M10 | server-backed list via `GET /api/imports` (REQ-BE-004 landed) + per-batch report via `/{id}` |
 | export | POST_V1 | endpoint exists; mobile share flow deferred |
 | FX conversion | POST_V1 | placeholder provider → usually `available:false`; no real value yet |
 | pagination/infinite scroll | BACKEND_GATED | none server-side → honest unbounded list |
@@ -806,7 +806,7 @@ here; each requires a separate Human-authorized backend task.)
 | BE-001 | `occurredOn` settable + returned | unsettable + unreturned today | date-display/date-entry milestone (post-V1 or M3 if prioritized) | dates on rows, back-dating, date filters |
 | BE-002 | refresh token / longer session | 15-min JWT only | post-V1 session improvement | fewer forced re-logins |
 | BE-003 | public transfer endpoint | `TransferService` internal-only | transfer feature milestone | transfer UX possible |
-| BE-004 | import batch list endpoint | `/{id}` only | import history feature | user-visible history |
+| BE-004 | import batch list endpoint | **DELIVERED M10** — `GET /api/imports` owner-scoped summaries | import history feature | user-visible history |
 | BE-005 | transaction edit/delete (or void) | append-only | post-V1 correction upgrade | true correction UX |
 | BE-006 | account edit/archive | absent | post-V1 account management | rename/hide accounts |
 | BE-007 | pagination + date-range/search | dead Pageable; 3 filters only | large-ledger UX | scalable browse |

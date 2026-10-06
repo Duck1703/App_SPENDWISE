@@ -16,6 +16,8 @@ import com.spendwise.android.feature.auth.LoginDestination
 import com.spendwise.android.feature.auth.SessionExpiredScreen
 import com.spendwise.android.feature.export.ExportLedgerDestination
 import com.spendwise.android.feature.imports.ImportDestination
+import com.spendwise.android.feature.imports.ImportHistoryDestination
+import com.spendwise.android.feature.imports.ImportHistoryDetailDestination
 import com.spendwise.android.feature.planning.BudgetDetailDestination
 import com.spendwise.android.feature.planning.BudgetsDestination
 import com.spendwise.android.feature.planning.CreateBudgetDestination
@@ -98,6 +100,7 @@ fun MainFlow(
                     navController.navigate(TransactionCreateRoute(accountId))
                 },
                 onOpenImport = { navController.navigate(ImportRoute) },
+                onOpenImportHistory = { navController.navigate(ImportHistoryRoute) },
                 onOpenRecurring = { navController.navigate(RecurringListRoute) },
                 onOpenBudgets = { navController.navigate(BudgetsRoute) },
                 onOpenRules = { navController.navigate(RulesRoute) },
@@ -139,6 +142,18 @@ fun MainFlow(
                 onDone = { navController.popBackStack() },
                 onBack = { navController.popBackStack() },
                 onCreateAccount = { navController.navigate(AccountCreateRoute) },
+            )
+        }
+        composable<ImportHistoryRoute> {
+            ImportHistoryDestination(
+                onOpenBatch = { navController.navigate(ImportHistoryDetailRoute(it)) },
+                onImport = { navController.navigate(ImportRoute) },
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable<ImportHistoryDetailRoute> {
+            ImportHistoryDetailDestination(
+                onBack = { navController.popBackStack() },
             )
         }
         // ── Planning (M6, S15–S23) ───────────────────────────────────

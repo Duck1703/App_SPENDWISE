@@ -94,6 +94,16 @@ data class TransactionDetailRoute(val transactionId: String) : AppRoute
 data object ImportRoute : AppRoute
 
 /**
+ * Import history (M10, REQ-BE-004) — pushed over the preserved shell
+ * from the More tab; detail takes the batch id.
+ */
+@Serializable
+data object ImportHistoryRoute : AppRoute
+
+@Serializable
+data class ImportHistoryDetailRoute(val batchId: String) : AppRoute
+
+/**
  * Planning surfaces (M6, PRODUCT §30 S15–S23) — pushed over the
  * preserved shell from the More tab; details take their id argument.
  */

@@ -163,13 +163,15 @@ body). Sources: controller files in §42.
 | Recurring | DELETE | `/api/recurring-transactions/{id}` | path `UUID id` | `RecurringTransactionResponse` (deactivated) | 200 | 404 | JWT | `RecurringTransactionController.java` |
 | Dashboard | GET | `/api/dashboard` | `?month=YYYY-MM` (required) | `DashboardMonthResponse` | 200 | 400 bad/missing month; 400 same-type mixed-currency aggregation | JWT | `DashboardController.java` |
 | Import | POST | `/api/imports` | `?accountId=UUID` + multipart part `file` | `ImportBatchSummaryResponse` + `Location` | 201 | 400 bad file/type/PDF, 404 foreign `accountId`, 500 oversized/malformed-CSV | JWT | `ImportController.java` |
+| Import | GET | `/api/imports` | — | `List<ImportBatchListItem>` (summaries, newest first, no rows) | 200 (`[]` when empty) | 401 | JWT | `ImportReportController.java` — **M10 / REQ-BE-004 delivered** |
 | Import | GET | `/api/imports/{id}` | path `UUID id` | `ImportBatchSummaryResponse` | 200 | 404 | JWT | `ImportReportController.java` |
 | FX | GET | `/api/fx/convert` | `?amount&from&to` (all required) | `ConversionResponse` | 200 | in-body degradation (`available:false`) | JWT | `FxController.java` |
 
 **Absent by verification** (grep over all mapping annotations): no
 PUT/PATCH anywhere; no `POST /api/transfers`; no `GET /api/transactions/{id}`;
-no `GET /api/imports` (batch list); no `/api/auth/refresh` or `/api/users/me`;
-no statistics HTTP surface.
+no `/api/auth/refresh` or `/api/users/me`;
+no statistics HTTP surface. (`GET /api/imports` batch list **landed in M10**
+— REQ-BE-004.)
 
 ## 6. Authentication and ownership
 
@@ -472,7 +474,8 @@ Generation — **INTERNAL_ONLY** (no manual-trigger endpoint; committed
 | Foreign `accountId` | 404 (controller pre-check) | `ImportController` — VERIFIED |
 | Synchrony | **SYNCHRONOUS** — the whole file is parsed and all rows processed before the 201 returns; no 202/pending contract; only a fire-and-forget `@Async` log line | `ImportService`, `BatchNotificationService` — VERIFIED |
 | Success | 201 + `Location: /api/imports/{batchId}` + `ImportBatchSummaryResponse` | VERIFIED |
-| `GET /api/imports/{id}` | same response re-served (owner-scoped → 404); **no batch list endpoint** | `ImportReportController` — VERIFIED |
+| `GET /api/imports/{id}` | same response re-served (owner-scoped → 404) | `ImportReportController` — VERIFIED |
+| `GET /api/imports` (M10, REQ-BE-004) | `List<ImportBatchListItem>` — `{batchId, accountId, fileName, importedAt, successCount, duplicateCount, failedCount}` — owner-scoped in the query, ordered `importedAt` DESC, **no row payloads**; empty history → `200 []`; counts from one grouped row query (no N+1) | `ImportReportController.list`, `ImportReportService.listForUser`, `ImportHistoryListTest` — VERIFIED |
 
 `ImportBatchSummaryResponse`:
 `{batchId, accountId, fileName, importedAt, successCount, duplicateCount,

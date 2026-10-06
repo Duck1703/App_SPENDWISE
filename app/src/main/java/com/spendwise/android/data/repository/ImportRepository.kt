@@ -4,6 +4,7 @@ import android.content.Context
 import android.provider.OpenableColumns
 import androidx.core.net.toUri
 import com.spendwise.android.core.model.ImportBatch
+import com.spendwise.android.core.model.ImportBatchSummary
 import com.spendwise.android.core.model.ImportRow
 import com.spendwise.android.core.model.ImportRowStatus
 import com.spendwise.android.core.network.ApiException
@@ -70,6 +71,19 @@ interface ImportRepository {
 
     /** `POST /api/imports?accountId=` + multipart `file` — synchronous. */
     suspend fun upload(accountId: String, file: SelectedStatement): ImportBatch
+
+    /**
+     * `GET /api/imports` (M10, REQ-BE-004) — the caller's batch
+     * summaries, newest first, no row payloads. Empty history is a
+     * successful empty list.
+     */
+    suspend fun history(): List<ImportBatchSummary>
+
+    /**
+     * `GET /api/imports/{id}` — the per-batch report incl. rows.
+     * Foreign/unknown id → [AppError.NotFound].
+     */
+    suspend fun batch(batchId: String): ImportBatch
 }
 
 @Singleton
@@ -115,6 +129,44 @@ class RemoteImportRepository @Inject constructor(
         transactionRepository.notifyLedgerChanged()
         return batch
     }
+
+    override suspend fun history(): List<ImportBatchSummary> {
+        val generation = sessionManager.sessionGeneration
+        val items = fetch { service.list() }.map { it.toSummaryDomain() }
+        if (sessionManager.sessionGeneration != generation) throw SessionEndedException()
+        return items
+    }
+
+    override suspend fun batch(batchId: String): ImportBatch {
+        val generation = sessionManager.sessionGeneration
+        val batch = fetch { service.detail(batchId) }.toDomain()
+        if (sessionManager.sessionGeneration != generation) throw SessionEndedException()
+        return batch
+    }
+
+    private suspend fun <T> fetch(call: suspend () -> T): T =
+        try {
+            call()
+        } catch (e: ApiException) {
+            throw AppErrorException(e.toAppError(), e)
+        } catch (e: IOException) {
+            throw AppErrorException(AppError.NetworkUnavailable, e)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            throw AppErrorException(AppError.Unknown(e), e)
+        }
+
+    private fun com.spendwise.android.data.remote.ImportBatchListItemDto.toSummaryDomain() =
+        ImportBatchSummary(
+            batchId = batchId,
+            accountId = accountId,
+            fileName = fileName,
+            importedAt = Instant.parse(importedAt),
+            successCount = successCount,
+            duplicateCount = duplicateCount,
+            failedCount = failedCount,
+        )
 
     private fun com.spendwise.android.data.remote.ImportBatchSummaryDto.toDomain() =
         ImportBatch(

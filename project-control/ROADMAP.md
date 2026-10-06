@@ -25,6 +25,7 @@ High-level phase plan. Milestone briefs are created per phase by ATLAS using
 | M8 | V1 Release Acceptance & Device Validation | COMPLETE — external release audit ACCEPTED (0 blockers/majors; 4 minor remediated), human-approved via conditional authorization; verified on fresh audit AVD **and physical Pixel 4 XL** (see [milestones/M8-V1-RELEASE-ACCEPTANCE.md](milestones/M8-V1-RELEASE-ACCEPTANCE.md), [reviews/M8-EXTERNAL-RELEASE-AUDIT.md](reviews/M8-EXTERNAL-RELEASE-AUDIT.md), [reviews/M8-SENTINEL-REVIEW.md](reviews/M8-SENTINEL-REVIEW.md), [reviews/M8-ARGUS-REVIEW.md](reviews/M8-ARGUS-REVIEW.md), [POST-V1-BACKEND-GATES.md](POST-V1-BACKEND-GATES.md), [POST-V1-ROADMAP-PROPOSAL.md](POST-V1-ROADMAP-PROPOSAL.md)) |
 
 | M9 | Ledger Export (server-generated CSV → SAF save) | COMPLETE — external audit ACCEPTED (1 major remediated: sweep/live-artifact race; 1 minor: save() generation binding), human-approved via conditional authorization (see [milestones/M9-LEDGER-EXPORT.md](milestones/M9-LEDGER-EXPORT.md), [reviews/M9-EXTERNAL-AUDIT.md](reviews/M9-EXTERNAL-AUDIT.md), [reviews/M9-SENTINEL-REVIEW.md](reviews/M9-SENTINEL-REVIEW.md), [reviews/M9-ARGUS-REVIEW.md](reviews/M9-ARGUS-REVIEW.md)) |
+| M10 | Server-Backed Import History (REQ-BE-004 list + per-batch report) | DELIVERED — all gates green (JVM 489/489, lint/detekt, release, connected 158/158 on AVD); backend `401e99c` under bounded-write authorization (see [milestones/M10-IMPORT-HISTORY.md](milestones/M10-IMPORT-HISTORY.md)) |
 
 **Canonical sequence M0–M8 fully delivered and release-accepted.** V1
 was validated on emulator AND physical hardware (135/135 connected ×2
@@ -32,10 +33,12 @@ each, R8 release smoke on-device, TEE-backed Keystore confirmed). Any
 post-V1 work (backend-gated capabilities BE-001…BE-011 per PRODUCT §41)
 requires a future milestone authorized by THE HUMAN.
 
-**M9 (Ledger Export) is authorized and current** — the Human approved
-export-only scope (import-pointer store and this-device import history
-explicitly REJECTED; FX deferred; dates/mutations backend-gated).
-M10 is not defined.
+**M9 (Ledger Export) is COMPLETE** — export-only scope delivered and
+externally audited. **M10 (Server-Backed Import History) is DELIVERED** —
+REQ-BE-004 landed backend-side under bounded-write authorization
+(backend `401e99c`), Android history surfaces green on all gates
+(import-pointer store remains REJECTED; FX, dates, mutations, refresh
+token remain gated).
 
 ## Important
 

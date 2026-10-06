@@ -19,7 +19,7 @@ Ordered by unlock value.
   honest import/reconciliation views. CSV export already proves the
   data exists.
 
-## REQ-BE-004 — Import batch list
+## REQ-BE-004 — Import batch list — **DELIVERED (M10)**
 
 - Gap: `ImportBatchRepository.findAllByUserId` exists, uncalled.
 - Contract: `GET /api/imports` → owner-scoped list of batch summaries
@@ -27,6 +27,10 @@ Ordered by unlock value.
   ordered by importedAt desc.
 - Unlock: true server-side import history; removes any need for
   device-local batch pointers.
+- Delivered: `ImportReportController.list` + `ImportReportService.listForUser`
+  + `ImportBatchListItem` + grouped `ImportRowRepository.countByBatchIdIn`;
+  `ImportHistoryListTest` (5 tests — ownership isolation, ordering, counts,
+  `200 []` empty, 401, no `rows` key). No schema change.
 
 ## REQ-BE-003 — Public transfer endpoint
 

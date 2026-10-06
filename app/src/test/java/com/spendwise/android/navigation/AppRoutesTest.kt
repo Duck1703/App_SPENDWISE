@@ -65,6 +65,31 @@ class AppRoutesTest {
         )
     }
 
+    // ── M10 import-history routes ───────────────────────────────────
+
+    @Test
+    fun `import history route serializes as a no-arg object`() {
+        val json = Json.encodeToString(ImportHistoryRoute.serializer(), ImportHistoryRoute)
+
+        assertEquals(
+            ImportHistoryRoute,
+            Json.decodeFromString(ImportHistoryRoute.serializer(), json),
+        )
+    }
+
+    @Test
+    fun `import history detail route round-trips its batchId`() {
+        val route = ImportHistoryDetailRoute(batchId = "b-99")
+
+        val restored = Json.decodeFromString(
+            ImportHistoryDetailRoute.serializer(),
+            Json.encodeToString(ImportHistoryDetailRoute.serializer(), route),
+        )
+
+        assertEquals(route, restored)
+        assertEquals("b-99", restored.batchId)
+    }
+
     // ── M6 planning routes ──────────────────────────────────────────
 
     @Test

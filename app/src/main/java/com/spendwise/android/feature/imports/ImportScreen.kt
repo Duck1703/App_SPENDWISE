@@ -525,7 +525,7 @@ private fun ImportResult(batch: ImportBatch, onDone: () -> Unit) {
 }
 
 @Composable
-private fun importRowText(row: ImportRow): String = when (row.status) {
+internal fun importRowText(row: ImportRow): String = when (row.status) {
     ImportRowStatus.OK -> stringResource(R.string.import_row_ok, row.rowNumber)
     ImportRowStatus.DUPLICATE -> stringResource(R.string.import_row_duplicate, row.rowNumber)
     ImportRowStatus.FAILED ->
@@ -538,7 +538,7 @@ private fun importRowText(row: ImportRow): String = when (row.status) {
 }
 
 @Composable
-private fun ImportRowLine(text: String, failed: Boolean) {
+internal fun ImportRowLine(text: String, failed: Boolean) {
     Text(
         text = text,
         style = MaterialTheme.typography.bodySmall,
@@ -548,7 +548,7 @@ private fun ImportRowLine(text: String, failed: Boolean) {
 }
 
 @Composable
-private fun ResultTile(
+internal fun ResultTile(
     count: Int,
     label: String,
     tint: androidx.compose.ui.graphics.Color,

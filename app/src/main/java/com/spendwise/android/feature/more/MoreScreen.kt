@@ -48,6 +48,7 @@ fun MoreScreen(
     state: MoreUiState,
     onSignOut: () -> Unit,
     onOpenImport: () -> Unit,
+    onOpenImportHistory: () -> Unit = {},
     modifier: Modifier = Modifier,
     onOpenRecurring: () -> Unit = {},
     onOpenBudgets: () -> Unit = {},
@@ -74,6 +75,12 @@ fun MoreScreen(
                 description = stringResource(R.string.more_import_desc),
                 icon = R.drawable.ic_lucide_upload,
                 onClick = onOpenImport,
+            )
+            MoreRow(
+                label = stringResource(R.string.more_import_history_label),
+                description = stringResource(R.string.more_import_history_desc),
+                icon = R.drawable.ic_lucide_calendar,
+                onClick = onOpenImportHistory,
             )
             MoreRow(
                 label = stringResource(R.string.more_recurring_label),

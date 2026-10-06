@@ -246,6 +246,106 @@ class ImportRepositoryTest {
         assertTrue(h.service.uploadCalls.isEmpty())
     }
 
+    // ── M10: history list + batch detail ───────────────────────────
+
+    @Test
+    fun `history maps list items — summaries only, no rows`() = runTest {
+        val h = harness()
+        signIn(h)
+        h.service.listResponse = listOf(
+            FakeImportsService.listItemDto(batchId = "b-new", importedAt = "2026-10-05T12:00:00Z"),
+            FakeImportsService.listItemDto(batchId = "b-old", fileName = "jan.pdf"),
+        )
+
+        val items = h.repository.history()
+
+        assertEquals(2, items.size)
+        assertEquals("b-new", items[0].batchId)
+        assertEquals("acc-1", items[0].accountId)
+        assertEquals(Instant.parse("2026-10-05T12:00:00Z"), items[0].importedAt)
+        assertEquals(4, items[0].totalCount)
+        assertEquals("jan.pdf", items[1].fileName)
+        assertEquals(1, h.service.listCalls.size)
+    }
+
+    @Test
+    fun `history empty list maps to empty — never an error`() = runTest {
+        val h = harness()
+        signIn(h)
+
+        assertTrue(h.repository.history().isEmpty())
+    }
+
+    @Test
+    fun `history maps a network failure to NetworkUnavailable`() = runTest {
+        val h = harness()
+        signIn(h)
+        h.service.listError = java.io.IOException("gone")
+
+        try {
+            h.repository.history()
+            fail("expected AppErrorException")
+        } catch (e: AppErrorException) {
+            assertEquals(AppError.NetworkUnavailable, e.error)
+        }
+    }
+
+    @Test
+    fun `history result on a dead generation throws SessionEndedException`() = runTest {
+        val h = harness()
+        signIn(h)
+        val gate = CompletableDeferred<List<com.spendwise.android.data.remote.ImportBatchListItemDto>>()
+        val service = object : com.spendwise.android.data.remote.ImportsService {
+            override suspend fun list() = gate.await()
+            override suspend fun detail(batchId: String) = FakeImportsService.summaryDto()
+            override suspend fun upload(
+                accountId: String,
+                file: okhttp3.MultipartBody.Part,
+            ) = FakeImportsService.summaryDto()
+        }
+        val repository = RemoteImportRepository(
+            service, h.sessionManager, h.accounts, h.transactions, h.statements,
+        )
+
+        val deferred = backgroundScope.async { repository.history() }
+        runCurrent()
+        h.sessionManager.signOut()
+        gate.complete(emptyList())
+
+        try {
+            deferred.await()
+            fail("expected SessionEndedException")
+        } catch (e: SessionEndedException) {
+            // expected — a stale user's history never surfaces
+        }
+    }
+
+    @Test
+    fun `batch maps the detail report incl rows`() = runTest {
+        val h = harness()
+        signIn(h)
+
+        val batch = h.repository.batch("batch-1")
+
+        assertEquals("batch-1", batch.batchId)
+        assertEquals(4, batch.rows.size)
+        assertEquals(listOf("batch-1"), h.service.detailCalls)
+    }
+
+    @Test
+    fun `batch 404 maps to NotFound — foreign batch reads as absent`() = runTest {
+        val h = harness()
+        signIn(h)
+        h.service.detailError = ApiException(404, "not found")
+
+        try {
+            h.repository.batch("foreign-batch")
+            fail("expected AppErrorException")
+        } catch (e: AppErrorException) {
+            assertEquals(AppError.NotFound, e.error)
+        }
+    }
+
     @Test
     fun `a malformed importedAt surfaces as Unknown — never a raw defect`() = runTest {
         val h = harness()

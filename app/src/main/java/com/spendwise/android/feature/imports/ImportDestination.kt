@@ -12,6 +12,18 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
+@Composable
+private fun ResumeEffect(onVisible: () -> Unit) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) onVisible()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+}
+
 /**
  * Import (S12–S14, PRODUCT §23–25). Stateful inside one pushed
  * destination: choose → processing → result.
@@ -68,6 +80,44 @@ fun ImportDestination(
         onRetry = viewModel::retry,
         onDone = onDone,
         onCreateAccount = onCreateAccount,
+        onBack = onBack,
+    )
+}
+
+/**
+ * Import history (M10, REQ-BE-004) — server-truth batch list; a row
+ * pushes the per-batch report. ON_RESUME re-runs an aborted load on a
+ * same-user resume.
+ */
+@Composable
+fun ImportHistoryDestination(
+    onOpenBatch: (String) -> Unit,
+    onImport: () -> Unit,
+    onBack: () -> Unit,
+    viewModel: ImportHistoryViewModel = hiltViewModel(),
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    ResumeEffect(viewModel::onVisible)
+    ImportHistoryScreen(
+        state = state,
+        onOpenBatch = onOpenBatch,
+        onImport = onImport,
+        onRetry = viewModel::refresh,
+        onBack = onBack,
+    )
+}
+
+/** Per-batch report (`GET /api/imports/{id}`) — read-only. */
+@Composable
+fun ImportHistoryDetailDestination(
+    onBack: () -> Unit,
+    viewModel: ImportHistoryDetailViewModel = hiltViewModel(),
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    ResumeEffect(viewModel::onVisible)
+    ImportHistoryDetailScreen(
+        state = state,
+        onRetry = viewModel::refresh,
         onBack = onBack,
     )
 }

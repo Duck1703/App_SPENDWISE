@@ -232,4 +232,94 @@ class ImportsServiceContractTest {
         assertNotNull(server.takeRequest())
         assertTrue(server.requestCount == 1)
     }
+
+    // ── M10 / REQ-BE-004: history list + batch detail ──────────────
+
+    private fun listBody() = """
+        [
+          {
+            "batchId":"b-new","accountId":"a1","fileName":"oct.csv",
+            "importedAt":"2026-10-04T11:58:00Z",
+            "successCount":10,"duplicateCount":2,"failedCount":1,
+            "futureField":true
+          },
+          {
+            "batchId":"b-old","accountId":"a2","fileName":"sep.pdf",
+            "importedAt":"2026-09-04T11:58:00Z",
+            "successCount":5,"duplicateCount":0,"failedCount":0
+          }
+        ]
+    """.trimIndent()
+
+    @Test
+    fun `list GETs api-imports and decodes summaries — never rows`() = runTest {
+        signIn()
+        server.enqueue(MockResponse(code = 200, body = listBody()))
+
+        val items = imports.list()
+
+        val request = server.takeRequest()
+        assertEquals("GET", request.method)
+        assertEquals("/api/imports", request.url.encodedPath)
+        assertEquals("Bearer live-token", request.headers["Authorization"])
+        assertEquals(2, items.size)
+        assertEquals("b-new", items[0].batchId)
+        assertEquals("oct.csv", items[0].fileName)
+        assertEquals("2026-10-04T11:58:00Z", items[0].importedAt)
+        assertEquals(10, items[0].successCount)
+        assertEquals(2, items[0].duplicateCount)
+        assertEquals(1, items[0].failedCount)
+    }
+
+    @Test
+    fun `list empty history decodes as an empty list — 200 brackets, never 404`() = runTest {
+        signIn()
+        server.enqueue(MockResponse(code = 200, body = "[]"))
+
+        assertTrue(imports.list().isEmpty())
+    }
+
+    @Test
+    fun `list 401 transitions the session to Expired`() = runTest {
+        signIn()
+        server.enqueue(MockResponse(code = 401, body = """{"error":"expired"}"""))
+
+        try {
+            imports.list()
+            fail("expected ApiException")
+        } catch (e: ApiException) {
+            assertEquals(401, e.status)
+        }
+        assertTrue(sessionManager.session.value is Session.Expired)
+    }
+
+    @Test
+    fun `detail GETs api-imports-id and decodes the full report`() = runTest {
+        signIn()
+        server.enqueue(MockResponse(code = 200, body = reportBody()))
+
+        val dto = imports.detail("7f8d4f2e-1a2b-4c3d-9e5f-112233445566")
+
+        val request = server.takeRequest()
+        assertEquals("GET", request.method)
+        assertEquals(
+            "/api/imports/7f8d4f2e-1a2b-4c3d-9e5f-112233445566",
+            request.url.encodedPath,
+        )
+        assertEquals(4, dto.rows.size)
+        assertEquals("DUPLICATE", dto.rows[1].status)
+    }
+
+    @Test
+    fun `detail 404 maps to ApiException — foreign batch reads as absent`() = runTest {
+        signIn()
+        server.enqueue(MockResponse(code = 404, body = """{"error":"not found"}"""))
+
+        try {
+            imports.detail("not-mine")
+            fail("expected ApiException")
+        } catch (e: ApiException) {
+            assertEquals(404, e.status)
+        }
+    }
 }

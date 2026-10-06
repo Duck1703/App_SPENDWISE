@@ -35,7 +35,7 @@ sealed interface ImportUiState {
         val ambiguousNotice: Boolean = false,
     ) : ImportUiState
 
-    /** S14 result — the one-shot report (no batch history exists). */
+    /** S14 result — the same per-batch report history detail renders. */
     data class Result(val batch: ImportBatch) : ImportUiState
 
     /** The account list itself failed. */

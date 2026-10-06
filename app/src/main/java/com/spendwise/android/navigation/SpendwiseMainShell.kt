@@ -61,6 +61,7 @@ fun SpendwiseMainShell(
     onOpenTransaction: (transactionId: String) -> Unit = {},
     onCreateTransaction: (accountId: String?) -> Unit = {},
     onOpenImport: () -> Unit = {},
+    onOpenImportHistory: () -> Unit = {},
     onOpenRecurring: () -> Unit = {},
     onOpenBudgets: () -> Unit = {},
     onOpenRules: () -> Unit = {},
@@ -158,6 +159,7 @@ fun SpendwiseMainShell(
             composable<MoreRoute> {
                 MoreDestination(
                     onOpenImport = onOpenImport,
+                    onOpenImportHistory = onOpenImportHistory,
                     onOpenRecurring = onOpenRecurring,
                     onOpenBudgets = onOpenBudgets,
                     onOpenRules = onOpenRules,
