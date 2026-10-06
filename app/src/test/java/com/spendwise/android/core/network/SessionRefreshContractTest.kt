@@ -4,8 +4,14 @@ import com.spendwise.android.core.session.Session
 import com.spendwise.android.core.session.SessionManager
 import com.spendwise.android.core.session.SessionRefresher
 import com.spendwise.android.data.remote.AuthService
+import com.spendwise.android.data.remote.CreateTransactionRequestDto
+import com.spendwise.android.data.remote.CreateTransferRequestDto
 import com.spendwise.android.data.remote.LogoutRequestDto
+import com.spendwise.android.data.remote.TransactionsService
+import com.spendwise.android.data.remote.TransfersService
 import com.spendwise.android.fakes.FakeTokenStore
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import mockwebserver3.MockResponse
@@ -221,5 +227,124 @@ class SessionRefreshContractTest {
         val request = server.takeRequest()
         assertEquals("/api/auth/logout", request.url.encodedPath)
         assertEquals("""{"refreshToken":"rt-1"}""", request.body?.utf8())
+    }
+
+    // ── §80: real financial endpoints — the no-replay invariant is proven
+    // against the actual TransactionsService/TransfersService, not a probe. ──
+
+    @Test
+    fun `create transaction 401 after transmission is never replayed`() = runTest {
+        val transactions = retrofit.create(TransactionsService::class.java)
+        sessionManager.onSignedIn("rejected-access", future, "ana", "u1", refreshToken = "rt-1")
+        server.enqueue(MockResponse(code = 401, body = "")) // the write → 401
+        server.enqueue(refreshOk()) // authenticator renews for NEXT attempt only
+
+        try {
+            transactions.create(
+                CreateTransactionRequestDto(
+                    accountId = "acc-1",
+                    type = "EXPENSE",
+                    amount = java.math.BigDecimal("12.50"),
+                    currency = "VND",
+                    occurredOn = "2026-10-04",
+                ),
+            )
+            throw AssertionError("Expected ApiException")
+        } catch (e: ApiException) {
+            assertEquals(401, e.status)
+        }
+
+        // THE INVARIANT on the real financial path: /api/transactions was
+        // hit exactly ONCE — no duplicate write is physically possible.
+        assertEquals("/api/transactions", server.takeRequest().url.encodedPath)
+        assertEquals("/api/auth/refresh", server.takeRequest().url.encodedPath)
+        assertEquals(2, server.requestCount)
+    }
+
+    @Test
+    fun `transfer 401 after transmission is never replayed`() = runTest {
+        val transfers = retrofit.create(TransfersService::class.java)
+        sessionManager.onSignedIn("rejected-access", future, "ana", "u1", refreshToken = "rt-1")
+        server.enqueue(MockResponse(code = 401, body = ""))
+        server.enqueue(refreshOk())
+
+        try {
+            transfers.create(
+                CreateTransferRequestDto(
+                    sourceAccountId = "acc-1",
+                    destinationAccountId = "acc-2",
+                    amount = java.math.BigDecimal("500000"),
+                    currency = "VND",
+                ),
+            )
+            throw AssertionError("Expected ApiException")
+        } catch (e: ApiException) {
+            assertEquals(401, e.status)
+        }
+
+        // A duplicate transfer would be a real financial loss — the wire
+        // shows exactly one attempt plus the background credential renewal.
+        assertEquals("/api/transfers", server.takeRequest().url.encodedPath)
+        assertEquals("/api/auth/refresh", server.takeRequest().url.encodedPath)
+        assertEquals(2, server.requestCount)
+    }
+
+    @Test
+    fun `expired-access transfer renews first then transmits exactly once`() = runTest {
+        val transfers = retrofit.create(TransfersService::class.java)
+        sessionManager.onSignedIn("dead-access", past, "ana", "u1", refreshToken = "rt-1")
+        server.enqueue(refreshOk())
+        server.enqueue(
+            MockResponse(
+                code = 201,
+                body = """{"transferRef":"tref-1","outTransaction":{"id":"o1","accountId":"acc-1","amount":"-500000","currency":"VND","occurredOn":"2026-10-04"},"inTransaction":{"id":"i1","accountId":"acc-2","amount":"500000","currency":"VND","occurredOn":"2026-10-04"}}""",
+            ),
+        )
+
+        transfers.create(
+            CreateTransferRequestDto(
+                sourceAccountId = "acc-1",
+                destinationAccountId = "acc-2",
+                amount = java.math.BigDecimal("500000"),
+                currency = "VND",
+            ),
+        )
+
+        // Pre-send renewal: exactly 1 refresh + exactly 1 transfer — the
+        // stale bearer never transmitted, so no replay hazard exists.
+        assertEquals("/api/auth/refresh", server.takeRequest().url.encodedPath)
+        val write = server.takeRequest()
+        assertEquals("/api/transfers", write.url.encodedPath)
+        assertEquals("Bearer fresh-access", write.headers["Authorization"])
+        assertEquals(2, server.requestCount)
+    }
+
+    @Test
+    fun `concurrent GETs that all 401 collapse into a single refresh`() = runTest {
+        val probe = retrofit.create(ProbeService::class.java)
+        sessionManager.onSignedIn("rejected-access", future, "ana", "u1", refreshToken = "rt-1")
+        // FIFO queue matches any interleaving: both initial reads consume
+        // the two 401s, the single-flight refresh consumes the 200 rotation,
+        // the two retries consume the two successes.
+        server.enqueue(MockResponse(code = 401, body = ""))
+        server.enqueue(MockResponse(code = 401, body = ""))
+        server.enqueue(refreshOk())
+        server.enqueue(MockResponse(code = 200, body = ""))
+        server.enqueue(MockResponse(code = 200, body = ""))
+
+        val (r1, r2) = coroutineScope {
+            val first = async { kotlin.runCatching { probe.read() } }
+            val second = async { kotlin.runCatching { probe.read() } }
+            first.await() to second.await()
+        }
+
+        assertTrue(r1.isSuccess)
+        assertTrue(r2.isSuccess)
+        // THE STORM INVARIANT: 5 wire calls total, exactly ONE refresh.
+        assertEquals(5, server.requestCount)
+        val refreshCalls = (1..server.requestCount)
+            .map { server.takeRequest() }
+            .count { it.url.encodedPath == "/api/auth/refresh" }
+        assertEquals("401 storm must produce exactly one refresh call", 1, refreshCalls)
     }
 }

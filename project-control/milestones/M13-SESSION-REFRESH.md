@@ -1,7 +1,9 @@
 # M13 — Session Refresh / Token Renewal
 
 ```
-STATUS: TECHNICALLY COMPLETE — ready for external audit
+STATUS: COMPLETE — external audit ACCEPTED (0 blocker / 0 major;
+5 minor remediated in-audit, 3 bounded notes); human-approved via
+conditional authorization per the M13 external-audit block.
 M13_DEFINED=YES
 M13_STARTED=YES
 M13_TECHNICAL_COMPLETE=YES

@@ -20,7 +20,13 @@ data class LoginResponseDto(
     val accessToken: String,
     val expiresAt: String,
     val refreshToken: String? = null,
-)
+) {
+    // Credential-bearing wire DTO — redact like the session classes so a
+    // stray log/debug print can never emit token material.
+    override fun toString(): String =
+        "LoginResponseDto(accessToken=***, expiresAt=$expiresAt, " +
+            "refreshToken=${if (refreshToken != null) "***" else "null"})"
+}
 
 /** `RefreshRequest{refreshToken}` — REQ-BE-002 rotation request. */
 @Serializable

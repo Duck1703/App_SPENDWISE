@@ -81,8 +81,10 @@ Where backend capability allows (§6):
 
 (Authoritative source: BACKEND-CONTRACT.md — summarized, not re-audited.)
 
-- **Auth**: JWT Bearer on everything except `register`/`login`; HS256;
-  ~15-minute expiry; **no refresh token, no `/me`**; logout blacklists jti.
+- **Auth**: JWT Bearer on everything except `register`/`login`/`refresh`/
+  `logout`; HS256; ~15-minute access expiry; **rotating 30-day refresh
+  token (M13), no `/me`**; logout blacklists jti + revokes the presented
+  refresh credential.
 - **Ownership**: multi-user, owner-scoped, foreign ids → 404.
 - **Accounts**: list/create only; server-owned `balance`; `CASH`/`BANK`;
   ISO-4217 currency fixed at creation; **no edit/delete**.
