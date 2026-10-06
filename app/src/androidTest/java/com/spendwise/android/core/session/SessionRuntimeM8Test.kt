@@ -169,6 +169,55 @@ class SessionRuntimeM8Test {
         assertNull(store.load())
     }
 
+    // ── M13 (REQ-BE-002): refresh credential persistence ────────────────
+
+    @Test
+    fun tokenStore_refreshTokenRoundTrip() = runBlocking {
+        val (store, _) = newStore()
+        val expiry = Instant.now().plusSeconds(3600)
+
+        store.save("access-1", expiry, "ana", "u1", refreshToken = "rt-secret-0123456789")
+        val loaded = store.load()
+
+        assertEquals("access-1", loaded?.token)
+        assertEquals("rt-secret-0123456789", loaded?.refreshToken)
+    }
+
+    @Test
+    fun tokenStore_plaintextRefreshTokenNeverTouchesDisk() = runBlocking {
+        val (store, file) = newStore()
+        val refresh = "rt-plaintext-must-not-appear-987654"
+
+        store.save("access-1", Instant.now().plusSeconds(3600), "ana", "u1", refreshToken = refresh)
+        assertTrue(file.exists())
+        val disk = String(file.readBytes())
+
+        assertFalse("plaintext refresh token must never be written to disk", disk.contains(refresh))
+    }
+
+    @Test
+    fun tokenStore_clearTokenDropsRefreshCredential() = runBlocking {
+        val (store, _) = newStore()
+        store.save("gone", Instant.now().plusSeconds(3600), "ana", "u1", refreshToken = "rt-gone")
+
+        store.clearToken()
+
+        assertNull(store.load())
+    }
+
+    @Test
+    fun tokenStore_preM13BlobReadsAsRefreshLessLegacySession() = runBlocking {
+        val (store, _) = newStore()
+        // A blob written before M13 has no refresh key — save() without it
+        // produces exactly that shape.
+        store.save("legacy-access", Instant.now().plusSeconds(3600), "ana", "u1")
+
+        val loaded = store.load()
+
+        assertEquals("legacy-access", loaded?.token)
+        assertNull("pre-M13 blob must read as a refresh-less session", loaded?.refreshToken)
+    }
+
     // ── §21 cross-user privacy reset ────────────────────────────────────
 
     @Test

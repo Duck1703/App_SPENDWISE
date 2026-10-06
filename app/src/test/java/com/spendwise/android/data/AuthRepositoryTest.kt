@@ -51,6 +51,41 @@ class AuthRepositoryTest {
     }
 
     @Test
+    fun `login persists the issued refresh credential (M13)`() = runTest {
+        val (service, sessionManager, repository) = harness()
+        service.loginResponse = LoginResponseDto("jwt-1", futureExpiry, refreshToken = "rt-1")
+
+        repository.login("ana", "secret-pw")
+
+        val session = sessionManager.session.value as Session.SignedIn
+        assertEquals("rt-1", session.refreshToken)
+        assertEquals("rt-1", sessionManager.renewalToken())
+    }
+
+    @Test
+    fun `login against a pre-M13 backend leaves a legacy refresh-less session`() = runTest {
+        val (service, sessionManager, repository) = harness()
+        service.loginResponse = LoginResponseDto("jwt-1", futureExpiry) // no refreshToken
+
+        repository.login("ana", "secret-pw")
+
+        val session = sessionManager.session.value as Session.SignedIn
+        assertEquals(null, session.refreshToken)
+        assertNull(sessionManager.renewalToken())
+    }
+
+    @Test
+    fun `logout sends the refresh credential for server-side revocation`() = runTest {
+        val (service, sessionManager, repository) = harness()
+        sessionManager.onSignedIn("jwt-1", now.plusSeconds(900), "ana", "u1", refreshToken = "rt-1")
+
+        repository.logout()
+
+        assertEquals(listOf("rt-1"), service.logoutCalls.map { it.refreshToken })
+        assertEquals(Session.SignedOut, sessionManager.session.value)
+    }
+
+    @Test
     fun `login 401 maps to InvalidCredentials and never touches the session`() = runTest {
         val (service, sessionManager, repository) = harness()
         service.loginError = ApiException(status = 401, title = "Unauthorized")
@@ -169,7 +204,7 @@ class AuthRepositoryTest {
 
         assertEquals(Session.SignedOut, sessionManager.session.value)
         assertNull(sessionManager.accessToken())
-        assertEquals(1, service.logoutCalls)
+        assertEquals(1, service.logoutCalls.size)
     }
 
     @Test

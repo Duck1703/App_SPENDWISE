@@ -2,21 +2,29 @@ package com.spendwise.android.core.session
 
 import java.time.Instant
 
-/** Persisted session payload — token, expiry, last username/userId only (AD-010). */
+/** Persisted session payload — credentials, expiry, last username/userId (AD-010).
+ *  [refreshToken] is absent on pre-M13 blobs — reads as `null`, legacy behavior. */
 data class StoredSession(
     val token: String,
     val expiresAt: Instant,
     val username: String?,
     val userId: String?,
+    val refreshToken: String? = null,
 )
 
 interface TokenStore {
 
     suspend fun load(): StoredSession?
 
-    suspend fun save(token: String, expiresAt: Instant, username: String?, userId: String?)
+    suspend fun save(
+        token: String,
+        expiresAt: Instant,
+        username: String?,
+        userId: String?,
+        refreshToken: String? = null,
+    )
 
-    /** Drop the credential but keep identity hints (resume UX). */
+    /** Drop every credential but keep identity hints (resume UX). */
     suspend fun clearToken()
 
     /** Drop everything (sign-out). */

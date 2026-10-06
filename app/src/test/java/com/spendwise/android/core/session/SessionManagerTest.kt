@@ -364,4 +364,115 @@ class SessionManagerTest {
         assertFalse(manager.session.value is Session.SignedIn)
         assertNull(store.token)
     }
+
+    // ---- M13 (REQ-BE-002): refresh lifecycle ---------------------------------
+
+    @Test
+    fun `restore with expired access and live refresh credential stays Restoring`() = runTest {
+        val store = FakeTokenStore(
+            stored = StoredSession("dead-access", pastExpiry, "ana", "user-1", refreshToken = "rt-1"),
+        )
+        val manager = manager(store)
+        manager.restore()
+
+        // Parked for cold-start renewal — NOT SignedOut, NOT a stale SignedIn.
+        assertEquals(Session.Restoring, manager.session.value)
+        assertTrue(manager.hasPendingRenewal())
+        assertEquals("rt-1", manager.renewalToken())
+        assertNull(manager.accessToken())
+    }
+
+    @Test
+    fun `restore with expired access and NO refresh credential signs out as before`() = runTest {
+        val store = FakeTokenStore(
+            stored = StoredSession("dead-access", pastExpiry, "ana", "user-1"),
+        )
+        val manager = manager(store)
+        manager.restore()
+
+        assertEquals(Session.SignedOut, manager.session.value)
+        assertFalse(manager.hasPendingRenewal())
+        assertNull(manager.renewalToken())
+    }
+
+    @Test
+    fun `onRequestRejected expires only when the live credential was rejected without renewal backup`() = runTest {
+        val manager = manager(FakeTokenStore())
+        manager.onSignedIn("tok", futureExpiry, "ana", "u1")
+
+        // Stale bearer (a peer renewed first): session survives.
+        assertTrue(manager.onRequestRejected("old-tok"))
+        assertTrue(manager.session.value is Session.SignedIn)
+
+        // The live credential rejected, no refresh → definitive expiry.
+        assertFalse(manager.onRequestRejected("tok"))
+        assertEquals(Session.Expired("ana", "u1"), manager.session.value)
+    }
+
+    @Test
+    fun `onRequestRejected keeps the session when a refresh credential survives`() = runTest {
+        val manager = manager(FakeTokenStore())
+        manager.onSignedIn("tok", futureExpiry, "ana", "u1", refreshToken = "rt-1")
+
+        // Even the live token being rejected is retryable while a refresh
+        // credential remains — the next attempt renews first.
+        assertTrue(manager.onRequestRejected("tok"))
+        assertTrue(manager.session.value is Session.SignedIn)
+    }
+
+    @Test
+    fun `applyRenewedSession rotates credentials in place and preserves identity`() = runTest {
+        val store = FakeTokenStore()
+        val manager = manager(store)
+        manager.onSignedIn("tok", futureExpiry, "ana", "u1", refreshToken = "rt-1")
+        val generation = manager.sessionGeneration
+
+        assertTrue(
+            manager.applyRenewedSession("tok-2", futureExpiry, "rt-2", generation),
+        )
+
+        val session = manager.session.value as Session.SignedIn
+        assertEquals("tok-2", session.token)
+        assertEquals("rt-2", session.refreshToken)
+        assertEquals("ana", session.username)
+        // Rotation did NOT bump the generation — same session, same caches.
+        assertEquals(generation, manager.sessionGeneration)
+        assertEquals("rt-2", store.refreshToken)
+    }
+
+    @Test
+    fun `applyRenewedSession on a stale generation is discarded`() = runTest {
+        val store = FakeTokenStore()
+        val manager = manager(store)
+        manager.onSignedIn("tok", futureExpiry, "ana", "u1", refreshToken = "rt-1")
+        manager.signOut() // generation bumps — a late renewal must not apply
+
+        assertFalse(manager.applyRenewedSession("tok-2", futureExpiry, "rt-2", 0L))
+        assertEquals(Session.SignedOut, manager.session.value)
+        assertNull(store.refreshToken)
+    }
+
+    @Test
+    fun `renewalToken is null for legacy and signed-out sessions`() = runTest {
+        val manager = manager(FakeTokenStore())
+        manager.onSignedIn("tok", futureExpiry, "ana", "u1") // no refresh token
+        assertNull(manager.renewalToken())
+        manager.signOut()
+        assertNull(manager.renewalToken())
+    }
+
+    @Test
+    fun `onSignedIn persists the refresh credential and re-login does not inherit a different user's`() = runTest {
+        val store = FakeTokenStore()
+        val manager = manager(store)
+        manager.onSignedIn("tok", futureExpiry, "ana", "u1", refreshToken = "rt-1")
+        assertEquals("rt-1", store.refreshToken)
+
+        manager.signOut()
+        assertNull(store.refreshToken) // cleared on sign-out
+
+        manager.onSignedIn("tok-b", futureExpiry, "bo", "u2", refreshToken = "rt-b")
+        assertEquals("rt-b", (manager.session.value as Session.SignedIn).refreshToken)
+        assertEquals("rt-b", store.refreshToken)
+    }
 }

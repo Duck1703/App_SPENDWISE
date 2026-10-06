@@ -10,11 +10,29 @@ data class LoginRequestDto(
     val password: String,
 )
 
-/** `AuthResponse{accessToken, expiresAt}` — expiresAt is ISO-8601 Instant text. */
+/**
+ * `AuthResponse{accessToken, refreshToken, expiresAt}` — expiresAt is ISO-8601
+ * Instant text. `refreshToken` arrived in M13 (REQ-BE-002): nullable with a
+ * default so a pre-M13 backend response still decodes as a legacy session.
+ */
 @Serializable
 data class LoginResponseDto(
     val accessToken: String,
     val expiresAt: String,
+    val refreshToken: String? = null,
+)
+
+/** `RefreshRequest{refreshToken}` — REQ-BE-002 rotation request. */
+@Serializable
+data class RefreshRequestDto(
+    val refreshToken: String,
+)
+
+/** `LogoutRequest{refreshToken}` — optional; lets a dead-access-token client
+ *  still revoke its refresh credential (the endpoint is permitAll). */
+@Serializable
+data class LogoutRequestDto(
+    val refreshToken: String? = null,
 )
 
 @Serializable

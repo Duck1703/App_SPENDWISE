@@ -54,7 +54,11 @@ class SessionManager @Inject constructor(
         get() = _sessionGeneration.get()
 
     /**
-     * Load the persisted session at startup. Expired tokens are discarded.
+     * Load the persisted session at startup. Expired tokens are discarded —
+     * unless a refresh credential survives (M13): then the session stays
+     * [Session.Restoring] with [pendingRenewal] armed so the cold-start
+     * renewal (wired by the caller) can resolve it without flashing the
+     * signed-out graph. No protected data is shown while unconfirmed.
      *
      * A storage read failure (e.g. an `IOException` from disk — distinct
      * from protobuf corruption, which the store handles upstream) fails
@@ -69,8 +73,15 @@ class SessionManager @Inject constructor(
         } catch (e: IOException) {
             null
         }
-        _session.value = when {
-            stored == null -> Session.SignedOut
+        when {
+            stored == null -> _session.value = Session.SignedOut
+            !stored.expiresAt.isAfter(clock.instant()) && stored.refreshToken != null -> {
+                // M13 cold-start renewal: keep the session in Restoring and arm
+                // the pending credential; SessionRefresher resolves it to
+                // SignedIn or Expired/SignedOut.
+                pendingRenewal = stored
+                _session.value = Session.Restoring
+            }
             !stored.expiresAt.isAfter(clock.instant()) -> {
                 try {
                     tokenStore.clearToken()
@@ -78,16 +89,39 @@ class SessionManager @Inject constructor(
                     // Best-effort cleanup — the expired credential is
                     // re-evaluated on every restore, so retaining it is safe.
                 }
-                Session.SignedOut
+                _session.value = Session.SignedOut
             }
-            else -> Session.SignedIn(
+            else -> _session.value = Session.SignedIn(
                 token = stored.token,
                 expiresAt = stored.expiresAt,
                 username = stored.username,
                 userId = stored.userId,
+                refreshToken = stored.refreshToken,
             )
         }
         if (_session.value == Session.SignedOut) emitInvalidation()
+    }
+
+    /** Stored session held while a cold-start renewal is in flight (M13).
+     *  Read from OkHttp threads — volatile like the generation counter. */
+    @Volatile
+    private var pendingRenewal: StoredSession? = null
+
+    /** True while [restore] parked the session in [Session.Restoring] behind
+     *  a stored refresh credential awaiting resolution. */
+    fun hasPendingRenewal(): Boolean =
+        _session.value == Session.Restoring && pendingRenewal != null
+
+    /**
+     * The renewal credential the [com.spendwise.android.core.session.SessionRefresher]
+     * may spend: the live session's refresh token, or the parked cold-start one.
+     * `null` once the session is Expired/SignedOut — an expired session never
+     * renews on its own.
+     */
+    fun renewalToken(): String? = when (val current = _session.value) {
+        is Session.SignedIn -> current.refreshToken
+        Session.Restoring -> pendingRenewal?.refreshToken
+        else -> null
     }
 
     /**
@@ -105,6 +139,7 @@ class SessionManager @Inject constructor(
         expiresAt: Instant,
         username: String?,
         userId: String? = JwtClaims.subjectOf(token),
+        refreshToken: String? = null,
     ) {
         // A persistence failure must fail closed — callers never observe a
         // SignedIn state whose durable copy does not exist (EXT-MIN-4).
@@ -115,7 +150,9 @@ class SessionManager @Inject constructor(
             expiresAt = expiresAt,
             username = username,
             userId = userId,
+            refreshToken = refreshToken,
         )
+        pendingRenewal = null
         val previous = _session.value
         val sameIdentity = (previous as? Session.Expired)?.let { expired ->
             identityMatches(expired, username, userId)
@@ -126,6 +163,7 @@ class SessionManager @Inject constructor(
             username = username,
             userId = userId,
             resumedSession = sameIdentity,
+            refreshToken = refreshToken,
         )
         if (!sameIdentity) emitInvalidation()
     }
@@ -139,6 +177,12 @@ class SessionManager @Inject constructor(
      * be resurrected on the next cold start. Identity hints survive for
      * resume UX. Suspending because the store write is async; the network
      * interceptor boundary bridges with runBlocking.
+     *
+     * M13: unconditional expiry is retained for legacy semantics; the network
+     * layer prefers [onRequestRejected], which only kills the session when the
+     * rejected credential is still the current one AND no refresh credential
+     * survives — a 401 on a stale/absent bearer after a concurrent renewal is
+     * retryable noise, not session death.
      */
     suspend fun onAuthenticationExpired() {
         val current = _session.value as? Session.SignedIn ?: return
@@ -153,11 +197,133 @@ class SessionManager @Inject constructor(
         }
     }
 
+    /**
+     * M13 401 adjudication. Returns `true` when the session is still usable
+     * (the request carried a stale/absent token while a renewal already landed,
+     * or a refresh credential still exists to retry) — the caller must surface
+     * a retryable error, NOT session expiry. Returns `false` once the session
+     * has actually been marked [Session.Expired].
+     */
+    suspend fun onRequestRejected(usedToken: String?): Boolean {
+        val current = _session.value as? Session.SignedIn ?: return false
+        val rejectedCurrentToken = usedToken != null && usedToken == current.token
+        if (rejectedCurrentToken && current.refreshToken == null) {
+            // The live credential itself was rejected and nothing remains to
+            // renew with — the session is genuinely dead.
+            markExpired(current)
+            try {
+                tokenStore.clearToken()
+            } catch (e: IOException) {
+                // Best-effort — restore() re-validates on next boot.
+            }
+            return false
+        }
+        return true
+    }
+
+    /**
+     * The renewal credential was definitively rejected server-side (401/400 on
+     * /api/auth/refresh — not a transport failure). The session is dead:
+     * SignedIn → Expired (same-user resume preserved), a parked cold-start
+     * renewal → Expired with the stored identity hints. Credentials are wiped.
+     */
+    suspend fun onRenewalRejected() {
+        val pending = pendingRenewal
+        val current = _session.value
+        when {
+            current is Session.SignedIn -> markExpired(current)
+            pending != null -> {
+                _session.value = Session.Expired(
+                    username = pending.username,
+                    userId = pending.userId,
+                )
+                emitInvalidation()
+            }
+            else -> return
+        }
+        pendingRenewal = null
+        try {
+            tokenStore.clearToken()
+        } catch (e: IOException) {
+            // Best-effort — a dead credential re-fails on next use anyway.
+        }
+    }
+
+    /**
+     * A cold-start renewal could not be resolved right now (transport failure —
+     * the credential is NOT proven dead, so the stored copy is kept for the
+     * next launch). The parked session resolves to Expired so the user lands
+     * on the re-auth surface instead of an endless Restoring.
+     */
+    fun onRenewalUnresolved() {
+        val pending = pendingRenewal ?: return
+        _session.value = Session.Expired(
+            username = pending.username,
+            userId = pending.userId,
+        )
+        pendingRenewal = null
+        emitInvalidation()
+    }
+
+    /**
+     * Apply a refresh response — only to the generation that requested it.
+     * A logout or different-identity sign-in between send and response bumps
+     * the generation → the late result is discarded (§29) and `false` is
+     * returned so the caller treats the refresh as failed.
+     */
+    suspend fun applyRenewedSession(
+        token: String,
+        expiresAt: Instant,
+        refreshToken: String,
+        expectedGeneration: Long,
+    ): Boolean {
+        if (_sessionGeneration.get() != expectedGeneration) return false
+        val pending = pendingRenewal
+        val current = _session.value
+        val username: String?
+        val userId: String?
+        val resumed: Boolean
+        when {
+            current is Session.SignedIn -> {
+                username = current.username
+                userId = current.userId
+                resumed = current.resumedSession
+            }
+            current == Session.Restoring && pending != null -> {
+                username = pending.username
+                userId = pending.userId
+                resumed = false
+            }
+            else -> return false
+        }
+        // Same fail-closed persistence contract as onSignedIn: IOException
+        // propagates so a renewal that can't be durably stored is never
+        // observed as a live session.
+        tokenStore.save(
+            token = token,
+            expiresAt = expiresAt,
+            username = username,
+            userId = userId,
+            refreshToken = refreshToken,
+        )
+        pendingRenewal = null
+        _session.value = Session.SignedIn(
+            token = token,
+            expiresAt = expiresAt,
+            username = username,
+            userId = userId,
+            resumedSession = resumed,
+            refreshToken = refreshToken,
+        )
+        return true
+    }
+
     suspend fun signOut() {
         val hadSession = _session.value !is Session.SignedOut
         // In-memory sign-out is authoritative — a failed disk clear must
         // not leave the user believing they are signed out while SignedIn.
         _session.value = Session.SignedOut
+        pendingRenewal = null
         if (hadSession) emitInvalidation()
         try {
             tokenStore.clear()
@@ -171,16 +337,19 @@ class SessionManager @Inject constructor(
     /**
      * Current access token for the auth interceptor, or null.
      *
-     * Lightweight expiry check (§13): a locally-expired token is never sent —
-     * the session flips to [Session.Expired] instead, and the server remains
-     * the authoritative 401 source for anything the local clock missed.
+     * Lightweight expiry check (§13): a locally-expired token is never sent.
+     * M13: while a renewal credential survives the session stays SignedIn —
+     * [SessionRefresher] renews instead of expiring. Only a refresh-less
+     * session flips to [Session.Expired] here.
      */
     fun accessToken(): String? {
         val current = _session.value as? Session.SignedIn ?: return null
         if (!current.expiresAt.isAfter(clock.instant())) {
-            // In-memory transition only — a locally-expired stored token is
-            // already dropped by restore(), no store write needed here.
-            markExpired(current)
+            if (current.refreshToken == null) {
+                // In-memory transition only — a locally-expired stored token
+                // is already dropped by restore(), no store write needed here.
+                markExpired(current)
+            }
             return null
         }
         return current.token

@@ -60,12 +60,16 @@ object NetworkModule {
     fun provideOkHttpClient(
         authInterceptor: AuthInterceptor,
         errorInterceptor: ErrorInterceptor,
+        tokenAuthenticator: TokenAuthenticator,
     ): OkHttpClient =
         OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
             .retryOnConnectionFailure(false)
+            // M13: single-flight renewal backstop — retries only idempotent
+            // requests once; never replays a transmitted mutation.
+            .authenticator(tokenAuthenticator)
             .addInterceptor(authInterceptor)
             .addInterceptor(errorInterceptor)
             .apply {

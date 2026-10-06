@@ -112,11 +112,35 @@ class ErrorInterceptorTest {
         sessionManager.onSignedIn("tok", now.plusSeconds(900), "ana", "u1")
         server.enqueue(MockResponse(code = 401, body = ""))
 
-        apiExceptionOf { call().use {} }
+        // The request carried the LIVE credential and the server rejected it —
+        // with no refresh token (legacy session) that is definitive expiry.
+        val error = apiExceptionOf {
+            client.newCall(
+                Request.Builder().url(server.url("/")).header("Authorization", "Bearer tok").build(),
+            ).execute().use {}
+        }
 
-        // Raw OkHttp requests carry no Retrofit Invocation tag → treated as
-        // authenticated; a 401 invalidates the session (§13).
+        assertEquals(401, error.status)
+        assertEquals(false, error.sessionRetryable)
         assertEquals(Session.Expired("ana", "u1"), sessionManager.session.value)
+    }
+
+    @Test
+    fun `401 carrying a stale bearer after a concurrent renewal is retryable`() = runTest {
+        // M13: the request's token is no longer the session's — a peer
+        // renewed mid-flight. The session is alive; the error is retryable.
+        sessionManager.onSignedIn("new-tok", now.plusSeconds(900), "ana", "u1")
+        server.enqueue(MockResponse(code = 401, body = ""))
+
+        val error = apiExceptionOf {
+            client.newCall(
+                Request.Builder().url(server.url("/")).header("Authorization", "Bearer stale-tok").build(),
+            ).execute().use {}
+        }
+
+        assertEquals(true, error.sessionRetryable)
+        assertEquals(AppError.SessionRetryable, error.toAppError())
+        assertTrue(sessionManager.session.value is Session.SignedIn)
     }
 
     @Test

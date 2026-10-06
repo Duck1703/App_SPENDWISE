@@ -26,6 +26,12 @@ sealed interface Session {
         val username: String?,
         val userId: String?,
         val resumedSession: Boolean = false,
+        /**
+         * Rotating renewal credential (M13, REQ-BE-002). `null` = legacy
+         * pre-M13 session — behaves exactly like M12: access expiry →
+         * [Expired] → re-auth. Never leaves the session layer.
+         */
+        val refreshToken: String? = null,
     ) : Session
 
     data class Expired(

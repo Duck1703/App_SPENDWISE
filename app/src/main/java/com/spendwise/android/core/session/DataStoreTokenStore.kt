@@ -35,21 +35,43 @@ class DataStoreTokenStore @Inject constructor(
             clearToken()
             return null
         }
+        // M13: the refresh credential is ciphertext too — never plaintext at rest.
+        // A pre-M13 blob simply has no key → null → legacy session behavior.
+        val refreshToken = prefs[KEY_REFRESH_TOKEN]?.let { refreshCiphertext ->
+            runCatching {
+                cipher.decrypt(Base64.decode(refreshCiphertext, Base64.NO_WRAP))
+            }.getOrNull()?.decodeToString()
+        }
         return StoredSession(
             token = token,
             expiresAt = Instant.ofEpochMilli(expiresAt),
             username = prefs[KEY_USERNAME],
             userId = prefs[KEY_USER_ID],
+            refreshToken = refreshToken,
         )
     }
 
-    override suspend fun save(token: String, expiresAt: Instant, username: String?, userId: String?) {
+    override suspend fun save(
+        token: String,
+        expiresAt: Instant,
+        username: String?,
+        userId: String?,
+        refreshToken: String?,
+    ) {
         val encoded = Base64.encodeToString(cipher.encrypt(token.encodeToByteArray()), Base64.NO_WRAP)
+        val encodedRefresh = refreshToken?.let {
+            Base64.encodeToString(cipher.encrypt(it.encodeToByteArray()), Base64.NO_WRAP)
+        }
         dataStore.edit { prefs ->
             prefs[KEY_TOKEN] = encoded
             prefs[KEY_EXPIRES_AT] = expiresAt.toEpochMilli()
             if (username != null) prefs[KEY_USERNAME] = username else prefs.remove(KEY_USERNAME)
             if (userId != null) prefs[KEY_USER_ID] = userId else prefs.remove(KEY_USER_ID)
+            if (encodedRefresh != null) {
+                prefs[KEY_REFRESH_TOKEN] = encodedRefresh
+            } else {
+                prefs.remove(KEY_REFRESH_TOKEN)
+            }
         }
     }
 
@@ -57,6 +79,7 @@ class DataStoreTokenStore @Inject constructor(
         dataStore.edit { prefs ->
             prefs.remove(KEY_TOKEN)
             prefs.remove(KEY_EXPIRES_AT)
+            prefs.remove(KEY_REFRESH_TOKEN)
         }
     }
 
@@ -64,6 +87,7 @@ class DataStoreTokenStore @Inject constructor(
         dataStore.edit { prefs ->
             prefs.remove(KEY_TOKEN)
             prefs.remove(KEY_EXPIRES_AT)
+            prefs.remove(KEY_REFRESH_TOKEN)
             prefs.remove(KEY_USERNAME)
             prefs.remove(KEY_USER_ID)
         }
@@ -74,5 +98,6 @@ class DataStoreTokenStore @Inject constructor(
         val KEY_EXPIRES_AT = longPreferencesKey("token_expires_at_epoch_ms")
         val KEY_USERNAME = stringPreferencesKey("last_username")
         val KEY_USER_ID = stringPreferencesKey("last_user_id")
+        val KEY_REFRESH_TOKEN = stringPreferencesKey("refresh_token_ciphertext")
     }
 }

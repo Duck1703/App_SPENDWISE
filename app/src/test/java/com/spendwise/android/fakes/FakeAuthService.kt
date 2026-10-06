@@ -3,6 +3,7 @@ package com.spendwise.android.fakes
 import com.spendwise.android.data.remote.AuthService
 import com.spendwise.android.data.remote.LoginRequestDto
 import com.spendwise.android.data.remote.LoginResponseDto
+import com.spendwise.android.data.remote.LogoutRequestDto
 import com.spendwise.android.data.remote.RegisterRequestDto
 import com.spendwise.android.data.remote.RegisterResponseDto
 import retrofit2.Response
@@ -22,7 +23,7 @@ class FakeAuthService : AuthService {
 
     val registerCalls = mutableListOf<RegisterRequestDto>()
     val loginCalls = mutableListOf<LoginRequestDto>()
-    var logoutCalls = 0
+    val logoutCalls = mutableListOf<LogoutRequestDto>()
 
     override suspend fun register(body: RegisterRequestDto): RegisterResponseDto {
         registerCalls += body
@@ -36,8 +37,8 @@ class FakeAuthService : AuthService {
         return loginResponse
     }
 
-    override suspend fun logout(): Response<Void> {
-        logoutCalls++
+    override suspend fun logout(body: LogoutRequestDto): Response<Void> {
+        logoutCalls += body
         logoutError?.let { throw it }
         return logoutResponse
     }

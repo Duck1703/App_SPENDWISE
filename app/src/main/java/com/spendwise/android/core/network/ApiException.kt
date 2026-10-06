@@ -14,4 +14,11 @@ class ApiException(
     val title: String? = null,
     val fields: Map<String, String> = emptyMap(),
     cause: Throwable? = null,
+    /**
+     * M13: set on a 401 when the session was NOT proven dead — a concurrent
+     * renewal already swapped the credential, or a refresh credential still
+     * survives. Repositories map this to a retryable error instead of
+     * [AppError.SessionExpired].
+     */
+    val sessionRetryable: Boolean = false,
 ) : IOException("HTTP $status", cause)

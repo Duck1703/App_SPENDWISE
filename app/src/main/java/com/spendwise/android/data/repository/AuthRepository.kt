@@ -8,6 +8,7 @@ import com.spendwise.android.core.session.JwtClaims
 import com.spendwise.android.core.session.SessionManager
 import com.spendwise.android.data.remote.AuthService
 import com.spendwise.android.data.remote.LoginRequestDto
+import com.spendwise.android.data.remote.LogoutRequestDto
 import com.spendwise.android.data.remote.RegisterRequestDto
 import java.io.IOException
 import java.time.Instant
@@ -81,6 +82,9 @@ class RemoteAuthRepository @Inject constructor(
                 expiresAt = expiresAt,
                 username = username,
                 userId = JwtClaims.subjectOf(response.accessToken),
+                // M13: blank/absent → legacy no-refresh session (a pre-M13
+                // backend or a malformed 200 must not fabricate a credential).
+                refreshToken = response.refreshToken?.takeUnless { it.isBlank() },
             )
         } catch (e: IOException) {
             // Session persistence failed (EXT-MIN-4): onSignedIn fails
@@ -96,7 +100,11 @@ class RemoteAuthRepository @Inject constructor(
 
     override suspend fun logout() {
         try {
-            service.logout()
+            // M13: the endpoint is permitAll and the body's refresh token
+            // authorizes its own revocation — this retires the credential
+            // server-side even when the access token is already dead
+            // (AuthInterceptor then sends no Authorization header).
+            service.logout(LogoutRequestDto(refreshToken = sessionManager.renewalToken()))
         } catch (_: Exception) {
             // Remote blacklist is best-effort (401 token already dead,
             // offline, malformed response — all fine): the local session is

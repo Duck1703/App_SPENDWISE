@@ -80,7 +80,9 @@ and does not decide Android architecture (P4).
     scheduler that generates ledger rows through the same canonical write
     path with deterministic idempotent sourceRefs. **VERIFIED**.
 15. **Notable gaps for Android**: no transfer endpoint, no edit/delete on
-    transactions/accounts/budgets, no refresh token (15-min JWT only), no
+    transactions/accounts/budgets, ~~no refresh token (15-min JWT only)~~
+    **refresh tokens DELIVERED in M13** (REQ-BE-002 — rotating, hashed,
+    family-bound; see §6), no
     pagination, no server-side date filtering/search, no import batch list,
     multipart limited to ~1 MB by framework defaults. See §38.
 
@@ -92,7 +94,7 @@ Single Maven module, Spring Boot 3.5.16 (`pom.xml`), Java 17. Entry point:
 | Package | Role | Key classes |
 |---|---|---|
 | `account` | accounts, transactions, transfers, balances | `AccountController`, `TransactionController`, `Account`, `Transaction`, `AccountService`, `TransactionService`, `TransactionCreationService`, `TransferService`, `BalanceReconciliationService` |
-| `auth` | identity + JWT | `AuthController`, `SecurityConfig`, `AuthService`, `AppUserService`, `NimbusTokenIssuer`, `TokenBlacklist`, `CurrentUser` |
+| `auth` | identity + JWT + refresh rotation (M13) | `AuthController`, `SecurityConfig`, `AuthService`, `AppUserService`, `NimbusTokenIssuer`, `TokenBlacklist`, `RefreshTokenService`, `CurrentUser` |
 | `budget` | monthly category budgets | `BudgetController`, `Budget`, `BudgetService`, `BudgetCalculationService` |
 | `category` | fixed reference categories | `CategoryController`, `Category`, `CategoryService` (cached) |
 | `dashboard` | monthly summary read model | `DashboardController`, `DashboardReadService` |
@@ -144,8 +146,9 @@ body). Sources: controller files in §42.
 | Area | Method | Path | Request | Response | Success | Errors | Auth | Evidence |
 |---|---|---|---|---|---|---|---|---|
 | Auth | POST | `/api/auth/register` | `RegisterRequest` | `RegisterResponse` | 201 | 400 (validation; duplicate username) | permitAll | `AuthController.java` |
-| Auth | POST | `/api/auth/login` | `LoginRequest` | `AuthResponse` | 200 | 400, 401 | permitAll | `AuthController.java` |
-| Auth | POST | `/api/auth/logout` | — (JWT principal) | empty | 204 | 401 no-token | JWT | `AuthController.java` |
+| Auth | POST | `/api/auth/login` | `LoginRequest` | `AuthResponse{accessToken, refreshToken, expiresAt}` (refreshToken added M13) | 200 | 400, 401 | permitAll | `AuthController.java` |
+| Auth | POST | `/api/auth/refresh` | `RefreshRequest{refreshToken}` | `AuthResponse` (rotated pair) | 200 | 400 blank, 401 unknown/expired/revoked/replayed (sanitized `Invalid credentials.`) | permitAll — the credential is the authority | `AuthController.java` — **M13 / REQ-BE-002 delivered** |
+| Auth | POST | `/api/auth/logout` | optional `LogoutRequest{refreshToken}` + JWT principal when present | empty | 204 always (non-disclosing) | none | permitAll (M13) — bearer jti blacklisted when present; body refresh token revoked | `AuthController.java` |
 | Account | POST | `/api/accounts` | `CreateAccountRequest` | `AccountResponse` + `Location` | 201 | 400 | JWT | `AccountController.java` |
 | Account | GET | `/api/accounts` | — | `List<AccountResponse>` | 200 | 401 | JWT | `AccountController.java` |
 | Account | GET | `/api/accounts/{id}` | path `UUID id` | `AccountResponse` | 200 | 404 foreign/unknown, 401 | JWT | `AccountController.java` |
@@ -174,9 +177,11 @@ body). Sources: controller files in §42.
 
 **Absent by verification** (grep over all mapping annotations): no
 PUT/PATCH anywhere; no `GET /api/transactions/{id}`;
-no `/api/auth/refresh` or `/api/users/me`;
+no `/api/users/me`;
 no statistics HTTP surface. (`GET /api/imports` batch list **landed in
-M10** — REQ-BE-004; `POST /api/transfers` **landed in M12** — REQ-BE-003.)
+M10** — REQ-BE-004; `POST /api/transfers` **landed in M12** — REQ-BE-003;
+`POST /api/auth/refresh` + logout refresh-revocation **landed in M13** —
+REQ-BE-002.)
 
 ## 6. Authentication and ownership
 
@@ -195,7 +200,17 @@ Token mechanics — **VERIFIED** (`NimbusTokenIssuer.java`, `SecurityConfig.java
 - No `iss`/`aud` validation; signature + expiry + blacklist only.
 - `POST /api/auth/logout` adds `jti` to an in-memory `TokenBlacklist`
   (unbounded, lost on restart — documented limitation).
-- **No refresh token, no `/me`** — expiry forces a fresh login.
+- **Refresh tokens (M13, REQ-BE-002)** — opaque 256-bit random values
+  (never JWTs); only the SHA-256 hash is kept in a process-local
+  `RefreshTokenService` allowlist. Issued at login in a new family bound to
+  `app.auth.refresh-session-days` (default **30 days**, absolute — rotation
+  never extends it). Every `/api/auth/refresh` rotates: the presented token
+  is retired, a successor minted in the same family. Replaying a ROTATED
+  token revokes the entire family (reuse detection). Logout revokes the
+  presented refresh token and the bearer `jti`. Restart wipes all refresh
+  tokens — fails closed; clients re-authenticate once per deploy.
+- **No `/me`** — session expiry on a legacy/no-refresh client still forces
+  a fresh login.
 - `CurrentUser` resolves `authentication.getName()` → `UUID.fromString` —
   the single ownership choke point (never client-supplied IDs).
 - `roles` → `ROLE_*` authorities exist but **no endpoint checks roles**
@@ -210,8 +225,9 @@ Token mechanics — **VERIFIED** (`NimbusTokenIssuer.java`, `SecurityConfig.java
 | DTO | Fields | Validation | Success |
 |---|---|---|---|
 | `RegisterRequest` | `username`, `password` | `@NotBlank @Size(max=255)`; `@NotBlank @Size(min=8,max=255)` | 201 `RegisterResponse{id, username}`; duplicate → 400 |
-| `LoginRequest` | `username`, `password` | both `@NotBlank` | 200 `AuthResponse{accessToken, expiresAt}` |
-| — | logout | JWT `jti` | 204 empty |
+| `LoginRequest` | `username`, `password` | both `@NotBlank` | 200 `AuthResponse{accessToken, refreshToken, expiresAt}` |
+| `RefreshRequest` | `refreshToken` | `@NotBlank` | 200 `AuthResponse` (new access JTI + rotated refresh) |
+| `LogoutRequest` | `refreshToken` (optional, nullable) | none | 204 empty always |
 
 ## 7. Account contract
 

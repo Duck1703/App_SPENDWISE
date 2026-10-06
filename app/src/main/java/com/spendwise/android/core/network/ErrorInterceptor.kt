@@ -29,9 +29,17 @@ class ErrorInterceptor @Inject constructor(
         val response = chain.proceed(chain.request())
         if (response.isSuccessful) return response
 
+        var sessionRetryable = false
         if (response.code == 401 && !chain.request().isPublicCall()) {
             // OkHttp threads are blocking contexts — bridging is intended.
-            runBlocking { sessionManager.onAuthenticationExpired() }
+            // M13: the session dies only when the rejected credential is the
+            // live one AND no refresh credential survives; a stale/absent
+            // bearer after a concurrent renewal is retryable, not fatal.
+            val rejectedToken = chain.request().header("Authorization")
+                ?.removePrefix("Bearer ")?.trim()
+            sessionRetryable = runBlocking {
+                sessionManager.onRequestRejected(rejectedToken)
+            }
         }
 
         val body = runCatching { response.peekBody(MAX_BODY_PEEK).string() }.getOrNull()
@@ -41,6 +49,7 @@ class ErrorInterceptor @Inject constructor(
             status = response.code,
             title = problem?.title,
             fields = problem?.fields.orEmpty(),
+            sessionRetryable = sessionRetryable,
         )
     }
 

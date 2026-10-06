@@ -1,6 +1,7 @@
 package com.spendwise.android.core.network
 
 import com.spendwise.android.core.session.SessionManager
+import com.spendwise.android.core.session.SessionRefresher
 import com.spendwise.android.fakes.FakeTokenStore
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertFalse
@@ -22,9 +23,14 @@ class NetworkModuleTest {
             tokenStore = FakeTokenStore(),
             clock = Clock.fixed(Instant.parse("2026-10-04T12:00:00Z"), ZoneOffset.UTC),
         )
+        val json = Json { ignoreUnknownKeys = true }
         val client = NetworkModule.provideOkHttpClient(
             authInterceptor = AuthInterceptor(sessionManager),
-            errorInterceptor = ErrorInterceptor(Json { ignoreUnknownKeys = true }, sessionManager),
+            errorInterceptor = ErrorInterceptor(json, sessionManager),
+            tokenAuthenticator = TokenAuthenticator(
+                sessionManager,
+                SessionRefresher(sessionManager, Clock.systemUTC(), json, "http://localhost/"),
+            ),
         )
 
         assertFalse(client.retryOnConnectionFailure)

@@ -24,6 +24,7 @@ class FakeTokenStore(
     var expiresAt: Instant? = stored?.expiresAt
     var lastUsername: String? = stored?.username
     var lastUserId: String? = stored?.userId
+    var refreshToken: String? = stored?.refreshToken
 
     override suspend fun load(): StoredSession? {
         loadError?.let { throw it }
@@ -34,15 +35,23 @@ class FakeTokenStore(
             expiresAt = e,
             username = lastUsername,
             userId = lastUserId,
+            refreshToken = refreshToken,
         )
     }
 
-    override suspend fun save(token: String, expiresAt: Instant, username: String?, userId: String?) {
+    override suspend fun save(
+        token: String,
+        expiresAt: Instant,
+        username: String?,
+        userId: String?,
+        refreshToken: String?,
+    ) {
         writeError?.let { throw it }
         this.token = token
         this.expiresAt = expiresAt
         this.lastUsername = username
         this.lastUserId = userId
+        this.refreshToken = refreshToken
     }
 
     override suspend fun clearToken() {
@@ -50,12 +59,14 @@ class FakeTokenStore(
         writeError?.let { throw it }
         token = null
         expiresAt = null
+        refreshToken = null
     }
 
     override suspend fun clear() {
         writeError?.let { throw it }
         token = null
         expiresAt = null
+        refreshToken = null
         lastUsername = null
         lastUserId = null
     }

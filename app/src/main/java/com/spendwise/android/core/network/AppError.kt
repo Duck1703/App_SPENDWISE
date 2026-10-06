@@ -12,6 +12,15 @@ sealed interface AppError {
 
     data object SessionExpired : AppError
 
+    /**
+     * M13: an authenticated call returned 401 but the session is alive —
+     * a concurrent renewal already swapped the credential, or a refresh
+     * token still survives (the renewal may have hit a transient failure).
+     * Safe to retry; the user is not signed out. ViewModels surface the
+     * ordinary generic/retry path (falls into `else` branches).
+     */
+    data object SessionRetryable : AppError
+
     /** Auth-endpoint failure (e.g. invalid credentials), distinct from expiry. */
     data object InvalidCredentials : AppError
 
@@ -46,6 +55,7 @@ class AppErrorException(
 fun ApiException.toAppError(): AppError = when {
     status == 400 && fields.isNotEmpty() -> AppError.Validation(fields)
     status == 400 -> AppError.BadRequest
+    status == 401 && sessionRetryable -> AppError.SessionRetryable
     status == 401 -> AppError.SessionExpired
     status == 404 -> AppError.NotFound
     status == 409 -> AppError.Conflict

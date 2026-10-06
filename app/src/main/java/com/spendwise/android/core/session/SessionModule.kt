@@ -20,6 +20,12 @@ import javax.inject.Singleton
 @Retention(AnnotationRetention.BINARY)
 annotation class SessionDataStore
 
+/** API origin for the bare (interceptor-free) refresh client — injectable
+ *  so tests can point [SessionRefresher] at a MockWebServer. */
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class ApiBaseUrl
+
 @Module
 @InstallIn(SingletonComponent::class)
 object SessionModule {
@@ -41,4 +47,8 @@ object SessionModule {
 
     @Provides
     fun provideClock(): Clock = Clock.systemUTC()
+
+    @Provides
+    @ApiBaseUrl
+    fun provideApiBaseUrl(): String = com.spendwise.android.BuildConfig.SPENDWISE_API_BASE_URL
 }

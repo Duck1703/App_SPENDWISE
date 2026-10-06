@@ -4,6 +4,7 @@ import com.spendwise.android.core.session.Session
 import com.spendwise.android.core.session.SessionManager
 import com.spendwise.android.data.remote.AuthService
 import com.spendwise.android.data.remote.LoginRequestDto
+import com.spendwise.android.data.remote.LogoutRequestDto
 import com.spendwise.android.data.remote.RegisterRequestDto
 import com.spendwise.android.fakes.FakeTokenStore
 import kotlinx.coroutines.test.runTest
@@ -126,32 +127,36 @@ class AuthServiceContractTest {
     }
 
     @Test
-    fun `authenticated 401 expires the session`() = runTest {
+    fun `logout 401 is a public call and never expires the session`() = runTest {
+        // M13: logout is refresh-exempt — the body's refresh token is the
+        // revocation authority, so a dead access token must not kill the
+        // local session (or trigger a renewal) on the way out.
         sessionManager.onSignedIn("live-token", now.plusSeconds(900), "ana", "u1")
         server.enqueue(MockResponse(code = 401, body = ""))
 
         try {
-            service.logout()
+            service.logout(LogoutRequestDto(refreshToken = "rt-1"))
             throw AssertionError("Expected ApiException")
         } catch (e: ApiException) {
             assertEquals(401, e.status)
         }
 
-        assertEquals(Session.Expired("ana", "u1"), sessionManager.session.value)
+        assertTrue(sessionManager.session.value is Session.SignedIn)
     }
 
     @Test
-    fun `logout sends the bearer token and accepts 204`() = runTest {
+    fun `logout sends the bearer token and the refresh credential and accepts 204`() = runTest {
         sessionManager.onSignedIn("live-token", now.plusSeconds(900), "ana", "u1")
         server.enqueue(MockResponse(code = 204, body = ""))
 
-        val response = service.logout()
+        val response = service.logout(LogoutRequestDto(refreshToken = "rt-1"))
 
         assertTrue(response.isSuccessful)
         val request = server.takeRequest()
         assertEquals("POST", request.method)
         assertEquals("/api/auth/logout", request.url.encodedPath)
         assertEquals("Bearer live-token", request.headers["Authorization"])
+        assertEquals("""{"refreshToken":"rt-1"}""", request.body?.utf8())
     }
 
     @Test
