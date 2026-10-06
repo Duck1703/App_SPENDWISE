@@ -37,7 +37,7 @@ Ordered by unlock value.
   `ImportHistoryListTest` (5 tests — ownership isolation, ordering, counts,
   `200 []` empty, 401, no `rows` key). No schema change.
 
-## REQ-BE-003 — Public transfer endpoint
+## REQ-BE-003 — Public transfer endpoint — **IN_DELIVERY (M12)**
 
 - Gap: `transferRef` persisted; `TransferService` internal-only.
 - Contract: `POST /api/transfers` {fromAccountId, toAccountId, amount,
@@ -45,6 +45,14 @@ Ordered by unlock value.
   atomic; owner-scoped 404s; validation on cross-currency pairing.
 - Unlock: first-class transfer UX; paired-transaction display already
   anticipated by the data model.
+- M12 scope (field names shipped as `sourceAccountId` /
+  `destinationAccountId`): `201` with `{transferRef, outTransaction,
+  inTransaction}` — both legs are full `TransactionResponse`s;
+  `currency` optional, defaults to the source account's; same-account /
+  cross-currency pairing / non-positive amount → 400; unknown-or-
+  foreign accounts → 404. Explicit same-currency pairing guard added
+  inside `TransferService` (rejects before any write; the existing
+  rollback test remains green).
 
 ## REQ-BE-005 — Transaction correction (edit or void)
 

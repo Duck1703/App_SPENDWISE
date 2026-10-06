@@ -27,6 +27,7 @@ High-level phase plan. Milestone briefs are created per phase by ATLAS using
 | M9 | Ledger Export (server-generated CSV → SAF save) | COMPLETE — external audit ACCEPTED (1 major remediated: sweep/live-artifact race; 1 minor: save() generation binding), human-approved via conditional authorization (see [milestones/M9-LEDGER-EXPORT.md](milestones/M9-LEDGER-EXPORT.md), [reviews/M9-EXTERNAL-AUDIT.md](reviews/M9-EXTERNAL-AUDIT.md), [reviews/M9-SENTINEL-REVIEW.md](reviews/M9-SENTINEL-REVIEW.md), [reviews/M9-ARGUS-REVIEW.md](reviews/M9-ARGUS-REVIEW.md)) |
 | M10 | Server-Backed Import History (REQ-BE-004 list + per-batch report) | COMPLETE — external audit remediated + all gates green (JVM 493/493, lint/detekt, release, connected 158/158 ×2 on physical Pixel 4 XL); backend `401e99c` + `22efd60` under bounded-write authorization (see [milestones/M10-IMPORT-HISTORY.md](milestones/M10-IMPORT-HISTORY.md)) |
 | M11 | Transaction Occurrence Dates (REQ-BE-001 `occurredOn` on create/read) | COMPLETE — external audit ACCEPTED (0 blocker / 0 major / 3 notes; JVM 503/503, lint/detekt, release, connected 162/162 ×2 on physical Pixel 4 XL); backend `bc6e0bb` under bounded-write authorization; human-approved via conditional authorization (see [milestones/M11-TRANSACTION-DATES.md](milestones/M11-TRANSACTION-DATES.md), [reviews/M11-EXTERNAL-AUDIT.md](reviews/M11-EXTERNAL-AUDIT.md), [reviews/M11-SENTINEL-REVIEW.md](reviews/M11-SENTINEL-REVIEW.md), [reviews/M11-ARGUS-REVIEW.md](reviews/M11-ARGUS-REVIEW.md)) |
+| M12 | Transfers Between Own Accounts (REQ-BE-003 `POST /api/transfers` + Android create flow) | READY_FOR_EXTERNAL_AUDIT — Sentinel/Argus PASS (3 minors remediated); all gates green (JVM 529/529, lint/detekt, release, connected 174/174 ×2 on physical Pixel 4 XL); backend `8803396` under bounded-write authorization (see [milestones/M12-TRANSFERS.md](milestones/M12-TRANSFERS.md), [reviews/M12-EXTERNAL-AUDIT.md](reviews/M12-EXTERNAL-AUDIT.md), [reviews/M12-SENTINEL-REVIEW.md](reviews/M12-SENTINEL-REVIEW.md), [reviews/M12-ARGUS-REVIEW.md](reviews/M12-ARGUS-REVIEW.md)) |
 
 **Canonical sequence M0–M8 fully delivered and release-accepted.** V1
 was validated on emulator AND physical hardware (135/135 connected ×2
@@ -45,9 +46,19 @@ REQ-BE-001 backend contract landed under bounded-write authorization
 including two full physical-device connected runs (162/162 ×2), and the
 independent external audit ACCEPTED it with 0 blocker/major findings
 ([reviews/M11-EXTERNAL-AUDIT.md](reviews/M11-EXTERNAL-AUDIT.md));
-human-approved via the audit's conditional authorization. M12 is not
-authorized. Remaining backend-gated capabilities (FX, mutations,
-refresh token, transfers) stay gated.
+human-approved via the audit's conditional authorization. **M12
+(Transfers Between Own Accounts) is READY_FOR_EXTERNAL_AUDIT** —
+REQ-BE-003 delivered end-to-end under the Human's explicit M12-block
+authorization (see
+[milestones/M12-TRANSFERS.md](milestones/M12-TRANSFERS.md)): backend
+`8803396` exposed `POST /api/transfers` atomically, the Android
+create flow shipped with honest ambiguous-write handling, Sentinel and
+Argus both PASS (3 minors remediated inside the milestone), every gate
+re-ran green including two physical-device connected runs (174/174 ×2),
+and [reviews/M12-EXTERNAL-AUDIT.md](reviews/M12-EXTERNAL-AUDIT.md)
+packages the evidence for one independent external audit. Remaining
+backend-gated capabilities (FX, mutations, refresh token, pagination)
+stay gated. M13 is not defined.
 
 ## Important
 

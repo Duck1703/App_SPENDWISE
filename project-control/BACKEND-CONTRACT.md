@@ -170,12 +170,13 @@ body). Sources: controller files in §42.
 | Import | GET | `/api/imports` | — | `List<ImportBatchListItem>` (summaries, newest first, no rows) | 200 (`[]` when empty) | 401 | JWT | `ImportReportController.java` — **M10 / REQ-BE-004 delivered** |
 | Import | GET | `/api/imports/{id}` | path `UUID id` | `ImportBatchSummaryResponse` | 200 | 404 | JWT | `ImportReportController.java` |
 | FX | GET | `/api/fx/convert` | `?amount&from&to` (all required) | `ConversionResponse` | 200 | in-body degradation (`available:false`) | JWT | `FxController.java` |
+| Transfer | POST | `/api/transfers` | `CreateTransferRequest` | `TransferResponse` (`{transferRef, outTransaction, inTransaction}`) | 201 (no `Location` — the pair shares no URI) | 400 same-account/non-positive/cross-currency/`fields{}`, 404 unknown-or-foreign account, 401 | JWT | `TransferController.java` — **M12 / REQ-BE-003 delivered** |
 
 **Absent by verification** (grep over all mapping annotations): no
-PUT/PATCH anywhere; no `POST /api/transfers`; no `GET /api/transactions/{id}`;
+PUT/PATCH anywhere; no `GET /api/transactions/{id}`;
 no `/api/auth/refresh` or `/api/users/me`;
-no statistics HTTP surface. (`GET /api/imports` batch list **landed in M10**
-— REQ-BE-004.)
+no statistics HTTP surface. (`GET /api/imports` batch list **landed in
+M10** — REQ-BE-004; `POST /api/transfers` **landed in M12** — REQ-BE-003.)
 
 ## 6. Authentication and ownership
 
@@ -295,7 +296,7 @@ config) + FRAMEWORK_DEFAULT_INFERENCE.
 | Categorization rule | `UUID` | server-generated |
 | Import batch | `UUID` | server-generated |
 | Category | `String` code (≤32) — **the PK itself is the wire value** | `Category.java` — VERIFIED |
-| Transfer | **no transfer ID** — legs linked by `transferRef` (internal string); `TransferResult.transferRef` never leaves the server (no endpoint) | `TransferService` — VERIFIED |
+| Transfer | **no transfer ID** — legs linked by `transferRef` (random UUID string per call); returned only on the `POST /api/transfers` response, never on transaction reads | `TransferService`, `TransferController` — VERIFIED (M12) |
 | External source ref | `sourceRef` string (≤255): `MANUAL:<uuid>`, `IMPORT:SRC:<accountId>:<bankTxnId>`/`IMPORT:<acct>\|…\|OCC:n`, `RECURRING:<templateId>:<dueDate>`, `TRANSFER:<ref>:OUT/IN` | `TransactionMapper`, `RowIdentityService`, `RecurringGenerationService`, `TransferService` — VERIFIED |
 
 Do not conflate: **database `id`** (UUID, path param) vs **`sourceRef`**
@@ -370,10 +371,31 @@ Callers: `TransactionController.create` (manual), `ImportRowProcessor`
 
 ## 13. Transfer contract
 
-**There is no transfer endpoint.** `TransferService` is reachable only from
-Java/tests — confirmed by controller inventory and reference grep. The
-backend's committed `docs/defense-audit.md` acknowledges the missing REST
-surface as intended for this build.
+**`POST /api/transfers` exists — delivered in M12 / REQ-BE-003**
+(`TransferController.java`, backend `8803396`). Before M12 the endpoint
+did not exist; the domain service was internal-only.
+
+Wire contract:
+
+`CreateTransferRequest` (`account/CreateTransferRequest.java`):
+
+| Field | Wire type | Required | Validation | Meaning |
+|---|---|---|---|---|
+| `sourceAccountId` | string (UUID) | yes | `@NotNull` + owner-scoped existence → 404 | debit leg account |
+| `destinationAccountId` | string (UUID) | yes | `@NotNull` + owner-scoped existence → 404 | credit leg account |
+| `amount` | number | yes | `@NotNull @DecimalMin(value="0.00", inclusive=false) @Digits(17,2)` | strictly positive |
+| `currency` | string | **no — optional** | omitted → the **source** account's currency; a value ≠ source currency → `CurrencyMismatchException` → 400 | ISO-4217 |
+
+`TransferResponse` = `{transferRef, outTransaction, inTransaction}` —
+both legs are full `TransactionResponse`s (including `occurredOn` =
+server today). `201 Created` **without `Location`** — two resources
+share no single URI.
+
+Error mapping: 401 unauthenticated; 404 for a source OR destination
+account unknown/foreign (owner-scoped `accountService.find`, same
+convention as transaction create); 400 for same-account ids,
+non-positive/overscaled amount, cross-currency pairing, or request
+currency ≠ source currency.
 
 Domain semantics — **VERIFIED** (`TransferService.java`):
 
@@ -382,7 +404,7 @@ Domain semantics — **VERIFIED** (`TransferService.java`):
 | IS_TRANSFER_ONE_RESOURCE_OR_TWO_TRANSACTIONS? | **TWO TRANSACTIONS** — `TRANSFER_OUT` on source + `TRANSFER_IN` on destination, linked by a shared `transferRef` (a random UUID string per call); `sourceRef`s `TRANSFER:<ref>:OUT`/`:IN`. |
 | IS_TRANSFER_CREATION_ATOMIC? | **VERIFIED** — `@Transactional`; both legs go through `TransactionCreationService`; any leg-2 failure rolls back leg 1 including the balance update (proven by `IntegrationSuiteTest`). |
 | DOES_TOTAL_WEALTH_CHANGE? | **NO** — identical `Money` subtracted/added on two accounts; cross-currency is **rejected** (mismatch → rollback), never converted. |
-| CAN_ANDROID_CREATE_TRANSFER_WITH_ONE_API_CALL? | **NO — BACKEND_GAP** (BG-001). |
+| CAN_ANDROID_CREATE_TRANSFER_WITH_ONE_API_CALL? | **YES — M12 / REQ-BE-003** (`POST /api/transfers`; BG-001 closed). |
 
 Other domain rules: `sourceAccountId != destinationAccountId` required;
 amount strictly positive; both accounts must belong to the caller;

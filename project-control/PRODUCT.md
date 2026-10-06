@@ -157,7 +157,7 @@ entering the primary path.
 | budgets | V1_SUPPORTING | create/list/get/calculation; no edit/delete |
 | recurring transactions | V1_SUPPORTING | full API; currency locked to account (defect mitigation) |
 | subscriptions | EXPLICITLY_EXCLUDED | no distinct concept; recurring covers the intent |
-| transfers | BACKEND_GATED | **no public endpoint** → hidden; BE-003 |
+| transfers | DELIVERED (M12) | `POST /api/transfers` — atomic own-account pair, shared `transferRef`; create flow + entry points shipped |
 | CSV import | V1_CORE | strict schema, synchronous |
 | PDF import | V1_CORE | TPBank-family + synthetic layouts only |
 | TPBank multi-page | V1_CORE | verified support boundary |
@@ -184,7 +184,7 @@ DEFER_FEATURE / REQUIRES_BACKEND_ENABLEMENT / PRODUCT_BLOCKER.
 
 | Gap | Treatment | Rationale |
 |---|---|---|
-| No public transfer endpoint | DEFER_FEATURE + REQUIRES_BACKEND_ENABLEMENT (BE-003) | transfer UX undeliverable honestly; hide entirely — no paired-manual-transaction fakery |
+| No public transfer endpoint | RESOLVED (M12, BE-003) | `POST /api/transfers` shipped; first-class transfer flow live — paired-manual-transaction fakery never used |
 | No transaction edit | HIDE_UNSUPPORTED_CAPABILITY | no edit affordances anywhere |
 | No transaction delete | HIDE_UNSUPPORTED_CAPABILITY + offset-entry remedy (§21) | no delete affordance; honest reversal supported by append-only semantics |
 | No account edit/delete | HIDE_UNSUPPORTED_CAPABILITY | account cards carry no mutation controls |
@@ -469,8 +469,9 @@ justified by verified semantics):
 - **Honest copy**: "This adds an opposite entry. The original stays in
   history — income and expense totals for the period will both be higher
   than the true position."
-- `TRANSFER_*` rows cannot be offset (no transfer write path) — the
-  action is hidden on them.
+- `TRANSFER_*` legs cannot be offset — a single-side offset would
+  un-pair the atomic transfer; the action stays hidden on them (M12
+  ships no transfer update/delete either).
 - **Not labeled "undo"/"delete"/"edit"** — it is a compensating entry,
   presented as such.
 - Also recorded: true edit/delete remains BACKEND_GATED (BE-005) for
@@ -478,16 +479,18 @@ justified by verified semantics):
 
 ## 22. Transfer product decision
 
-TRANSFER_PUBLIC_API_AVAILABLE = **NO** → V1 status:
-**BACKEND_GATED + DEFER_FEATURE**.
+TRANSFER_PUBLIC_API_AVAILABLE = **YES (M12)** — V1 status was
+**BACKEND_GATED + DEFER_FEATURE**; resolved by REQ-BE-003.
 
-No transfer UI exists in V1 — no entry point, no form, no paired
+V1 shipped no transfer UI — no entry point, no form, no paired
 income/expense simulation (that would mint `INCOME`/`EXPENSE` rows, not
-linked `TRANSFER_*` legs, and misrepresent the ledger). When/if a
-backend endpoint ships (BE-003), transfers become a first-class flow —
-the backend already proves the domain model (atomic two-legged, shared
-`transferRef`, same-currency). Listed as an open question for THE
-HUMAN on post-V1 priority.
+linked `TRANSFER_*` legs, and misrepresent the ledger). M12 delivered
+the first-class flow the domain model already proved (atomic
+two-legged, shared `transferRef`, same-currency pairing): `POST
+/api/transfers` on the backend, and on Android a dedicated create
+screen reachable from the Transactions header (≥2 accounts only) and
+account detail (≥2 accounts, source prefilled). No transfer update or
+delete exists — the legs stay append-only like the rest of the ledger.
 
 ## 23. Import experience
 
@@ -705,8 +708,8 @@ ProblemDetail, jti, uq_txn_source_ref, endpoints.
 - **Never combine currencies** — no cross-account totals; dashboard
   rule §17 applies.
 - Duplicates never change balances and are never styled as errors.
-- `TRANSFER_*` rows, if ever present (internal transfers), display as
-  "Transfer" provenance with neutral direction — not as income/expense.
+- `TRANSFER_*` rows (own-account transfers, M12) display as "Transfer"
+  provenance with neutral direction — not as income/expense.
 - Percent display for budgets is server-computed scale-2 — displayed
   as returned.
 - "No idempotency key" honesty: submit buttons lock on tap; the app
