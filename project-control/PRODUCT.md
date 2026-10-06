@@ -195,7 +195,7 @@ DEFER_FEATURE / REQUIRES_BACKEND_ENABLEMENT / PRODUCT_BLOCKER.
 | No pagination | ACCEPT_V1_LIMITATION | unbounded fetch; V1 ledgers are small; local grouping/filtering of fully-loaded data is honest (no meaningful sort field exists — no dates are returned) |
 | No search | DEFER_FEATURE | no server search; local text search not useful on dateless rows |
 | No date-range filter | DEFER_FEATURE | needs `occurredOn` returned + filter params (BE-001/BE-007) |
-| JWT ~15-min, no refresh | ACCEPT_V1_LIMITATION + REQUIRES_BACKEND_ENABLEMENT (BE-002) | explicit re-auth interstitial; session preserve-resume UX §16 |
+| JWT ~15-min, no refresh | RESOLVED (M13, BE-002) | rotating refresh token + single-flight renewal; re-auth interstitial remains for genuine session death |
 | Partially typed errors | ACCEPT_V1_LIMITATION | map status + `fields`; never parse `detail` text (§31) |
 | Synchronous import | ACCEPT_V1_LIMITATION | blocking progress surface; no progress %, no background claim |
 | No import batch list | ACCEPT_V1_LIMITATION | result screen shown once; history = ledger rows with import provenance; BE-004 later |
@@ -349,16 +349,23 @@ gated capabilities are simply absent.
   from other domain 400s) → hedged copy: "the username may already be
   taken — check the details."
 - **Login** → `AuthResponse{accessToken, expiresAt}` → authenticated root.
-- **Token expiry during use**: any 401 **on an authenticated call** →
-  **Session-expired interstitial**
+- **Token expiry during use** (M13+): a refreshable session renews
+  silently (single-flight rotating refresh) — the interstitial appears
+  only when renewal itself is rejected (refresh expiry/revocation/
+  reuse) or was never available. A 401 on an authenticated call with a
+  dead session still → **Session-expired interstitial**
   (modal, non-destructive): "Your session has expired — sign in again."
   Current screen + **unsent form input is preserved** (in-memory); after
   successful re-login the user returns to the same surface and may retry.
-- **Logout** → confirm → `POST /api/auth/logout` → discard local session
-  → unauthenticated root. (A logout whose token already expired returns
-  401 — the local session is discarded regardless.)
-- **Relaunch with expired session** → unauthenticated root (no silent
-  retry — no refresh contract exists).
+  Non-idempotent mutations are never auto-replayed after renewal — the
+  draft stays and the user resubmits.
+- **Logout** → confirm → `POST /api/auth/logout` (revokes the access
+  `jti` + the presented refresh token, M13) → discard local session →
+  unauthenticated root. The local session is discarded regardless of
+  the remote result.
+- **Relaunch with expired session** → if a live refresh token exists
+  (M13+), one silent renewal attempt runs before the session resolves;
+  legacy/no-refresh sessions go to unauthenticated root as before.
 - **Copy**: never show the raw token; never say "you were logged out for
   security" — just the factual expiry.
 

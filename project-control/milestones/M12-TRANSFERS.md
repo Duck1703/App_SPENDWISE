@@ -1,14 +1,16 @@
 # M12 — Transfers Between Own Accounts
 
 ```
-STATUS: READY_FOR_EXTERNAL_AUDIT — all gates green; Sentinel + Argus
-  PASS with 3 minors remediated inside the milestone
+STATUS: COMPLETE — external audit ACCEPTED (second cycle: 1 major +
+  3 minor remediated in-milestone); THE HUMAN approved M12 and
+  authorized M13 selection in the same directive
 M12_DEFINED=YES
 M12_STARTED=YES
 M12_TECHNICAL_COMPLETE=YES
 M12_READY_FOR_EXTERNAL_AUDIT=YES
-M12_EXTERNAL_AUDIT_FINAL=PENDING
-M12_HUMAN_APPROVED=NO
+M12_EXTERNAL_AUDIT_FINAL=ACCEPTED
+M12_HUMAN_APPROVED=YES
+TRANSFERS=APPROVED
 M13_DEFINED=NO
 M13_STARTED=NO
 M12_HUMAN_AUTHORIZATION: EXPLICIT — Human authorized "select exactly

@@ -74,7 +74,7 @@ Ordered by unlock value.
   `DELETE /api/budgets/{id}`. Must resolve the unique category+month
   constraint for "wrong current-month budget" fix.
 
-## REQ-BE-002 — Refresh token
+## REQ-BE-002 — Refresh token — **IN_DELIVERY (M13)**
 
 - Contract: refresh-token issuance at login, rotation on use,
   revocation list (extend `TokenBlacklist` concept), reuse detection,
@@ -82,6 +82,13 @@ Ordered by unlock value.
 - Note: V1's 15-min + reauth UX is honest and functional — value is
   convenience, not correctness. Medium-large effort; sequence after
   value items.
+- M13 shape: opaque 256-bit rotating refresh token stored as a
+  SHA-256 hash in a process-local allowlist (fail-closed on restart —
+  the documented `TokenBlacklist` posture); fixed 30-day family
+  lifetime; rotated-token replay revokes the family;
+  `POST /api/auth/refresh` (permitAll) + logout accepts an optional
+  `{refreshToken}` body so a dead access token can still revoke the
+  refresh credential. No schema migration.
 
 ## REQ-BE-007 — Pagination + filters
 
