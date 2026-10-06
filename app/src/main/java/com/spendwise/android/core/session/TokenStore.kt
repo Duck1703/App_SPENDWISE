@@ -10,7 +10,12 @@ data class StoredSession(
     val username: String?,
     val userId: String?,
     val refreshToken: String? = null,
-)
+) {
+    // Credential material — redacted like Session.SignedIn.
+    override fun toString(): String =
+        "StoredSession(token=***, expiresAt=$expiresAt, username=$username, " +
+            "userId=$userId, refreshToken=${if (refreshToken != null) "***" else "null"})"
+}
 
 interface TokenStore {
 

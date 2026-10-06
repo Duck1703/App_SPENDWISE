@@ -462,6 +462,20 @@ class SessionManagerTest {
     }
 
     @Test
+    fun `session and stored-session toString never leak credentials`() {
+        val signedIn = Session.SignedIn(
+            "secret-access", futureExpiry, "ana", "u1", refreshToken = "secret-refresh",
+        )
+        assertFalse(signedIn.toString().contains("secret-access"))
+        assertFalse(signedIn.toString().contains("secret-refresh"))
+        assertTrue(signedIn.toString().contains("ana")) // identity still debuggable
+
+        val stored = StoredSession("secret-access", futureExpiry, "ana", "u1", "secret-refresh")
+        assertFalse(stored.toString().contains("secret-access"))
+        assertFalse(stored.toString().contains("secret-refresh"))
+    }
+
+    @Test
     fun `onSignedIn persists the refresh credential and re-login does not inherit a different user's`() = runTest {
         val store = FakeTokenStore()
         val manager = manager(store)

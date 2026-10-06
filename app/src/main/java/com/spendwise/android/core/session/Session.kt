@@ -32,7 +32,14 @@ sealed interface Session {
          * [Expired] → re-auth. Never leaves the session layer.
          */
         val refreshToken: String? = null,
-    ) : Session
+    ) : Session {
+        // Credentials are never printable — a stray Timber/session-state
+        // log, debugger watch, or crash breadcrumb must not emit them.
+        override fun toString(): String =
+            "SignedIn(token=***, expiresAt=$expiresAt, username=$username, " +
+                "userId=$userId, resumedSession=$resumedSession, " +
+                "refreshToken=${if (refreshToken != null) "***" else "null"})"
+    }
 
     data class Expired(
         val username: String?,
