@@ -223,4 +223,45 @@ class LedgerExportRepositoryTest {
 
         assertTrue(!tempFile.exists())
     }
+
+    // ── Adversarial: stale-generation save + large body ─────────────
+
+    @Test
+    fun `save rejects an artifact from a dead session generation`() = runTest {
+        val h = harness()
+        signIn(h)
+        h.service.exportResponder = { csvResponse("a,b\n".toByteArray()) }
+        val artifact = h.repository.download(null)
+        val tempFile = artifact.file
+        // Session boundary AFTER the download: a different user signs in.
+        h.sessionManager.onSignedIn("token-b", now.plusSeconds(900), "bob", "u2")
+
+        assertThrows(SessionEndedException::class.java) {
+            kotlinx.coroutines.runBlocking {
+                h.repository.save(artifact, "content://picked/x.csv")
+            }
+        }
+        assertTrue(!tempFile.exists())
+        assertTrue(h.files.saved.isEmpty())
+    }
+
+    @Test
+    fun `a multi-megabyte body streams byte-identically`() = runTest {
+        val h = harness()
+        signIn(h)
+        // ~3 MB of synthetic CSV — kills any accidental whole-body
+        // assumptions; must stream through untouched.
+        val row = "2026-01-05,EXPENSE,\"Tiền, café — very long category note padding\",VND,FOOD,source-ref-abcdefghijklmnopqrstuvwxyz0123456789\r\n"
+        val sb = StringBuilder("occurredOn,type,amount,currency,category,sourceRef\r\n")
+        while (sb.length < 3 * 1024 * 1024) sb.append(row)
+        val raw = sb.toString().toByteArray(StandardCharsets.UTF_8)
+        h.service.exportResponder = { csvResponse(raw) }
+
+        val artifact = h.repository.download(null)
+
+        assertEquals(raw.size.toLong(), artifact.sizeBytes)
+        assertArrayEquals(raw, artifact.file.readBytes())
+        h.repository.save(artifact, "content://picked/big.csv")
+        assertArrayEquals(raw, h.files.saved.getValue("content://picked/big.csv"))
+    }
 }

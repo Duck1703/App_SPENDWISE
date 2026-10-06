@@ -200,6 +200,29 @@ class ExportLedgerViewModelTest {
     }
 
     @Test
+    fun `a second destination callback while saving is ignored`() = runTest {
+        val accounts = FakeAccountRepository()
+        val exports = FakeLedgerExportRepository()
+        accounts.listResult = { twoAccounts() }
+        val artifact = FakeLedgerExportRepository.artifact()
+        exports.downloadResult = { artifact }
+        val gate = CompletableDeferred<Unit>()
+        exports.saveResult = { _, _ -> gate.await() }
+        val viewModel = vm(accounts, exports)
+        form(viewModel)
+        viewModel.export()
+        runCurrent()
+
+        viewModel.onDestinationChosen("content://picked/a.csv")
+        viewModel.onDestinationChosen("content://picked/b.csv")
+        runCurrent()
+
+        assertEquals(1, exports.saveCalls.size)
+        assertEquals("content://picked/a.csv", exports.saveCalls.first().second)
+        gate.complete(Unit)
+    }
+
+    @Test
     fun `save failure reports SaveFailed and deletes the artifact`() = runTest {
         val accounts = FakeAccountRepository()
         val exports = FakeLedgerExportRepository()

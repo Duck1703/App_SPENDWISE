@@ -91,13 +91,34 @@ class ContentResolverExportStoreTest {
     @Test
     fun discardOrphans_clears_every_leftover_export() = runTest {
         val store = ContentResolverExportStore(context)
-        val a = store.writeTemp("a.csv", body("a\n".toByteArray()))
-        val b = store.writeTemp("b.csv", body("b\n".toByteArray()))
+        // True orphans are files whose owners are gone — e.g. leftovers
+        // from a dead process. Files created by writeTemp are LIVE
+        // (registry-owned) and must survive the sweep.
+        val dir = File(context.cacheDir, "ledger-export").apply { mkdirs() }
+        val a = File(dir, "orphan-a.csv").apply { writeText("a") }
+        val b = File(dir, "orphan-b.csv").apply { writeText("b") }
 
         store.discardOrphans()
 
-        assertFalse(a.file.exists())
-        assertFalse(b.file.exists())
+        assertFalse(a.exists())
+        assertFalse(b.exists())
+    }
+
+    @Test
+    fun discardOrphans_never_deletes_a_live_artifact() = runTest {
+        val store = ContentResolverExportStore(context)
+        val live = store.writeTemp("live.csv", body("live\n".toByteArray()))
+
+        // A second screen instance sweeping on entry must not kill an
+        // artifact still owned by an in-flight export (EXT-M9-MAJOR-1).
+        store.discardOrphans()
+
+        assertTrue(live.file.exists())
+
+        // Once the owner discards it, the sweep can reclaim it.
+        store.discard(live)
+        store.discardOrphans()
+        assertFalse(live.file.exists())
     }
 
     @Test

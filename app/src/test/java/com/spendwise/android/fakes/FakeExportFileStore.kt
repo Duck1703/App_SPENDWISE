@@ -18,6 +18,9 @@ class FakeExportFileStore : ExportFileStore {
 
     private val dir: File = Files.createTempDirectory("export-test").toFile()
 
+    /** Mirrors the production live-artifact registry (sweep skips live files). */
+    private val live = java.util.concurrent.ConcurrentHashMap.newKeySet<File>()
+
     /** Scripted failure — destination write blows up. */
     var copyError: Throwable? = null
 
@@ -30,11 +33,12 @@ class FakeExportFileStore : ExportFileStore {
         suggestedFileName: String,
         body: ResponseBody,
     ): LedgerExportArtifact {
-        val temp = File.createTempFile("ledger-", ".csv", dir)
+        val temp = File.createTempFile("ledger-", ".csv", dir).also { live.add(it) }
         try {
             body.byteStream().use { it.copyToFile(temp) }
             return LedgerExportArtifact(suggestedFileName, temp.length(), temp)
         } catch (e: Exception) {
+            live.remove(temp)
             temp.delete()
             throw e
         }
@@ -49,13 +53,14 @@ class FakeExportFileStore : ExportFileStore {
     }
 
     override suspend fun discard(artifact: LedgerExportArtifact) {
+        live.remove(artifact.file)
         discarded += artifact.file
         artifact.file.delete()
     }
 
     override suspend fun discardOrphans() {
         discardOrphansCalls++
-        dir.listFiles()?.forEach { it.delete() }
+        dir.listFiles()?.forEach { if (it !in live) it.delete() }
     }
 
     fun filesLeft(): List<File> = dir.listFiles()?.toList() ?: emptyList()

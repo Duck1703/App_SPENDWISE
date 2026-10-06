@@ -101,8 +101,19 @@ write, not completed download.
   PASS (0/0/3); [M9-ARGUS-REVIEW](../reviews/M9-ARGUS-REVIEW.md)
   PASS (0/0/2).
 
+## External audit closeout
+
+[M9-EXTERNAL-AUDIT](../reviews/M9-EXTERNAL-AUDIT.md): initial verdict
+FINDINGS — 1 MAJOR (orphan sweep could delete a live artifact of a
+concurrent screen instance; fixed via synchronized live-artifact
+registry) + 1 MINOR (artifact not generation-bound in `save()`; now
+bound — stale-generation saves are rejected and deleted) + defensive
+`onDestinationChosen` phase guard. Post-remediation: JVM 465/465,
+connected 154/154 ×2 on Pixel 4 XL, release rebuilt clean.
+
 ## Status
 
-TECHNICAL_COMPLETE — `M9_READY_FOR_EXTERNAL_AUDIT=YES`;
-`M9_HUMAN_APPROVED=NO` until external audit + Human sign-off.
-M10 remains undefined.
+`M9_EXTERNAL_AUDIT_FINAL=ACCEPTED`; `M9_HUMAN_APPROVED=YES`
+(conditional closeout authorization exercised — every acceptance gate
+passed). `M9_STATUS=COMPLETE`. M10 remains undefined; next action is
+a Human M10 decision.

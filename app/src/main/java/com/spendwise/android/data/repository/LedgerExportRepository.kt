@@ -31,7 +31,15 @@ class LedgerExportArtifact internal constructor(
     val suggestedFileName: String,
     val sizeBytes: Long,
     internal val file: File,
-)
+) {
+    /**
+     * Session generation that produced this artifact — bound by the
+     * repository in `download()`. `save()` refuses anything whose
+     * generation no longer matches, so a stale-session artifact can
+     * never be written to a destination.
+     */
+    internal var boundGeneration: Long = Long.MIN_VALUE
+}
 
 /**
  * Platform seam around temp-file + `ContentResolver` streaming —
@@ -122,10 +130,19 @@ class RemoteLedgerExportRepository @Inject constructor(
             files.discard(artifact)
             throw SessionEndedException()
         }
+        artifact.boundGeneration = generation
         return artifact
     }
 
     override suspend fun save(artifact: LedgerExportArtifact, destinationUri: String) {
+        // The artifact is bound to the session that produced it — a
+        // boundary crossed since the download (expiry, sign-out, a
+        // different identity) invalidates it even if the ViewModel
+        // somehow survived.
+        if (artifact.boundGeneration != sessionManager.sessionGeneration) {
+            files.discard(artifact)
+            throw SessionEndedException()
+        }
         try {
             files.copyTo(artifact, destinationUri)
         } catch (e: Exception) {
@@ -193,17 +210,32 @@ class ContentResolverExportStore @Inject constructor(
     @param:ApplicationContext private val context: Context,
 ) : ExportFileStore {
 
+    /**
+     * Live artifacts owned by an in-flight flow — registered the moment
+     * the temp write completes and unregistered only on [discard].
+     * [discardOrphans] skips them, so a sweep on screen entry can never
+     * delete a download still owned by another screen instance (e.g. a
+     * double-pushed route) — only true orphans (process death) whose
+     * owners are gone are swept.
+     */
+    private val liveArtifacts = java.util.concurrent.ConcurrentHashMap.newKeySet<File>()
+
     override suspend fun writeTemp(
         suggestedFileName: String,
         body: ResponseBody,
     ): LedgerExportArtifact = withContext(Dispatchers.IO) {
         val dir = File(context.cacheDir, TEMP_DIR).apply { mkdirs() }
-        val temp = File.createTempFile("ledger-", ".csv", dir)
+        // Register under the same lock the sweep holds — a file must be
+        // protected the instant it exists, not only once streaming ends.
+        val temp = synchronized(liveArtifacts) {
+            File.createTempFile("ledger-", ".csv", dir).also { liveArtifacts.add(it) }
+        }
         try {
             body.byteStream().use { input -> input.copyToFile(temp) }
             LedgerExportArtifact(suggestedFileName, temp.length(), temp)
         } catch (e: Exception) {
             // Cancel included — a partial download never survives.
+            liveArtifacts.remove(temp)
             temp.delete()
             throw e
         }
@@ -218,12 +250,16 @@ class ContentResolverExportStore @Inject constructor(
         }
 
     override suspend fun discard(artifact: LedgerExportArtifact) = withContext(Dispatchers.IO) {
+        liveArtifacts.remove(artifact.file)
         artifact.file.delete()
         Unit
     }
 
     override suspend fun discardOrphans() = withContext(Dispatchers.IO) {
-        File(context.cacheDir, TEMP_DIR).listFiles()?.forEach { it.delete() }
+        synchronized(liveArtifacts) {
+            File(context.cacheDir, TEMP_DIR).listFiles()
+                ?.forEach { if (it !in liveArtifacts) it.delete() }
+        }
         Unit
     }
 

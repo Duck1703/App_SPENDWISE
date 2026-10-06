@@ -136,6 +136,7 @@ class ExportLedgerViewModel @Inject constructor(
     /** System picker returned a destination — stream the artifact into it. */
     fun onDestinationChosen(uri: String) {
         val form = _state.value as? ExportUiState.Ready ?: return
+        if (form.phase != ExportUiState.Phase.AwaitingDestination) return
         val artifact = pendingArtifact ?: return
         _state.value = form.copy(
             phase = ExportUiState.Phase.Saving,
