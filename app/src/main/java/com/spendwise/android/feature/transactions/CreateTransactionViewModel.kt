@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
+import java.time.LocalDate
 import javax.inject.Inject
 
 /**
@@ -120,6 +121,10 @@ class CreateTransactionViewModel @Inject constructor(
         _state.value = _state.value.copy(category = code, formError = null)
     }
 
+    fun onDateChange(value: LocalDate) {
+        _state.value = _state.value.copy(occurredOn = value, formError = null)
+    }
+
     fun onHintChange(value: String) {
         _state.value = _state.value.copy(
             hint = value.take(CreateTransactionUiState.MAX_HINT_LENGTH),
@@ -161,6 +166,7 @@ class CreateTransactionViewModel @Inject constructor(
                     accountId = account.id,
                     type = current.type,
                     amount = Money(amount = checkNotNull(amount), currency = CurrencyCode(account.balance.currency.code)),
+                    occurredOn = current.occurredOn,
                     category = current.category,
                     hint = current.hint,
                 )
@@ -201,9 +207,10 @@ class CreateTransactionViewModel @Inject constructor(
                             if (error.fields.keys.any { it in setOf("amount", "accountId") }) {
                                 null
                             } else {
-                                // currency/category/description/type —
-                                // picker-locked or optional fields surface
-                                // as the form-level error, honestly.
+                                // currency/category/description/type/
+                                // occurredOn — picker-locked or optional
+                                // fields surface as the form-level error,
+                                // honestly.
                                 CreateTransactionUiState.CreateTxnFormError.Generic
                             }
                         AppError.NetworkUnavailable ->

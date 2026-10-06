@@ -61,6 +61,7 @@ class HomeScreenTest {
         amount = Money(BigDecimal(amount), CurrencyCode("VND")),
         category = "FOOD",
         sourceRef = "MANUAL:$id",
+        occurredOn = java.time.LocalDate.of(2026, 10, 4),
     )
 
     private data class Harness(
@@ -193,8 +194,12 @@ class HomeScreenTest {
         )
 
         composeRule.onNodeWithText("Recent activity").assertIsDisplayed()
-        // Merged row semantics: "Expense −25 VND Food on Wallet, Manual".
-        composeRule.onNodeWithContentDescription("Expense −25 VND Food on Wallet, Manual")
+        // Merged row semantics: "Expense −25 VND Food on Wallet,
+        // Manual, <localized date>" (M11 appends the server date).
+        composeRule.onNodeWithContentDescription(
+            "Expense −25 VND Food on Wallet, Manual, " +
+                TestFormats.date(java.time.LocalDate.of(2026, 10, 4)),
+        )
             .performClick()
         assertEquals("t7", harness.openedTransaction)
     }

@@ -76,11 +76,13 @@ class TransactionsServiceContractTest {
         [
           {
             "id":"t1","accountId":"a1","type":"EXPENSE","amount":25.50,
-            "currency":"VND","category":"FOOD","sourceRef":"MANUAL:t1"
+            "currency":"VND","category":"FOOD","sourceRef":"MANUAL:t1",
+            "occurredOn":"2026-10-04"
           },
           {
             "id":"t2","accountId":"a1","type":"INCOME","amount":900,
-            "currency":"VND","category":null,"sourceRef":"IMPORT:CSV:42"
+            "currency":"VND","category":null,"sourceRef":"IMPORT:CSV:42",
+            "occurredOn":"2026-01-31"
           }
         ]
     """.trimIndent()
@@ -98,6 +100,8 @@ class TransactionsServiceContractTest {
         assertEquals(BigDecimal("25.50"), list[0].amount)
         assertEquals("FOOD", list[0].category)
         assertEquals("MANUAL:t1", list[0].sourceRef)
+        assertEquals("2026-10-04", list[0].occurredOn)
+        assertEquals("2026-01-31", list[1].occurredOn)
         assertNull(list[1].category)
 
         val request = server.takeRequest()
@@ -144,7 +148,7 @@ class TransactionsServiceContractTest {
         server.enqueue(
             MockResponse(
                 code = 201,
-                body = """{"id":"t9","accountId":"a1","type":"EXPENSE","amount":25.50,"currency":"VND","category":"FOOD","sourceRef":"MANUAL:t9"}""",
+                body = """{"id":"t9","accountId":"a1","type":"EXPENSE","amount":25.50,"currency":"VND","category":"FOOD","sourceRef":"MANUAL:t9","occurredOn":"2026-09-15"}""",
             ),
         )
 
@@ -156,17 +160,19 @@ class TransactionsServiceContractTest {
                 currency = "VND",
                 category = "FOOD",
                 description = "lunch",
+                occurredOn = "2026-09-15",
             ),
         )
 
         assertEquals("t9", created.id)
         assertEquals("MANUAL:t9", created.sourceRef)
+        assertEquals("2026-09-15", created.occurredOn)
         val request = server.takeRequest()
         assertEquals("POST", request.method)
         assertEquals("/api/transactions", request.url.encodedPath)
         assertEquals("Bearer live-token", request.headers["Authorization"])
         assertEquals(
-            """{"accountId":"a1","type":"EXPENSE","amount":25.50,"currency":"VND","category":"FOOD","description":"lunch"}""",
+            """{"accountId":"a1","type":"EXPENSE","amount":25.50,"currency":"VND","category":"FOOD","description":"lunch","occurredOn":"2026-09-15"}""",
             request.body?.utf8(),
         )
     }
@@ -177,7 +183,7 @@ class TransactionsServiceContractTest {
         server.enqueue(
             MockResponse(
                 code = 201,
-                body = """{"id":"t9","accountId":"a1","type":"INCOME","amount":10,"currency":"VND","category":null,"sourceRef":"MANUAL:t9"}""",
+                body = """{"id":"t9","accountId":"a1","type":"INCOME","amount":10,"currency":"VND","category":null,"sourceRef":"MANUAL:t9","occurredOn":"2026-02-29"}""",
             ),
         )
 
@@ -187,14 +193,18 @@ class TransactionsServiceContractTest {
                 type = "INCOME",
                 amount = BigDecimal("10"),
                 currency = "VND",
+                occurredOn = "2026-02-29",
             ),
         )
 
         val body = server.takeRequest().body?.utf8().orEmpty()
         assertTrue("category must be omitted, not null: $body", !body.contains("\"category\""))
         assertTrue("description must be omitted: $body", !body.contains("\"description\""))
-        // No occurredOn is ever sent — the server stamps the date.
-        assertTrue("occurredOn must never be sent: $body", !body.contains("occurredOn"))
+        // M11: occurredOn is a required client field — the user-selected
+        // date is always on the wire as ISO yyyy-MM-dd.
+        assertTrue("occurredOn must always be sent: $body",
+            body.contains(""""occurredOn":"2026-02-29""""))
+        assertTrue("no time/timezone may ride along: $body", !body.contains("2026-02-29T"))
     }
 
     @Test
@@ -203,7 +213,7 @@ class TransactionsServiceContractTest {
         server.enqueue(
             MockResponse(
                 code = 200,
-                body = """[{"id":"t1","accountId":"a1","type":"TRANSFER_IN","amount":5,"currency":"VND","category":null}]""",
+                body = """[{"id":"t1","accountId":"a1","type":"TRANSFER_IN","amount":5,"currency":"VND","category":null,"occurredOn":"2026-10-04"}]""",
             ),
         )
 
@@ -253,7 +263,10 @@ class TransactionsServiceContractTest {
 
         try {
             transactions.create(
-                CreateTransactionRequestDto("a1", "EXPENSE", BigDecimal("-1"), "VND"),
+                CreateTransactionRequestDto(
+                    "a1", "EXPENSE", BigDecimal("-1"), "VND",
+                    occurredOn = "2026-09-15",
+                ),
             )
             throw AssertionError("Expected ApiException")
         } catch (e: ApiException) {

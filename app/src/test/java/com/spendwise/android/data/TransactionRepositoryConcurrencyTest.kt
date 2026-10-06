@@ -63,6 +63,8 @@ class TransactionRepositoryConcurrencyTest {
 
     private fun dto(id: String) = FakeTransactionsService.transactionDto(id = id)
 
+    private val testDate = java.time.LocalDate.of(2026, 9, 15)
+
     private fun money(amount: String) = Money(BigDecimal(amount), CurrencyCode("VND"))
 
     // ── stale-response isolation ─────────────────────────────────────────
@@ -128,7 +130,7 @@ class TransactionRepositoryConcurrencyTest {
         val gate = CompletableDeferred<TransactionDto>()
         h.service.createResponder = { gate.await() }
         val staleCreate = async {
-            h.repository.create("a1", TransactionType.EXPENSE, money("9"))
+            h.repository.create("a1", TransactionType.EXPENSE, money("9"), testDate)
         }
         runCurrent()
 
@@ -153,7 +155,7 @@ class TransactionRepositoryConcurrencyTest {
         h.sessionManager.onSignedIn("token-a", expires, "ana", "u1")
         h.service.createResponse = dto("new")
 
-        val created = h.repository.create("a1", TransactionType.EXPENSE, money("5"))
+        val created = h.repository.create("a1", TransactionType.EXPENSE, money("5"), testDate)
 
         assertEquals("new", created.id)
         assertEquals(1, h.accounts.invalidateCalls)

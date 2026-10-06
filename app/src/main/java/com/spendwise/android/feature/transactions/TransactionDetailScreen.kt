@@ -46,6 +46,7 @@ import com.spendwise.android.core.designsystem.provenanceLabel
 import com.spendwise.android.core.designsystem.signedAmountText
 import com.spendwise.android.core.designsystem.transactionTypeLabel
 import com.spendwise.android.core.model.Transaction
+import com.spendwise.android.core.ui.format.DateFormat
 
 /**
  * Transaction detail (S10): read-only — every field comes from the
@@ -153,6 +154,11 @@ private fun DetailContent(transaction: Transaction, accountName: String?) {
                 DetailField(
                     label = stringResource(R.string.txn_detail_field_account),
                     value = accountName ?: "—",
+                )
+                FieldDivider()
+                DetailField(
+                    label = stringResource(R.string.txn_detail_field_date),
+                    value = DateFormat.format(transaction.occurredOn),
                 )
                 FieldDivider()
                 DetailField(

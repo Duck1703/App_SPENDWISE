@@ -41,6 +41,7 @@ import com.spendwise.android.R
 import com.spendwise.android.core.model.Transaction
 import com.spendwise.android.core.model.TransactionProvenance
 import com.spendwise.android.core.model.TransactionType
+import com.spendwise.android.core.ui.format.DateFormat
 import com.spendwise.android.core.ui.format.MoneyFormat
 import java.util.Locale
 
@@ -174,6 +175,7 @@ fun TransactionRow(transaction: Transaction, accountName: String?, onClick: () -
         transaction.type.isCredit -> "+"
         else -> "−"
     }
+    val dateText = DateFormat.format(transaction.occurredOn)
     val cd = stringResource(
         R.string.txn_row_cd,
         typeLabel,
@@ -182,6 +184,7 @@ fun TransactionRow(transaction: Transaction, accountName: String?, onClick: () -
         categoryText,
         accountName ?: stringResource(R.string.txn_type_unknown),
         provenanceText,
+        dateText,
     )
     Row(
         modifier = Modifier
@@ -215,6 +218,15 @@ fun TransactionRow(transaction: Transaction, accountName: String?, onClick: () -
                     modifier = Modifier.padding(start = 6.dp),
                 )
             }
+            // Server economic date (M11) — quiet third line; hierarchy
+            // stays category → account → date, amount untouched.
+            Text(
+                text = dateText,
+                style = MaterialTheme.typography.bodySmall,
+                color = SwColors.Muted,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
         Spacer(Modifier.width(12.dp))
         Column(horizontalAlignment = Alignment.End) {

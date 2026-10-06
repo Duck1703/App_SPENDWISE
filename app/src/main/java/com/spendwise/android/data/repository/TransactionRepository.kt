@@ -15,6 +15,7 @@ import com.spendwise.android.data.remote.CreateTransactionRequestDto
 import com.spendwise.android.data.remote.TransactionDto
 import com.spendwise.android.data.remote.TransactionsService
 import java.io.IOException
+import java.time.LocalDate
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -73,7 +74,9 @@ interface TransactionRepository {
      * and the client never offers them. [category] and [hint] are
      * optional; [hint] maps to the wire `description` field, which the
      * backend uses only for rule matching — it is never persisted as
-     * transaction text.
+     * transaction text. [occurredOn] is the user-selected economic date
+     * (M11) — sent explicitly as ISO `yyyy-MM-dd`; the server may still
+     * apply its sane future-date bound (400 surfaces honestly).
      *
      * On success: transaction + account caches invalidated, [mutations]
      * emitted.
@@ -82,6 +85,7 @@ interface TransactionRepository {
         accountId: String,
         type: TransactionType,
         amount: Money,
+        occurredOn: LocalDate,
         category: String? = null,
         hint: String? = null,
     ): Transaction
@@ -143,6 +147,7 @@ class RemoteTransactionRepository @Inject constructor(
         accountId: String,
         type: TransactionType,
         amount: Money,
+        occurredOn: LocalDate,
         category: String?,
         hint: String?,
     ): Transaction {
@@ -162,6 +167,9 @@ class RemoteTransactionRepository @Inject constructor(
                     currency = amount.currency.code,
                     category = category,
                     description = hint?.takeIf { it.isNotBlank() },
+                    // ISO yyyy-MM-dd — LocalDate.toString() is exactly the
+                    // wire format; no formatter needed.
+                    occurredOn = occurredOn.toString(),
                 ),
             )
         } catch (e: ApiException) {
@@ -217,6 +225,9 @@ class RemoteTransactionRepository @Inject constructor(
                 amount = Money(amount, CurrencyCode(currency)),
                 category = category,
                 sourceRef = sourceRef,
+                // ISO yyyy-MM-dd — strict parse; a malformed server date
+                // fails as Unknown instead of degrading into a fake date.
+                occurredOn = LocalDate.parse(occurredOn),
             )
         } catch (e: Exception) {
             if (e is CancellationException) throw e

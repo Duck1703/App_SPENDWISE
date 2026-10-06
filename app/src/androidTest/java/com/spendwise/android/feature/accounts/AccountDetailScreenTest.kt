@@ -103,6 +103,7 @@ class AccountDetailScreenTest {
         amount = Money(BigDecimal("25.50"), CurrencyCode("USD")),
         category = "FOOD",
         sourceRef = "MANUAL:$id",
+        occurredOn = java.time.LocalDate.of(2026, 10, 4),
     )
 
     @Test
@@ -117,10 +118,12 @@ class AccountDetailScreenTest {
         )
 
         composeRule.onNodeWithText("Transactions").assertIsDisplayed()
-        // Merged row CD carries the provenance suffix (…, Manual).
+        // Merged row CD carries the provenance + date suffix
+        // (…, Manual, <localized date>).
         composeRule.onNodeWithContentDescription(
             "Expense ${TestFormats.signedAmount("25.50", "USD", credit = false)} USD " +
-                "Food on Everyday cash, Manual",
+                "Food on Everyday cash, Manual, " +
+                TestFormats.date(java.time.LocalDate.of(2026, 10, 4)),
         ).performScrollTo().performClick()
         assertEquals("t1", harness.openedTxn)
     }

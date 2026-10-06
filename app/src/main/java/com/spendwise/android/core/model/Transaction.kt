@@ -1,13 +1,17 @@
 package com.spendwise.android.core.model
 
+import java.time.LocalDate
+
 /**
  * A ledger entry (PRODUCT §19, BACKEND-CONTRACT §11).
  *
  * `amount` is always **positive** — direction lives in [type]
  * (`Transaction.amount` is signed-positive on the backend and the client
- * mirrors that; the UI renders `−`/`+` for display only). No `occurredOn`:
- * the public REST surface never returns a transaction date, so no date
- * field exists here to be fabricated.
+ * mirrors that; the UI renders `−`/`+` for display only). [occurredOn]
+ * is the server-authoritative economic date (M11/REQ-BE-001) — the
+ * client never derives it from device time, import metadata, or any
+ * other source; a missing/malformed wire date fails loudly upstream
+ * rather than being fabricated here.
  */
 data class Transaction(
     val id: String,
@@ -18,6 +22,8 @@ data class Transaction(
     val category: String?,
     /** Server-issued provenance string (`MANUAL:`/`IMPORT:`/… prefixes). */
     val sourceRef: String?,
+    /** Server-persisted economic date — date-only, no timezone semantics. */
+    val occurredOn: LocalDate,
 ) {
     /** How this entry reached the ledger — derived from [sourceRef]. */
     val provenance: TransactionProvenance

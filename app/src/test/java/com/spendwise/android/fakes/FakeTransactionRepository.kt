@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import java.math.BigDecimal
+import java.time.LocalDate
 
 /** Scripted [TransactionRepository] for ViewModel tests — records calls, runs configured results. */
 class FakeTransactionRepository : TransactionRepository {
@@ -16,14 +17,15 @@ class FakeTransactionRepository : TransactionRepository {
     var listResult: suspend (accountId: String?, type: TransactionType?, category: String?) -> List<Transaction> =
         { _, _, _ -> emptyList() }
     var findByIdResult: suspend (id: String) -> Transaction = { transaction() }
-    var createResult: suspend (accountId: String, type: TransactionType, amount: Money, category: String?, hint: String?) -> Transaction =
-        { _, _, _, _, _ -> transaction() }
+    var createResult: suspend (accountId: String, type: TransactionType, amount: Money, occurredOn: LocalDate, category: String?, hint: String?) -> Transaction =
+        { _, _, _, _, _, _ -> transaction() }
 
     data class ListCall(val accountId: String?, val type: TransactionType?, val category: String?)
     data class CreateCall(
         val accountId: String,
         val type: TransactionType,
         val amount: Money,
+        val occurredOn: LocalDate,
         val category: String?,
         val hint: String?,
     )
@@ -64,11 +66,12 @@ class FakeTransactionRepository : TransactionRepository {
         accountId: String,
         type: TransactionType,
         amount: Money,
+        occurredOn: LocalDate,
         category: String?,
         hint: String?,
     ): Transaction {
-        createCalls += CreateCall(accountId, type, amount, category, hint)
-        return createResult(accountId, type, amount, category, hint)
+        createCalls += CreateCall(accountId, type, amount, occurredOn, category, hint)
+        return createResult(accountId, type, amount, occurredOn, category, hint)
     }
 
     companion object {
@@ -80,6 +83,7 @@ class FakeTransactionRepository : TransactionRepository {
             currency: String = "VND",
             category: String? = "FOOD",
             sourceRef: String? = "MANUAL:$id",
+            occurredOn: LocalDate = LocalDate.of(2026, 10, 4),
         ) = Transaction(
             id = id,
             accountId = accountId,
@@ -87,6 +91,7 @@ class FakeTransactionRepository : TransactionRepository {
             amount = Money(BigDecimal(amount), CurrencyCode(currency)),
             category = category,
             sourceRef = sourceRef,
+            occurredOn = occurredOn,
         )
     }
 }

@@ -4,6 +4,7 @@ import com.spendwise.android.core.model.Account
 import com.spendwise.android.core.model.Transaction
 import com.spendwise.android.core.model.TransactionProvenance
 import com.spendwise.android.core.model.TransactionType
+import java.time.LocalDate
 
 /**
  * The three server-side filters (BACKEND-CONTRACT §11) plus the two
@@ -97,6 +98,12 @@ data class CreateTransactionUiState(
     val amount: String = "",
     /** Selected server category code; null = "No category". */
     val category: String? = null,
+    /**
+     * User-selected transaction date (M11). Defaults to the device's
+     * local calendar date — the user's "today"; the wire value is the
+     * exact [LocalDate], never device-midnight-derived.
+     */
+    val occurredOn: LocalDate = LocalDate.now(),
     /** Optional categorization hint (wire `description` — never persisted). */
     val hint: String = "",
     val amountError: AmountError? = null,

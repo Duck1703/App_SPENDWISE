@@ -6,13 +6,16 @@ import kotlinx.serialization.Serializable
 import java.math.BigDecimal
 
 /**
- * `TransactionResponse` (BACKEND-CONTRACT §11):
- * `{id, accountId, type, amount, currency, category, sourceRef}`.
+ * `TransactionResponse` (BACKEND-CONTRACT §11, M11/REQ-BE-001):
+ * `{id, accountId, type, amount, currency, category, sourceRef,
+ * occurredOn}`.
  *
- * `occurredOn`, `transferRef`, and `description` are **not** on the wire —
- * no date is ever rendered, and the request-side `description` is a
- * rule-engine hint the server never returns. `category` is the code
- * string (null = uncategorized); `type` arrives as the enum name.
+ * `occurredOn` is the server-authoritative economic date, ISO
+ * `yyyy-MM-dd`, always present (`transactions.occurred_on` is NOT NULL).
+ * `transferRef` and `description` are **not** on the wire — the
+ * request-side `description` is a rule-engine hint the server never
+ * returns. `category` is the code string (null = uncategorized); `type`
+ * arrives as the enum name.
  */
 @Serializable
 data class TransactionDto(
@@ -24,13 +27,17 @@ data class TransactionDto(
     val currency: String,
     val category: String? = null,
     val sourceRef: String? = null,
+    val occurredOn: String,
 )
 
 /**
  * `CreateTransactionRequest`: `{accountId, type, amount, currency,
- * category?, description?}` — no `occurredOn` exists (the server stamps
- * `LocalDate.now()`). `amount` is strictly positive; direction is carried
- * by `type` (`INCOME`/`EXPENSE` — transfer types are server-rejected).
+ * category?, description?, occurredOn}` — M11: Android always sends the
+ * user-selected date explicitly as ISO `yyyy-MM-dd`. The field is
+ * optional on the server (omission stamps `LocalDate.now()` — the
+ * pre-M11 client contract), but this app never relies on the fallback.
+ * `amount` is strictly positive; direction is carried by `type`
+ * (`INCOME`/`EXPENSE` — transfer types are server-rejected).
  * `description` is the optional categorization hint; it is NOT persisted
  * as transaction text. Null optionals stay off the wire.
  */
@@ -45,6 +52,7 @@ data class CreateTransactionRequestDto(
     val category: String? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val description: String? = null,
+    val occurredOn: String,
 )
 
 /** `CategoryResponse` = `{value}` — `value` is the category code itself. */

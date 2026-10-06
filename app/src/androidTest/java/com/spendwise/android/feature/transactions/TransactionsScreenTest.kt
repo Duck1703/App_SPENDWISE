@@ -44,6 +44,7 @@ class TransactionsScreenTest {
         amount = Money(BigDecimal(amount), CurrencyCode("USD")),
         category = category,
         sourceRef = sourceRef,
+        occurredOn = java.time.LocalDate.of(2026, 10, 4),
     )
 
     private fun account(id: String, name: String) = Account(
@@ -141,11 +142,13 @@ class TransactionsScreenTest {
         // merged contentDescription, so assert on the row CD, not Text.
         composeRule.onNodeWithContentDescription(
             "Expense ${TestFormats.signedAmount("25.50", "USD", credit = false)} " +
-                "USD Food on Wallet, Manual",
+                "USD Food on Wallet, Manual, " +
+                TestFormats.date(java.time.LocalDate.of(2026, 10, 4)),
         ).assertIsDisplayed()
         composeRule.onNodeWithContentDescription(
             "Income ${TestFormats.signedAmount("25.50", "USD", credit = true)} " +
-                "USD Salary on Wallet, Manual",
+                "USD Salary on Wallet, Manual, " +
+                TestFormats.date(java.time.LocalDate.of(2026, 10, 4)),
         ).assertIsDisplayed()
         // Count text + the server-order honesty note.
         composeRule.onNodeWithText("2 transactions").assertIsDisplayed()
@@ -170,12 +173,36 @@ class TransactionsScreenTest {
         )
 
         // Merged row semantics — single clickable node (provenance suffix
-        // included: MANUAL renders "…, Manual").
+        // included: MANUAL renders "…, Manual"; M11 appends the server
+        // occurrence date last).
         composeRule.onNodeWithContentDescription(
             "Expense ${TestFormats.signedAmount("25.50", "USD", credit = false)} " +
-                "USD Food on Wallet, Manual",
+                "USD Food on Wallet, Manual, " +
+                com.spendwise.android.core.ui.format.DateFormat.format(
+                    java.time.LocalDate.of(2026, 10, 4),
+                ),
         ).performClick()
         assertEquals("t7", harness.opened)
+    }
+
+    @Test
+    fun row_showsTheServerOccurrenceDate() {
+        screen(
+            TransactionsUiState.Content(
+                items = listOf(txn("t7")),
+                accountNames = mapOf("acc-1" to "Wallet"),
+                filters = TransactionFilters(),
+            ),
+        )
+
+        // The row merges descendants into one semantics node — the date
+        // Text only exists in the unmerged tree.
+        composeRule.onNodeWithText(
+            com.spendwise.android.core.ui.format.DateFormat.format(
+                java.time.LocalDate.of(2026, 10, 4),
+            ),
+            useUnmergedTree = true,
+        ).assertIsDisplayed()
     }
 
     @Test
@@ -230,7 +257,8 @@ class TransactionsScreenTest {
         ).assertIsDisplayed()
         composeRule.onNodeWithContentDescription(
             "Expense ${TestFormats.signedAmount("25.50", "USD", credit = false)} " +
-                "USD Food on Wallet, Manual",
+                "USD Food on Wallet, Manual, " +
+                TestFormats.date(java.time.LocalDate.of(2026, 10, 4)),
         ).assertIsDisplayed()
     }
 
@@ -263,11 +291,13 @@ class TransactionsScreenTest {
         // carries a "Manual" provenance suffix instead.
         composeRule.onNodeWithContentDescription(
             "Expense ${TestFormats.signedAmount("25.50", "USD", credit = false)} " +
-                "USD Food on Transaction, Imported",
+                "USD Food on Transaction, Imported, " +
+                TestFormats.date(java.time.LocalDate.of(2026, 10, 4)),
         ).assertIsDisplayed()
         composeRule.onNodeWithContentDescription(
             "Expense ${TestFormats.signedAmount("25.50", "USD", credit = false)} " +
-                "USD Salary on Transaction, Manual",
+                "USD Salary on Transaction, Manual, " +
+                TestFormats.date(java.time.LocalDate.of(2026, 10, 4)),
         ).assertIsDisplayed()
     }
 }

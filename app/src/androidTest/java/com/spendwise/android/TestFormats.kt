@@ -1,8 +1,10 @@
 package com.spendwise.android
 
 import com.spendwise.android.core.model.CurrencyCode
+import com.spendwise.android.core.ui.format.DateFormat
 import com.spendwise.android.core.ui.format.MoneyFormat
 import java.math.BigDecimal
+import java.time.LocalDate
 import java.util.Currency
 import java.util.Locale
 
@@ -23,6 +25,9 @@ object TestFormats {
     /** `−`/`+` + formatted amount — mirrors `signedAmountText`/row CDs. */
     fun signedAmount(amount: String, code: String, credit: Boolean): String =
         "${if (credit) "+" else "−"}${amount(amount, code)}"
+
+    /** Localized date — mirrors `DateFormat.format` on the device locale. */
+    fun date(date: LocalDate): String = DateFormat.format(date)
 
     /** "USD — US Dollar"-style label — mirrors the ISO currency dropdown. */
     fun currencyOptionLabel(code: String): String = runCatching {

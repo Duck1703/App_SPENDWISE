@@ -71,6 +71,7 @@ class FakeTransactionsService : TransactionsService {
             currency: String = "VND",
             category: String? = "FOOD",
             sourceRef: String? = "MANUAL:$id",
+            occurredOn: String = "2026-10-04",
         ) = TransactionDto(
             id = id,
             accountId = accountId,
@@ -79,6 +80,7 @@ class FakeTransactionsService : TransactionsService {
             currency = currency,
             category = category,
             sourceRef = sourceRef,
+            occurredOn = occurredOn,
         )
     }
 }

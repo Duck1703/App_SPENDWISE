@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -53,6 +54,7 @@ class CreateTransactionScreenTest {
         var type: TransactionType? = null,
         var account: String? = null,
         var amount: String? = null,
+        var date: java.time.LocalDate? = null,
         var category: String? = "unset",
         var hint: String? = null,
         var submits: Int = 0,
@@ -69,6 +71,7 @@ class CreateTransactionScreenTest {
                     onTypeChange = { harness.type = it },
                     onAccountChange = { harness.account = it },
                     onAmountChange = { harness.amount = it },
+                    onDateChange = { harness.date = it },
                     onCategoryChange = { harness.category = it },
                     onHintChange = { harness.hint = it },
                     onSubmit = { harness.submits++ },
@@ -81,20 +84,89 @@ class CreateTransactionScreenTest {
     }
 
     @Test
-    fun form_showsTypeAccountAmountCategoriesHintAndToday() {
+    fun form_showsTypeAccountAmountDateCategoriesAndHint() {
         screen(loadedState())
 
         composeRule.onNodeWithText("Expense").assertIsDisplayed()
         composeRule.onNodeWithText("Income").assertIsDisplayed()
         composeRule.onNodeWithText("From account").assertIsDisplayed()
         composeRule.onNodeWithText("Amount").assertIsDisplayed()
-        composeRule.onNodeWithText("Category (optional)").assertIsDisplayed()
+        // The field shows the state's date in localized form inside its
+        // single merged semantic node — no static "today" copy exists.
+        // Below the fold at large font scale — scroll into view first.
+        composeRule.onNodeWithContentDescription(
+            "Date, selected " + com.spendwise.android.core.ui.format.DateFormat.format(
+                java.time.LocalDate.now(),
+            ),
+            substring = true,
+        ).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Category (optional)").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("No category").assertIsDisplayed()
         composeRule.onNodeWithText("Categorization hint (optional)").assertIsDisplayed()
-        // Honest date handling — server stamps it; no picker exists.
-        // Below the fold at large font scale — scroll into view.
-        composeRule.onNodeWithText("Recorded as today").performScrollTo().assertIsDisplayed()
-        composeRule.onAllNodesWithText("Date", substring = true).assertCountEquals(0)
+    }
+
+    @Test
+    fun dateField_isOneMergedSemanticNode() {
+        screen(loadedState())
+
+        // TalkBack hears "Date, selected <localized> — double-tap…" as a
+        // single content-description node (the merged field semantics
+        // clear the inner TextField's own text).
+        composeRule.onNodeWithContentDescription(
+            "Date, selected " + com.spendwise.android.core.ui.format.DateFormat.format(
+                java.time.LocalDate.now(),
+            ),
+            substring = true,
+        ).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun dateField_opensThePickerAndPickingADayCallsBack() {
+        val harness = Harness()
+        screen(
+            loadedState().copy(occurredOn = java.time.LocalDate.of(2026, 10, 4)),
+            harness,
+        )
+
+        composeRule.onNodeWithContentDescription(
+            "Date, selected " + com.spendwise.android.core.ui.format.DateFormat.format(
+                java.time.LocalDate.of(2026, 10, 4),
+            ),
+            substring = true,
+        ).performScrollTo().performClick()
+        composeRule.waitForIdle()
+
+        // Day cells carry the FULL localized spoken date as their
+        // semantics Text ("Sun, Oct 15, 2026" / "Thứ Năm, 15 tháng 10,
+        // 2026") — a substring match on "15" isolates the day-15 cell.
+        composeRule.onAllNodesWithText(
+            "15",
+            substring = true,
+            useUnmergedTree = true,
+        ).let { nodes ->
+            nodes.fetchSemanticsNodes().also { assertEquals(1, it.size) }
+            nodes[0].performClick()
+        }
+        composeRule.onNodeWithText("Done").performClick()
+
+        assertEquals(java.time.LocalDate.of(2026, 10, 15), harness.date)
+    }
+
+    @Test
+    fun pickerDismiss_leavesTheDraftDateUntouched() {
+        val harness = Harness()
+        screen(loadedState(), harness)
+
+        composeRule.onNodeWithContentDescription(
+            "Date, selected " + com.spendwise.android.core.ui.format.DateFormat.format(
+                java.time.LocalDate.now(),
+            ),
+            substring = true,
+        ).performScrollTo().performClick()
+        composeRule.waitForIdle()
+        androidx.test.espresso.Espresso.pressBack()
+
+        assertEquals(null, harness.date)
     }
 
     @Test

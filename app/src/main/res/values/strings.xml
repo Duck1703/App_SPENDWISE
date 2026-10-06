@@ -199,7 +199,7 @@
     <string name="txn_source_imported">Imported</string>
     <string name="txn_source_recurring">Recurring</string>
     <string name="txn_source_transfer">Transfer</string>
-    <string name="txn_row_cd">%1$s %2$s %3$s %4$s on %5$s%6$s</string>
+    <string name="txn_row_cd">%1$s %2$s %3$s %4$s on %5$s%6$s, %7$s</string>
     <string name="txn_category_uncategorized">Uncategorized</string>
 
     <!-- Category names (server codes — unknown codes render humanized) -->
@@ -212,6 +212,7 @@
     <!-- Transaction detail (S10) -->
     <string name="txn_detail_title">Transaction</string>
     <string name="txn_detail_field_account">Account</string>
+    <string name="txn_detail_field_date">Date</string>
     <string name="txn_detail_field_currency">Currency</string>
     <string name="txn_detail_field_source">Source</string>
     <string name="txn_detail_readonly">Existing entries can\’t be edited right now.</string>
@@ -235,7 +236,9 @@
     <string name="txn_create_hint_label">Categorization hint (optional)</string>
     <string name="txn_create_hint_support">Used once by categorization rules to suggest a category — it isn\’t saved with the transaction.</string>
     <string name="txn_create_hint_placeholder">e.g. lunch with team</string>
-    <string name="txn_create_today">Recorded as today</string>
+    <string name="txn_create_date_label">Date</string>
+    <string name="txn_create_date_hint">The day this entry happened.</string>
+    <string name="txn_create_date_cd">%1$s, selected %2$s — double-tap to choose a different day</string>
     <string name="txn_create_submit">Save transaction</string>
     <string name="txn_create_submitting">Saving…</string>
     <string name="txn_create_cancel">Cancel</string>

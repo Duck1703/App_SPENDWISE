@@ -20,6 +20,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import java.math.BigDecimal
+import java.time.LocalDate
 
 class CreateTransactionViewModelTest {
 
@@ -173,7 +174,7 @@ class CreateTransactionViewModelTest {
     fun `double-tap during flight sends exactly one create`() = runTest {
         val txns = FakeTransactionRepository()
         val gate = CompletableDeferred<com.spendwise.android.core.model.Transaction>()
-        txns.createResult = { _, _, _, _, _ -> gate.await() }
+        txns.createResult = { _, _, _, _, _, _ -> gate.await() }
         val viewModel = vm(accounts = accountBacked(), txns = txns)
         fillValid(viewModel)
 
@@ -187,7 +188,7 @@ class CreateTransactionViewModelTest {
     @Test
     fun `server field errors land on their fields`() = runTest {
         val txns = FakeTransactionRepository()
-        txns.createResult = { _, _, _, _, _ ->
+        txns.createResult = { _, _, _, _, _, _ ->
             throw AppErrorException(
                 AppError.Validation(mapOf("amount" to "must be greater than 0")),
             )
@@ -210,7 +211,7 @@ class CreateTransactionViewModelTest {
     fun `account 404 refreshes the picker and reports honestly`() = runTest {
         val accounts = accountBacked()
         val txns = FakeTransactionRepository()
-        txns.createResult = { _, _, _, _, _ -> throw AppErrorException(AppError.NotFound) }
+        txns.createResult = { _, _, _, _, _, _ -> throw AppErrorException(AppError.NotFound) }
         val viewModel = vm(accounts = accounts, txns = txns)
         fillValid(viewModel)
 
@@ -227,7 +228,7 @@ class CreateTransactionViewModelTest {
     @Test
     fun `network failure is the ambiguous form error — never auto-retried`() = runTest {
         val txns = FakeTransactionRepository()
-        txns.createResult = { _, _, _, _, _ -> throw AppErrorException(AppError.NetworkUnavailable) }
+        txns.createResult = { _, _, _, _, _, _ -> throw AppErrorException(AppError.NetworkUnavailable) }
         val viewModel = vm(accounts = accountBacked(), txns = txns)
         fillValid(viewModel)
 
@@ -316,7 +317,7 @@ class CreateTransactionViewModelTest {
         // AND the outcome must be marked ambiguous (not silently
         // editable). The preserved draft resubmits only by hand.
         val txns = FakeTransactionRepository()
-        txns.createResult = { _, _, _, _, _ -> throw SessionEndedException() }
+        txns.createResult = { _, _, _, _, _, _ -> throw SessionEndedException() }
         val viewModel = vm(accounts = accountBacked(), txns = txns)
         fillValid(viewModel)
 
@@ -327,9 +328,69 @@ class CreateTransactionViewModelTest {
         assertEquals(CreateTransactionUiState.CreateTxnFormError.Ambiguous, state.formError)
         assertEquals("25.50", state.amount) // draft preserved
 
-        txns.createResult = { _, _, _, _, _ -> FakeTransactionRepository.transaction(id = "retry-1") }
+        txns.createResult = { _, _, _, _, _, _ -> FakeTransactionRepository.transaction(id = "retry-1") }
         viewModel.submit()
 
         assertEquals(2, txns.createCalls.size)
+    }
+
+    // ── M11: user-selectable occurrence date ─────────────────────────────
+
+    @Test
+    fun `the initial date is LocalDate now — a date never null in the form`() = runTest {
+        val viewModel = vm(accounts = accountBacked())
+
+        assertEquals(LocalDate.now(), viewModel.state.value.occurredOn)
+    }
+
+    @Test
+    fun `onDateChange updates the draft date`() = runTest {
+        val viewModel = vm(accounts = accountBacked())
+        val picked = LocalDate.of(2024, 2, 29) // leap-day — no normalization
+
+        viewModel.onDateChange(picked)
+
+        assertEquals(picked, viewModel.state.value.occurredOn)
+    }
+
+    @Test
+    fun `submitting sends the selected date to the repository`() = runTest {
+        val txns = FakeTransactionRepository()
+        val viewModel = vm(accounts = accountBacked(), txns = txns)
+        fillValid(viewModel)
+        viewModel.onDateChange(LocalDate.of(2025, 1, 1))
+
+        viewModel.submit()
+        runCurrent()
+
+        assertEquals(LocalDate.of(2025, 1, 1), txns.createCalls.single().occurredOn)
+    }
+
+    @Test
+    fun `submitting without a picker change sends the default today`() = runTest {
+        val txns = FakeTransactionRepository()
+        val viewModel = vm(accounts = accountBacked(), txns = txns)
+        fillValid(viewModel)
+
+        viewModel.submit()
+        runCurrent()
+
+        assertEquals(LocalDate.now(), txns.createCalls.single().occurredOn)
+    }
+
+    @Test
+    fun `a picked date survives an ambiguous write — draft kept for retry`() = runTest {
+        val txns = FakeTransactionRepository()
+        txns.createResult = { _, _, _, _, _, _ -> throw AppErrorException(AppError.NetworkUnavailable) }
+        val viewModel = vm(accounts = accountBacked(), txns = txns)
+        fillValid(viewModel)
+        viewModel.onDateChange(LocalDate.of(2024, 12, 31))
+
+        viewModel.submit()
+        runCurrent()
+
+        val state = viewModel.state.value
+        assertEquals(CreateTransactionUiState.CreateTxnFormError.Ambiguous, state.formError)
+        assertEquals(LocalDate.of(2024, 12, 31), state.occurredOn)
     }
 }

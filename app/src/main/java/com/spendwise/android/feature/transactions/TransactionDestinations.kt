@@ -99,6 +99,7 @@ fun TransactionCreateDestination(
             onTypeChange = viewModel::onTypeChange,
             onAccountChange = viewModel::onAccountChange,
             onAmountChange = viewModel::onAmountChange,
+            onDateChange = viewModel::onDateChange,
             onCategoryChange = viewModel::onCategoryChange,
             onHintChange = viewModel::onHintChange,
             onSubmit = viewModel::submit,

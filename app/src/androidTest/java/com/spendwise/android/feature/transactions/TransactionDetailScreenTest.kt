@@ -38,6 +38,7 @@ class TransactionDetailScreenTest {
         amount = Money(BigDecimal("25.50"), CurrencyCode("USD")),
         category = category,
         sourceRef = sourceRef,
+        occurredOn = java.time.LocalDate.of(2026, 10, 4),
     )
 
     private data class Harness(var retries: Int = 0, var backs: Int = 0)
@@ -55,7 +56,7 @@ class TransactionDetailScreenTest {
     }
 
     @Test
-    fun content_showsTypeAmountAccountCurrencySource() {
+    fun content_showsTypeAmountAccountDateCurrencySource() {
         screen(TransactionDetailUiState.Content(txn(), accountName = "Wallet"))
 
         composeRule.onNodeWithText("Food").assertIsDisplayed()
@@ -64,6 +65,13 @@ class TransactionDetailScreenTest {
         ).assertIsDisplayed()
         composeRule.onNodeWithText("Account").assertIsDisplayed()
         composeRule.onNodeWithText("Wallet").assertIsDisplayed()
+        // M11 — the server occurrence date is a first-class detail field.
+        composeRule.onNodeWithText("Date").assertIsDisplayed()
+        composeRule.onNodeWithText(
+            com.spendwise.android.core.ui.format.DateFormat.format(
+                java.time.LocalDate.of(2026, 10, 4),
+            ),
+        ).assertIsDisplayed()
         composeRule.onNodeWithText("Currency").assertIsDisplayed()
         composeRule.onNodeWithText("USD").assertIsDisplayed()
         composeRule.onNodeWithText("Source").assertIsDisplayed()

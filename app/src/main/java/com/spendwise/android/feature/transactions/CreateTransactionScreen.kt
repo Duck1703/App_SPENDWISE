@@ -2,6 +2,7 @@ package com.spendwise.android.feature.transactions
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,17 +23,28 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -52,13 +64,16 @@ import com.spendwise.android.core.designsystem.SwStateBlock
 import com.spendwise.android.core.designsystem.SwTextField
 import com.spendwise.android.core.designsystem.categoryLabel
 import com.spendwise.android.core.model.TransactionType
+import com.spendwise.android.core.ui.format.DateFormat
+import com.spendwise.android.core.ui.format.DateFormat.toPickerUtcMillis
 import com.spendwise.android.core.ui.format.MoneyFormat
+import java.time.LocalDate
 
 /**
  * Create transaction (S11, P3A): type switch, account picker with locked
- * currency, amount, optional category tiles, optional categorization
- * hint (never persisted), "Recorded as today" — no date picker exists
- * anywhere because the server stamps the date (BACKEND-CONTRACT §9).
+ * currency, amount, optional category tiles, occurrence date (M11 —
+ * real user-selectable `occurredOn` via a Material3 date picker), and
+ * optional categorization hint (never persisted).
  */
 @Composable
 fun CreateTransactionScreen(
@@ -67,6 +82,7 @@ fun CreateTransactionScreen(
     onAccountChange: (String) -> Unit,
     onAmountChange: (String) -> Unit,
     onCategoryChange: (String?) -> Unit,
+    onDateChange: (LocalDate) -> Unit,
     onHintChange: (String) -> Unit,
     onSubmit: () -> Unit,
     onNavigateBack: () -> Unit,
@@ -109,6 +125,7 @@ fun CreateTransactionScreen(
                 onAccountChange = onAccountChange,
                 onAmountChange = onAmountChange,
                 onCategoryChange = onCategoryChange,
+                onDateChange = onDateChange,
                 onHintChange = onHintChange,
                 onSubmit = onSubmit,
                 onNavigateBack = onNavigateBack,
@@ -124,6 +141,7 @@ private fun CreateForm(
     onAccountChange: (String) -> Unit,
     onAmountChange: (String) -> Unit,
     onCategoryChange: (String?) -> Unit,
+    onDateChange: (LocalDate) -> Unit,
     onHintChange: (String) -> Unit,
     onSubmit: () -> Unit,
     onNavigateBack: () -> Unit,
@@ -196,23 +214,11 @@ private fun CreateForm(
             enabled = !state.isSubmitting,
         )
 
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 2.dp),
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_lucide_calendar),
-                contentDescription = null,
-                tint = SwColors.Muted,
-                modifier = Modifier.size(18.dp),
-            )
-            Spacer(Modifier.width(SwSpacing.Sm))
-            Text(
-                text = stringResource(R.string.txn_create_today),
-                style = MaterialTheme.typography.bodyMedium,
-                color = SwColors.Muted,
-            )
-        }
+        DateField(
+            occurredOn = state.occurredOn,
+            enabled = !state.isSubmitting,
+            onDateChange = onDateChange,
+        )
 
         Button(
             onClick = onSubmit,
@@ -286,6 +292,98 @@ private fun AmountField(
             }
         },
     )
+}
+
+/**
+ * Occurrence date (M11): the same read-only field shape as the account
+ * dropdown — a full-width tap target opens a Material3 date picker.
+ * Selected value is the locale-formatted [LocalDate]; the merged
+ * semantics announce "Date, selected X". The picker speaks UTC
+ * epoch-millis — [DateFormat] pins conversion to UTC start-of-day so a
+ * device in any timezone picks the calendar day shown, never ±1.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DateField(
+    occurredOn: LocalDate,
+    enabled: Boolean,
+    onDateChange: (LocalDate) -> Unit,
+) {
+    var showPicker by remember { mutableStateOf(false) }
+    val label = stringResource(R.string.txn_create_date_label)
+    val valueText = DateFormat.format(occurredOn)
+    val mergedCd = stringResource(R.string.txn_create_date_cd, label, valueText)
+    Column {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onBackground,
+        )
+        Spacer(Modifier.height(SwSpacing.Xs))
+        Box {
+            OutlinedTextField(
+                value = valueText,
+                onValueChange = {},
+                modifier = Modifier
+                    .fillMaxWidth()
+                    // Visual only — the overlay below carries the single
+                    // merged semantics node so TalkBack announces the
+                    // control exactly once.
+                    .clearAndSetSemantics {},
+                readOnly = true,
+                enabled = enabled,
+                trailingIcon = {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_lucide_calendar),
+                        contentDescription = null,
+                        tint = SwColors.Muted,
+                    )
+                },
+                supportingText = {
+                    Text(
+                        stringResource(R.string.txn_create_date_hint),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                },
+                shape = RoundedCornerShape(SwRadii.Md),
+            )
+            // Full-field tap target + merged label/value semantics — the
+            // whole control is one announced action, like list rows.
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clip(RoundedCornerShape(SwRadii.Md))
+                    .clearAndSetSemantics { contentDescription = mergedCd }
+                    .clickable(enabled = enabled, role = Role.Button) { showPicker = true },
+            )
+        }
+    }
+    if (showPicker) {
+        val pickerState = rememberDatePickerState(
+            initialSelectedDateMillis = occurredOn.toPickerUtcMillis(),
+        )
+        DatePickerDialog(
+            onDismissRequest = { showPicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pickerState.selectedDateMillis
+                            ?.let { onDateChange(DateFormat.pickerUtcMillisToLocalDate(it)) }
+                        showPicker = false
+                    },
+                ) {
+                    Text(stringResource(R.string.import_result_done))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPicker = false }) {
+                    Text(stringResource(R.string.txn_create_cancel))
+                }
+            },
+        ) {
+            DatePicker(state = pickerState)
+        }
+    }
 }
 
 /**

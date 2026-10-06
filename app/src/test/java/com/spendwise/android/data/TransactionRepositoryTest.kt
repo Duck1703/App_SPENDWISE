@@ -26,11 +26,13 @@ import java.io.IOException
 import java.math.BigDecimal
 import java.time.Clock
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneOffset
 
 class TransactionRepositoryTest {
 
     private val now: Instant = Instant.parse("2026-10-04T12:00:00Z")
+    private val testDate: LocalDate = LocalDate.of(2026, 9, 15)
 
     private data class Harness(
         val service: FakeTransactionsService,
@@ -76,6 +78,23 @@ class TransactionRepositoryTest {
         assertEquals("FOOD", list[0].category)
         assertEquals(TransactionProvenance.MANUAL, list[0].provenance)
         assertEquals(TransactionProvenance.UNKNOWN, list[1].provenance)
+        // Server ISO date parses to the same calendar LocalDate.
+        assertEquals(LocalDate.of(2026, 10, 4), list[0].occurredOn)
+    }
+
+    @Test
+    fun `a malformed server date fails loudly — no fabricated date`() = runTest {
+        val (service, _, _, repository) = harness()
+        service.listResponse = listOf(
+            FakeTransactionsService.transactionDto(id = "t1", occurredOn = "15/09/2026"),
+        )
+
+        try {
+            repository.list()
+            fail("Expected AppErrorException")
+        } catch (e: AppErrorException) {
+            assertTrue(e.error is AppError.Unknown)
+        }
     }
 
     @Test
@@ -142,6 +161,7 @@ class TransactionRepositoryTest {
             accountId = "a1",
             type = TransactionType.INCOME,
             amount = money("900.00"),
+            occurredOn = testDate,
             category = "SALARY",
             hint = "october salary",
         )
@@ -154,6 +174,8 @@ class TransactionRepositoryTest {
         assertEquals("VND", call.currency)
         assertEquals("SALARY", call.category)
         assertEquals("october salary", call.description)
+        // Exact ISO wire value — LocalDate.toString() is yyyy-MM-dd.
+        assertEquals("2026-09-15", call.occurredOn)
         // Balances are server-authoritative — the account cache drops.
         assertEquals(1, accounts.invalidateCalls)
     }
@@ -163,7 +185,7 @@ class TransactionRepositoryTest {
         val (service, _, _, repository) = harness()
         service.createResponse = dto("new")
 
-        repository.create("a1", TransactionType.EXPENSE, money("5"), hint = "   ")
+        repository.create("a1", TransactionType.EXPENSE, money("5"), testDate, hint = "   ")
 
         assertNull(service.createCalls.single().description)
     }
@@ -178,7 +200,7 @@ class TransactionRepositoryTest {
             TransactionType.UNKNOWN,
         )) {
             try {
-                repository.create("a1", type, money("5"))
+                repository.create("a1", type, money("5"), testDate)
                 fail("Expected IllegalArgumentException for $type")
             } catch (_: IllegalArgumentException) {
             }
@@ -197,7 +219,7 @@ class TransactionRepositoryTest {
         runCurrent() // register the collector before the emit
 
         service.createResponse = dto("t2")
-        repository.create("a1", TransactionType.EXPENSE, money("1"))
+        repository.create("a1", TransactionType.EXPENSE, money("1"), testDate)
         runCurrent() // let the collector consume the buffered emission
         job.cancel()
 
@@ -230,7 +252,7 @@ class TransactionRepositoryTest {
         )
 
         try {
-            repository.create("a1", TransactionType.EXPENSE, money("-1"))
+            repository.create("a1", TransactionType.EXPENSE, money("-1"), testDate)
             fail("Expected AppErrorException")
         } catch (e: AppErrorException) {
             assertEquals(
@@ -246,7 +268,7 @@ class TransactionRepositoryTest {
         service.createError = ApiException(status = 404)
 
         try {
-            repository.create("foreign", TransactionType.EXPENSE, money("5"))
+            repository.create("foreign", TransactionType.EXPENSE, money("5"), testDate)
             fail("Expected AppErrorException")
         } catch (e: AppErrorException) {
             assertTrue(e.error is AppError.NotFound)
