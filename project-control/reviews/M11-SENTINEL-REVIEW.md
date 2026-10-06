@@ -94,5 +94,5 @@ gained a `, <date>` suffix (5 CD assertions updated), and the stale
 JVM `testDebugUnitTest`: **503/503** (baseline 493, +10 M11 tests).
 Backend suite: 295 tests, 1 failure — pre-existing
 `RecurringSchedulingJobTest` timing flake identical at baseline,
-unrelated. Connected (Pixel 4 XL, API 13): **162/162** (baseline 158,
+unrelated. Connected (Pixel 4 XL, API 33): **162/162** (baseline 158,
 +4 device tests). detekt 212 files / 0 smells; lint clean.

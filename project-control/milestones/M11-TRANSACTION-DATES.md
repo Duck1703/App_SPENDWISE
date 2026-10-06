@@ -1,10 +1,16 @@
 # M11 — Transaction Occurrence Dates
 
 ```
-STATUS: DELIVERED — technically complete, all gates green; pending the
-  one large independent external audit and Human review
+STATUS: COMPLETE — external audit ACCEPTED (0 blocker / 0 major);
+  Human-approved via conditional authorization
 M11_TECHNICAL_COMPLETE=YES
 M11_READY_FOR_EXTERNAL_AUDIT=YES
+M11_EXTERNAL_AUDIT_FINAL=ACCEPTED
+M11_HUMAN_APPROVED=YES
+M11_STATUS=COMPLETE
+TRANSACTION_DATES=APPROVED
+M12_DEFINED=NO
+M12_STARTED=NO
 M11_HUMAN_AUTHORIZATION: EXPLICIT — Human authorized "M11 — TRANSACTION
   DATES" as one large delivery block including a bounded backend write
   for REQ-BE-001 (occurredOn on create/read).
@@ -150,7 +156,12 @@ Currency in the existing `DetailField` list.
 
 ## Status
 
-Delivered — technically complete. Backend contract change committed
-(`bc6e0bb`, bounded to REQ-BE-001); Android vertical slice committed;
-all gates green on the physical device. Ready for the one large
-independent external M11 audit; M12 is explicitly out of scope.
+Complete. Backend contract change committed (`bc6e0bb`, bounded to
+REQ-BE-001); Android vertical slice committed (`7fa51f8`); all gates
+green on the physical device (connected 162/162 ×2). The independent
+external audit re-derived every claim and ACCEPTED with 0 blocker /
+0 major / 3 notes — see
+[reviews/M11-EXTERNAL-AUDIT.md](../reviews/M11-EXTERNAL-AUDIT.md)
+alongside the Sentinel and Argus reviews. Human-approved under the
+conditional authorization carried by the audit task. M12 is not
+authorized.

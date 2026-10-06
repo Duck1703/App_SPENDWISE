@@ -26,7 +26,7 @@ High-level phase plan. Milestone briefs are created per phase by ATLAS using
 
 | M9 | Ledger Export (server-generated CSV → SAF save) | COMPLETE — external audit ACCEPTED (1 major remediated: sweep/live-artifact race; 1 minor: save() generation binding), human-approved via conditional authorization (see [milestones/M9-LEDGER-EXPORT.md](milestones/M9-LEDGER-EXPORT.md), [reviews/M9-EXTERNAL-AUDIT.md](reviews/M9-EXTERNAL-AUDIT.md), [reviews/M9-SENTINEL-REVIEW.md](reviews/M9-SENTINEL-REVIEW.md), [reviews/M9-ARGUS-REVIEW.md](reviews/M9-ARGUS-REVIEW.md)) |
 | M10 | Server-Backed Import History (REQ-BE-004 list + per-batch report) | COMPLETE — external audit remediated + all gates green (JVM 493/493, lint/detekt, release, connected 158/158 ×2 on physical Pixel 4 XL); backend `401e99c` + `22efd60` under bounded-write authorization (see [milestones/M10-IMPORT-HISTORY.md](milestones/M10-IMPORT-HISTORY.md)) |
-| M11 | Transaction Occurrence Dates (REQ-BE-001 `occurredOn` on create/read) | DELIVERED — technically complete, all gates green (JVM 503/503, lint/detekt, release, connected 162/162 on physical Pixel 4 XL; Sentinel+Argus PASS); backend `bc6e0bb` under bounded-write authorization; pending the one large external audit (see [milestones/M11-TRANSACTION-DATES.md](milestones/M11-TRANSACTION-DATES.md), [reviews/M11-SENTINEL-REVIEW.md](reviews/M11-SENTINEL-REVIEW.md), [reviews/M11-ARGUS-REVIEW.md](reviews/M11-ARGUS-REVIEW.md)) |
+| M11 | Transaction Occurrence Dates (REQ-BE-001 `occurredOn` on create/read) | COMPLETE — external audit ACCEPTED (0 blocker / 0 major / 3 notes; JVM 503/503, lint/detekt, release, connected 162/162 ×2 on physical Pixel 4 XL); backend `bc6e0bb` under bounded-write authorization; human-approved via conditional authorization (see [milestones/M11-TRANSACTION-DATES.md](milestones/M11-TRANSACTION-DATES.md), [reviews/M11-EXTERNAL-AUDIT.md](reviews/M11-EXTERNAL-AUDIT.md), [reviews/M11-SENTINEL-REVIEW.md](reviews/M11-SENTINEL-REVIEW.md), [reviews/M11-ARGUS-REVIEW.md](reviews/M11-ARGUS-REVIEW.md)) |
 
 **Canonical sequence M0–M8 fully delivered and release-accepted.** V1
 was validated on emulator AND physical hardware (135/135 connected ×2
@@ -39,14 +39,15 @@ externally audited. **M10 (Server-Backed Import History) is COMPLETE** —
 REQ-BE-004 landed backend-side under bounded-write authorization
 (backend `401e99c`, `22efd60`), Android history surfaces green on all
 gates including physical-device connected runs (import-pointer store
-remains REJECTED). **M11 (Transaction Occurrence Dates) is DELIVERED** —
+remains REJECTED). **M11 (Transaction Occurrence Dates) is COMPLETE** —
 REQ-BE-001 backend contract landed under bounded-write authorization
-(backend `bc6e0bb`), the Android vertical slice is complete and green
-on every gate including physical-device connected runs; Sentinel and
-Argus reviews PASS with no blocker/major findings. Technical delivery
-is complete and ready for the one large independent external audit;
-M12 is not authorized. Remaining backend-gated capabilities (FX,
-mutations, refresh token, transfers) stay gated.
+(backend `bc6e0bb`), the Android vertical slice passed every gate
+including two full physical-device connected runs (162/162 ×2), and the
+independent external audit ACCEPTED it with 0 blocker/major findings
+([reviews/M11-EXTERNAL-AUDIT.md](reviews/M11-EXTERNAL-AUDIT.md));
+human-approved via the audit's conditional authorization. M12 is not
+authorized. Remaining backend-gated capabilities (FX, mutations,
+refresh token, transfers) stay gated.
 
 ## Important
 
