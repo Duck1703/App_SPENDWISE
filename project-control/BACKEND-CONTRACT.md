@@ -42,10 +42,14 @@ and does not decide Android architecture (P4).
    mutated inside the same DB transaction as each ledger insert via one
    canonical writer: `TransactionCreationService.create()`. The ledger is
    append-only: **no transaction update, delete, or reversal exists.** VERIFIED.
-6. **Manual transactions cannot carry a date** — `CreateTransactionRequest`
-   has no `occurredOn`; the server stamps `LocalDate.now()`. `TransactionResponse`
-   does not return `occurredOn` at all (it appears only in the CSV export).
-   **VERIFIED**.
+6. **Transaction `occurredOn` is now a first-class wire field** — **M11 /
+   REQ-BE-001 DELIVERED** (backend `bc6e0bb`). `CreateTransactionRequest`
+   accepts an optional ISO `yyyy-MM-dd` `occurredOn` (omission preserves the
+   pre-M11 contract: the server stamps `LocalDate.now()`); far-future dates
+   beyond tomorrow are rejected at the manual-create boundary.
+   `TransactionResponse` always returns the persisted `occurredOn`.
+   (Pre-M11 snapshot: no `occurredOn` on either DTO — visible only in CSV
+   export. — VERIFIED at audit HEAD.)
 7. **`description` is never persisted or returned** — it exists only as
    rule-engine input on manual create and on imported rows. **VERIFIED**.
 8. **Import is synchronous**: `POST /api/imports` (multipart `file` +
@@ -145,8 +149,8 @@ body). Sources: controller files in §42.
 | Account | POST | `/api/accounts` | `CreateAccountRequest` | `AccountResponse` + `Location` | 201 | 400 | JWT | `AccountController.java` |
 | Account | GET | `/api/accounts` | — | `List<AccountResponse>` | 200 | 401 | JWT | `AccountController.java` |
 | Account | GET | `/api/accounts/{id}` | path `UUID id` | `AccountResponse` | 200 | 404 foreign/unknown, 401 | JWT | `AccountController.java` |
-| Transaction | POST | `/api/transactions` | `CreateTransactionRequest` | `TransactionResponse` + `Location` | 201 | 400, 404 unknown/foreign `accountId` | JWT | `TransactionController.java` |
-| Transaction | GET | `/api/transactions` | `?accountId?&type?&category?` | `List<TransactionResponse>` | 200 | 400 bad enum/UUID, 404 foreign `accountId` | JWT | `TransactionController.java` |
+| Transaction | POST | `/api/transactions` | `CreateTransactionRequest` (+ optional `occurredOn` — **M11 / REQ-BE-001 delivered**) | `TransactionResponse` + `Location` | 201 | 400, 404 unknown/foreign `accountId` | JWT | `TransactionController.java` |
+| Transaction | GET | `/api/transactions` | `?accountId?&type?&category?` | `List<TransactionResponse>` (incl. `occurredOn` — **M11 / REQ-BE-001 delivered**) | 200 | 400 bad enum/UUID, 404 foreign `accountId` | JWT | `TransactionController.java` |
 | Transaction | GET | `/api/transactions/export` | `?accountId?` | `text/csv` file | 200 | 404 foreign `accountId` | JWT | `CsvExportController.java` |
 | Category | GET | `/api/categories` | — | `List<CategoryResponse>` | 200 | 401 | JWT | `CategoryController.java` |
 | Rules | POST | `/api/categorization-rules` | `CreateCategorizationRuleRequest` | `CategorizationRuleResponse` + `Location` | 201 | 400, 409 duplicate priority | JWT | `CategorizationRuleController.java` |
@@ -264,7 +268,7 @@ Semantics:
 
 | Field / input | Java type | Wire form | Required | Notes |
 |---|---|---|---|---|
-| `occurredOn` (transaction) | `LocalDate` | `"yyyy-MM-dd"` | n/a on wire | **not present in `CreateTransactionRequest`** — server stamps `LocalDate.now()`; **not present in `TransactionResponse`** either; visible only in CSV export | `Transaction.java`, `TransactionMapper`, `CsvExportService` |
+| `occurredOn` (transaction) | `LocalDate` | `"yyyy-MM-dd"` | optional on create, **always returned on reads** | **M11 / REQ-BE-001 delivered** (backend `bc6e0bb`): optional on `CreateTransactionRequest` (omission → `LocalDate.now()`; > tomorrow → 400), required on `TransactionResponse` (column NOT NULL). Pre-M11: CSV-export-only | `Transaction.java`, `TransactionMapper`, `CsvExportService`, `TransactionResponse` |
 | `importedAt` (ImportBatch) | `Instant` | ISO-8601 | server-generated | UTC instant — VERIFIED |
 | `expiresAt` (AuthResponse) | `Instant` | ISO-8601 | server-generated | token expiry — VERIFIED |
 | `nextDueDate`, `endDate` (recurring) | `LocalDate` | `"yyyy-MM-dd"` | required / optional | `CreateRecurringTransactionRequest` |
@@ -310,10 +314,12 @@ link, not returned).
 | `currency` | string | yes | `@NotBlank`; must equal account currency → 400 | ISO-4217 |
 | `category` | string | no | optional; unknown code → 400 (`categoryRepository.findById` in service) | category code |
 | `description` | string | no | `@Size(max=255)` | **rule-engine input only — never persisted or returned** |
+| `occurredOn` | string (ISO `yyyy-MM-dd`) | **no — optional** | `LocalDate`; dates beyond tomorrow rejected at the manual-create boundary (`TransactionMapper`) | **M11 / REQ-BE-001 delivered** — omission stamps server `LocalDate.now()` exactly as pre-M11 |
 
 `TransactionResponse` (`account/TransactionResponse.java`):
-`{id, accountId, type, amount, currency, category, sourceRef}` —
-**`occurredOn`, `transferRef`, and `description` are not returned.** — VERIFIED.
+`{id, accountId, type, amount, currency, category, sourceRef, occurredOn}` —
+**`occurredOn` returned on every read (M11 / REQ-BE-001 delivered)**;
+`transferRef` and `description` remain not returned.
 
 Semantics:
 
@@ -894,7 +900,7 @@ controller's own comment claiming 400.
 | delete/archive account | **BACKEND_GAP** | no endpoint — BG-002 |
 | account balances | SUPPORTED_NOW | `balance` in `AccountResponse`; server-owned |
 | list transactions | SUPPORTED_WITH_LIMITATIONS | unbounded list, no sort/date filter — BG-005/013 |
-| transaction detail | **BACKEND_GAP** | list-only; `sourceRef`/`category` visible, `occurredOn`/`description`/`transferRef` not returned — BG-003/004 |
+| transaction detail | **BACKEND_GAP** | list-only; `occurredOn` now returned (M11/REQ-BE-001); `description`/`transferRef` still not — BG-004/BG-014 |
 | create expense | SUPPORTED_NOW | `type=EXPENSE` |
 | create income | SUPPORTED_NOW | `type=INCOME` |
 | edit transaction | **BACKEND_GAP** | append-only — BG-002 |
@@ -1044,7 +1050,7 @@ not a defect. Decision owner is THE HUMAN for all.
 |---|---|---|---|---|---|---|---|
 | BG-001 | transfer | `TransferService` internal | POST/GET transfer resource | transfer UX impossible | M-transfers | **MAJOR** | P3 |
 | BG-002 | edit/delete on txns, accounts, budgets; update on rules | absent | mutation endpoints + semantics | no correction UX; compensating entries only; budgets/rules can't be edited | ledger UX | **MAJOR** | P3 |
-| BG-003 | transaction date | `occurredOn` internal/export-only | request field + response field | no back-dating; date hidden in UI | entry UX | **MAJOR** | P3 |
+| BG-003 | transaction date | ~~`occurredOn` internal/export-only~~ | ~~request field + response field~~ | ~~no back-dating; date hidden in UI~~ | entry UX | ~~**MAJOR**~~ **RESOLVED — M11/REQ-BE-001 delivered** (backend `bc6e0bb`): optional `occurredOn` on create, always on reads | ~~P3~~ |
 | BG-004 | description/memo | write-only | persisted + returned field | no notes display | detail UX | MINOR | P3 |
 | BG-005 | pagination | absent (dead Pageable) | page/size or cursor contract | unbounded payloads | scale UX | **MAJOR** | P4 |
 | BG-006 | session | 15-min JWT, no refresh/`/me` | refresh or longer TTL contract | forced re-login UX | session UX | **MAJOR** | P3 |

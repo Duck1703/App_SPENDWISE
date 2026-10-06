@@ -6,7 +6,7 @@ Backend `D:\spendwise` @ `8194daa` remains authoritative and untouched.
 Each item states the *contract need*, not internal class design.
 Ordered by unlock value.
 
-## REQ-BE-001 — Transaction date in the public contract (highest value)
+## REQ-BE-001 — Transaction date in the public contract — **DELIVERED (M11)**
 
 - Gap: `occurredOn` persisted but absent from `CreateTransactionRequest`
   and `TransactionResponse`.
@@ -18,6 +18,11 @@ Ordered by unlock value.
 - Unlock: date display on rows, date entry/back-dating, date filters,
   honest import/reconciliation views. CSV export already proves the
   data exists.
+- Delivered (backend `bc6e0bb`): `occurredOn` optional on
+  `CreateTransactionRequest` (omission → server `LocalDate.now()`;
+  dates beyond tomorrow → 400 at the manual-create boundary) and
+  required on `TransactionResponse` (column NOT NULL). Date filters
+  remain deferred under REQ-BE-007.
 
 ## REQ-BE-004 — Import batch list — **DELIVERED (M10)**
 
