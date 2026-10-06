@@ -60,6 +60,7 @@ fun SpendwiseMainShell(
     onCreateAccount: () -> Unit = {},
     onOpenTransaction: (transactionId: String) -> Unit = {},
     onCreateTransaction: (accountId: String?) -> Unit = {},
+    onCreateTransfer: (accountId: String?) -> Unit = {},
     onOpenImport: () -> Unit = {},
     onOpenImportHistory: () -> Unit = {},
     onOpenRecurring: () -> Unit = {},
@@ -147,6 +148,7 @@ fun SpendwiseMainShell(
                 TransactionsDestination(
                     onOpenTransaction = onOpenTransaction,
                     onCreateTransaction = { onCreateTransaction(null) },
+                    onCreateTransfer = { onCreateTransfer(null) },
                     onCreateAccount = onCreateAccount,
                 )
             }

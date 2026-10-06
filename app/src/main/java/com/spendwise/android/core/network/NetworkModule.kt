@@ -11,6 +11,7 @@ import com.spendwise.android.data.remote.ImportsService
 import com.spendwise.android.data.remote.RecurringService
 import com.spendwise.android.data.remote.RulesService
 import com.spendwise.android.data.remote.TransactionsService
+import com.spendwise.android.data.remote.TransfersService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -103,6 +104,11 @@ object NetworkModule {
     @Singleton
     fun provideTransactionsService(retrofit: Retrofit): TransactionsService =
         retrofit.create(TransactionsService::class.java)
+
+    @Provides
+    @Singleton
+    fun provideTransfersService(retrofit: Retrofit): TransfersService =
+        retrofit.create(TransfersService::class.java)
 
     @Provides
     @Singleton

@@ -5,6 +5,7 @@ import com.spendwise.android.core.model.CurrencyCode
 import com.spendwise.android.core.model.Money
 import com.spendwise.android.core.model.Transaction
 import com.spendwise.android.core.model.TransactionType
+import com.spendwise.android.core.model.TransferOutcome
 import com.spendwise.android.core.network.ApiException
 import com.spendwise.android.core.network.AppError
 import com.spendwise.android.core.network.AppErrorException
@@ -12,8 +13,10 @@ import com.spendwise.android.core.network.toAppError
 import com.spendwise.android.core.session.SessionCache
 import com.spendwise.android.core.session.SessionManager
 import com.spendwise.android.data.remote.CreateTransactionRequestDto
+import com.spendwise.android.data.remote.CreateTransferRequestDto
 import com.spendwise.android.data.remote.TransactionDto
 import com.spendwise.android.data.remote.TransactionsService
+import com.spendwise.android.data.remote.TransfersService
 import java.io.IOException
 import java.time.LocalDate
 import kotlin.coroutines.cancellation.CancellationException
@@ -90,7 +93,24 @@ interface TransactionRepository {
         hint: String? = null,
     ): Transaction
 
-    /** Emitted once per successful [create] — list surfaces reload. */
+    /**
+     * `POST /api/transfers` (M12/REQ-BE-003): one atomic move between
+     * two of the caller's own same-currency accounts → paired
+     * TRANSFER_OUT/TRANSFER_IN rows sharing one `transferRef`.
+     * [amount]'s currency must equal the source account's — the caller
+     * (form) locks it; the server re-validates (400 surfaces honestly).
+     *
+     * On success: transaction + BOTH account caches invalidated,
+     * [mutations] emitted — identical to [create], because the write
+     * touches the same ledger/balance surfaces.
+     */
+    suspend fun transfer(
+        sourceAccountId: String,
+        destinationAccountId: String,
+        amount: Money,
+    ): TransferOutcome
+
+    /** Emitted once per successful [create] or [transfer] — list surfaces reload. */
     val mutations: SharedFlow<Unit>
 
     /**
@@ -104,6 +124,7 @@ interface TransactionRepository {
 @Singleton
 class RemoteTransactionRepository @Inject constructor(
     private val service: TransactionsService,
+    private val transfersService: TransfersService,
     private val accountRepository: AccountRepository,
     sessionManager: SessionManager,
     @ApplicationScope appScope: CoroutineScope,
@@ -191,6 +212,49 @@ class RemoteTransactionRepository @Inject constructor(
         if (cache.generation() != generation) throw SessionEndedException()
         _mutations.tryEmit(Unit)
         return transaction
+    }
+
+    override suspend fun transfer(
+        sourceAccountId: String,
+        destinationAccountId: String,
+        amount: Money,
+    ): TransferOutcome {
+        require(sourceAccountId != destinationAccountId) {
+            "transfer legs must differ"
+        }
+        val generation = cache.generation()
+        val outcome = try {
+            transfersService.create(
+                CreateTransferRequestDto(
+                    sourceAccountId = sourceAccountId,
+                    destinationAccountId = destinationAccountId,
+                    amount = amount.amount,
+                    currency = amount.currency.code,
+                ),
+            )
+        } catch (e: ApiException) {
+            throw AppErrorException(e.toAppError(), e)
+        } catch (e: IOException) {
+            throw AppErrorException(AppError.NetworkUnavailable, e)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            throw AppErrorException(AppError.Unknown(e), e)
+        }.let { response ->
+            TransferOutcome(
+                transferRef = response.transferRef,
+                outTransaction = response.outTransaction.toDomain(),
+                inTransaction = response.inTransaction.toDomain(),
+            )
+        }
+
+        // Same invalidation contract as create() — the server moved two
+        // balances inside its own transaction; both caches are stale.
+        cache.invalidate()
+        accountRepository.invalidate()
+        if (cache.generation() != generation) throw SessionEndedException()
+        _mutations.tryEmit(Unit)
+        return outcome
     }
 
     override suspend fun notifyLedgerChanged() {

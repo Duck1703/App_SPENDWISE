@@ -51,6 +51,7 @@ fun AccountDetailScreen(
     onNavigateBack: () -> Unit,
     onOpenTransaction: (String) -> Unit,
     onAddTransaction: (String) -> Unit,
+    onTransfer: (String) -> Unit,
     onRetryHistory: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -96,6 +97,7 @@ fun AccountDetailScreen(
                 state = state,
                 onOpenTransaction = onOpenTransaction,
                 onAddTransaction = onAddTransaction,
+                onTransfer = onTransfer,
                 onRetryHistory = onRetryHistory,
             )
         }
@@ -107,6 +109,7 @@ private fun AccountDetailContent(
     state: AccountDetailUiState.Content,
     onOpenTransaction: (String) -> Unit,
     onAddTransaction: (String) -> Unit,
+    onTransfer: (String) -> Unit,
     onRetryHistory: () -> Unit,
 ) {
     val account = state.account
@@ -176,7 +179,14 @@ private fun AccountDetailContent(
         // Account-scoped history (P3A §11): section owns its own failure
         // — the header above is never sunk by it.
         item(key = "history-header") {
-            HistoryHeader(onAddTransaction = { onAddTransaction(account.id) })
+            HistoryHeader(
+                onAddTransaction = { onAddTransaction(account.id) },
+                onTransfer = if (state.hasTransferPeer) {
+                    { onTransfer(account.id) }
+                } else {
+                    null
+                },
+            )
         }
         when (val history = state.history) {
             AccountDetailUiState.AccountHistory.Loading -> item(key = "history-loading") {
@@ -216,7 +226,10 @@ private fun AccountDetailContent(
 }
 
 @Composable
-private fun HistoryHeader(onAddTransaction: () -> Unit) {
+private fun HistoryHeader(
+    onAddTransaction: () -> Unit,
+    onTransfer: (() -> Unit)?,
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -229,6 +242,25 @@ private fun HistoryHeader(onAddTransaction: () -> Unit) {
             modifier = Modifier.padding(start = 2.dp),
         )
         Spacer(Modifier.weight(1f))
+        if (onTransfer != null) {
+            TextButton(
+                onClick = onTransfer,
+                modifier = Modifier.heightIn(min = SwSpacing.TouchTargetMin),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_lucide_arrow_right_left),
+                    contentDescription = null,
+                    tint = SwColors.Brand,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = stringResource(R.string.account_detail_transfer),
+                    color = SwColors.Brand,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
         TextButton(
             onClick = onAddTransaction,
             modifier = Modifier.heightIn(min = SwSpacing.TouchTargetMin),

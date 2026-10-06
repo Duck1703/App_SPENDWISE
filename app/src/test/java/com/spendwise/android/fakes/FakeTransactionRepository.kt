@@ -4,6 +4,7 @@ import com.spendwise.android.core.model.CurrencyCode
 import com.spendwise.android.core.model.Money
 import com.spendwise.android.core.model.Transaction
 import com.spendwise.android.core.model.TransactionType
+import com.spendwise.android.core.model.TransferOutcome
 import com.spendwise.android.data.repository.TransactionRepository
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -19,6 +20,26 @@ class FakeTransactionRepository : TransactionRepository {
     var findByIdResult: suspend (id: String) -> Transaction = { transaction() }
     var createResult: suspend (accountId: String, type: TransactionType, amount: Money, occurredOn: LocalDate, category: String?, hint: String?) -> Transaction =
         { _, _, _, _, _, _ -> transaction() }
+    var transferResult: suspend (sourceAccountId: String, destinationAccountId: String, amount: Money) -> TransferOutcome =
+        { source, destination, _ ->
+            TransferOutcome(
+                transferRef = "ref-1",
+                outTransaction = transaction(
+                    id = "txn-out-1",
+                    accountId = source,
+                    type = TransactionType.TRANSFER_OUT,
+                    category = null,
+                    sourceRef = "TRANSFER:ref-1:OUT",
+                ),
+                inTransaction = transaction(
+                    id = "txn-in-1",
+                    accountId = destination,
+                    type = TransactionType.TRANSFER_IN,
+                    category = null,
+                    sourceRef = "TRANSFER:ref-1:IN",
+                ),
+            )
+        }
 
     data class ListCall(val accountId: String?, val type: TransactionType?, val category: String?)
     data class CreateCall(
@@ -33,6 +54,13 @@ class FakeTransactionRepository : TransactionRepository {
     val listCalls = mutableListOf<ListCall>()
     val findByIdCalls = mutableListOf<String>()
     val createCalls = mutableListOf<CreateCall>()
+    val transferCalls = mutableListOf<TransferCall>()
+
+    data class TransferCall(
+        val sourceAccountId: String,
+        val destinationAccountId: String,
+        val amount: Money,
+    )
 
     private val _mutations = MutableSharedFlow<Unit>(extraBufferCapacity = 8)
     override val mutations: SharedFlow<Unit> = _mutations.asSharedFlow()
@@ -72,6 +100,15 @@ class FakeTransactionRepository : TransactionRepository {
     ): Transaction {
         createCalls += CreateCall(accountId, type, amount, occurredOn, category, hint)
         return createResult(accountId, type, amount, occurredOn, category, hint)
+    }
+
+    override suspend fun transfer(
+        sourceAccountId: String,
+        destinationAccountId: String,
+        amount: Money,
+    ): TransferOutcome {
+        transferCalls += TransferCall(sourceAccountId, destinationAccountId, amount)
+        return transferResult(sourceAccountId, destinationAccountId, amount)
     }
 
     companion object {

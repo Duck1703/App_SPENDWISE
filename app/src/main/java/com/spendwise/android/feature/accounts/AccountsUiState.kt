@@ -76,6 +76,12 @@ sealed interface AccountDetailUiState {
         val account: Account,
         val isRefreshing: Boolean = false,
         /**
+         * The Transfer (M12) affordance only appears when a second
+         * account exists to move money to — a one-account user sees no
+         * dead-end action.
+         */
+        val hasTransferPeer: Boolean = false,
+        /**
          * `GET /api/transactions?accountId=…` for this account — a
          * failure here never sinks the account header; it renders an
          * inline retry instead (non-fatal section, P3A §11).

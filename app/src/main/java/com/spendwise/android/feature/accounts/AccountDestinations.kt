@@ -76,6 +76,7 @@ fun AccountDetailDestination(
     onNavigateBack: () -> Unit,
     onOpenTransaction: (String) -> Unit,
     onAddTransaction: (String) -> Unit,
+    onTransfer: (String) -> Unit,
     viewModel: AccountDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -92,6 +93,7 @@ fun AccountDetailDestination(
             onNavigateBack = onNavigateBack,
             onOpenTransaction = onOpenTransaction,
             onAddTransaction = onAddTransaction,
+            onTransfer = onTransfer,
             onRetryHistory = viewModel::retryHistory,
         )
     }

@@ -9,6 +9,7 @@ import com.spendwise.android.data.repository.RemoteTransactionRepository
 import com.spendwise.android.fakes.FakeAccountRepository
 import com.spendwise.android.fakes.FakeTransactionsService
 import com.spendwise.android.fakes.FakeTokenStore
+import com.spendwise.android.fakes.FakeTransfersService
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.TestCoroutineScheduler
@@ -56,7 +57,13 @@ class TransactionRepositoryConcurrencyTest {
             service = service,
             accounts = accounts,
             sessionManager = sessionManager,
-            repository = RemoteTransactionRepository(service, accounts, sessionManager, scope),
+            repository = RemoteTransactionRepository(
+                service,
+                FakeTransfersService(),
+                accounts,
+                sessionManager,
+                scope,
+            ),
             appScopeScheduler = appScopeScheduler,
         )
     }

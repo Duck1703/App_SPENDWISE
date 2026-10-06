@@ -86,6 +86,17 @@ data class TransactionCreateRoute(val accountId: String? = null) : AppRoute
 data class TransactionDetailRoute(val transactionId: String) : AppRoute
 
 /**
+ * Create transfer (M12/REQ-BE-003) — pushed over the preserved shell;
+ * same session-expired/draft-preservation contract as the other
+ * full-screen create flows.
+ *
+ * @param fromAccountId optional source-account prefill when launched
+ *   from an account's detail screen.
+ */
+@Serializable
+data class TransferCreateRoute(val fromAccountId: String? = null) : AppRoute
+
+/**
  * Statement import (M5, PRODUCT §23–25) — pushed over the preserved
  * shell so the synchronous processing state survives a session-expired
  * overlay, and `Done` returns to the origin tab.

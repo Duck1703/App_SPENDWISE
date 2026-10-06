@@ -58,6 +58,7 @@ class TransactionsScreenTest {
     private data class Harness(
         var opened: String? = null,
         var createTxn: Int = 0,
+        var createTransfer: Int = 0,
         var createAccount: Int = 0,
         var retries: Int = 0,
         var refreshes: Int = 0,
@@ -86,6 +87,7 @@ class TransactionsScreenTest {
                     filters = filters,
                     onOpenTransaction = { harness.opened = it },
                     onCreateTransaction = { harness.createTxn++ },
+                    onCreateTransfer = { harness.createTransfer++ },
                     onCreateAccount = { harness.createAccount++ },
                     onAccountFilter = { harness.accountFilter = it },
                     onTypeFilter = { harness.typeFilter = it },
@@ -123,6 +125,35 @@ class TransactionsScreenTest {
 
         composeRule.onNodeWithText("Add your first account").performClick()
         assertEquals(1, harness.createAccount)
+    }
+
+    @Test
+    fun header_transferActionFiresWithTwoAccounts() {
+        val harness = Harness()
+        screen(
+            TransactionsUiState.Empty,
+            options = FilterOptions(
+                accounts = listOf(account("acc-1", "Wallet"), account("acc-2", "Savings")),
+            ),
+            harness = harness,
+        )
+
+        composeRule.onNodeWithContentDescription("Transfer between accounts")
+            .assertIsDisplayed()
+            .performClick()
+        assertEquals(1, harness.createTransfer)
+    }
+
+    @Test
+    fun header_transferActionHidesWithFewerThanTwoAccounts() {
+        // Fewer than two accounts — the affordance hides rather than
+        // opening a form that can't be completed.
+        screen(
+            TransactionsUiState.Empty,
+            options = FilterOptions(accounts = listOf(account("acc-1", "Wallet"))),
+        )
+        composeRule.onNodeWithContentDescription("Transfer between accounts")
+            .assertDoesNotExist()
     }
 
     @Test

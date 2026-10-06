@@ -62,6 +62,17 @@ class AccountDetailViewModel @Inject constructor(
                 val account = accountRepository.findById(accountId, refresh = !initial)
                 _state.value = AccountDetailUiState.Content(
                     account = account,
+                    // Peer check for the Transfer affordance: a cached
+                    // list() read on the warm path. Session expiry and
+                    // cancellation still propagate to the outer handler —
+                    // only a mapped service failure degrades to "hidden"
+                    // rather than sinking the whole detail for a gate.
+                    hasTransferPeer = try {
+                        accountRepository.list().size >= 2
+                    } catch (e: AppErrorException) {
+                        if (e.error is AppError.SessionExpired) throw e
+                        false
+                    },
                     history = fetchHistory(),
                 )
             } catch (e: SessionEndedException) {

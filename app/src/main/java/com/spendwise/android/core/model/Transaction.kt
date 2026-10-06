@@ -77,3 +77,15 @@ enum class TransactionProvenance {
         }
     }
 }
+
+/**
+ * Result of `POST /api/transfers` (M12/REQ-BE-003): the server-issued
+ * linkage key plus both ledger rows it created. [transferRef] is the
+ * pair's shared `TRANSFER:<ref>` provenance handle — returned on this
+ * response only, never on transaction list reads.
+ */
+data class TransferOutcome(
+    val transferRef: String,
+    val outTransaction: Transaction,
+    val inTransaction: Transaction,
+)

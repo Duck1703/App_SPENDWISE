@@ -67,6 +67,7 @@ fun TransactionsScreen(
     filters: TransactionFilters,
     onOpenTransaction: (String) -> Unit,
     onCreateTransaction: () -> Unit,
+    onCreateTransfer: () -> Unit,
     onCreateAccount: () -> Unit,
     onAccountFilter: (String?) -> Unit,
     onTypeFilter: (TransactionType?) -> Unit,
@@ -89,8 +90,32 @@ fun TransactionsScreen(
                 subtitle = stringResource(R.string.transactions_subtitle),
                 modifier = Modifier.weight(1f),
             )
-            // Small mint-tinted header action — browse stays primary.
+            // Small mint-tinted header actions — browse stays primary.
+            // Transfer (M12) sits beside "+" only when two accounts can
+            // be picked; the transfer screen itself explains the
+            // two-account requirement when fewer exist.
             if (options.accounts.isNotEmpty()) {
+                if (options.accounts.size >= 2) {
+                    IconButton(
+                        onClick = onCreateTransfer,
+                        modifier = Modifier.size(SwSpacing.TouchTargetMin),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(SwRadii.Md))
+                                .background(SwColors.Mint),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_lucide_arrow_right_left),
+                                contentDescription = stringResource(R.string.transactions_transfer_cd),
+                                tint = SwColors.BrandDeep,
+                                modifier = Modifier.size(22.dp),
+                            )
+                        }
+                    }
+                }
                 IconButton(
                     onClick = onCreateTransaction,
                     modifier = Modifier.size(SwSpacing.TouchTargetMin),

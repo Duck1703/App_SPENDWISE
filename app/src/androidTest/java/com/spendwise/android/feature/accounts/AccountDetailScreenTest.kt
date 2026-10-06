@@ -34,6 +34,7 @@ class AccountDetailScreenTest {
         var backs: Int = 0,
         var openedTxn: String? = null,
         var addFor: String? = null,
+        var transferFor: String? = null,
         var historyRetries: Int = 0,
     )
 
@@ -46,6 +47,7 @@ class AccountDetailScreenTest {
                     onNavigateBack = { harness.backs++ },
                     onOpenTransaction = { harness.openedTxn = it },
                     onAddTransaction = { harness.addFor = it },
+                    onTransfer = { harness.transferFor = it },
                     onRetryHistory = { harness.historyRetries++ },
                 )
             }
@@ -143,6 +145,40 @@ class AccountDetailScreenTest {
             .assertIsDisplayed()
         composeRule.onNodeWithText("Add transaction").performClick()
         assertEquals("a1", harness.addFor)
+    }
+
+    @Test
+    fun transferAction_prefillsThisAccountAsTheSource() {
+        val harness = Harness()
+        screen(
+            AccountDetailUiState.Content(
+                account(),
+                hasTransferPeer = true,
+                history = AccountDetailUiState.AccountHistory.Items(emptyList()),
+            ),
+            harness,
+        )
+
+        composeRule.onNodeWithText("Transfer").performClick()
+        assertEquals("a1", harness.transferFor)
+    }
+
+    @Test
+    fun transferAction_hiddenWhenNoSecondAccountExists() {
+        screen(
+            AccountDetailUiState.Content(
+                account(),
+                hasTransferPeer = false,
+                history = AccountDetailUiState.AccountHistory.Items(emptyList()),
+            ),
+        )
+
+        // Scroll the history header into view — "Add transaction" sits
+        // in the same row where "Transfer" would be.
+        composeRule.onNodeWithText("Add transaction")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("Transfer").assertDoesNotExist()
     }
 
     @Test

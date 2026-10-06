@@ -29,6 +29,7 @@ import com.spendwise.android.feature.planning.RuleDetailDestination
 import com.spendwise.android.feature.planning.RulesDestination
 import com.spendwise.android.feature.transactions.TransactionCreateDestination
 import com.spendwise.android.feature.transactions.TransactionDetailDestination
+import com.spendwise.android.feature.transfers.TransferCreateDestination
 
 /** savedStateHandle flag — post-create landing selects the Transactions tab once. */
 private const val KEY_OPEN_TRANSACTIONS_TAB = "spendwise.openTransactionsTab"
@@ -99,6 +100,9 @@ fun MainFlow(
                 onCreateTransaction = { accountId ->
                     navController.navigate(TransactionCreateRoute(accountId))
                 },
+                onCreateTransfer = { accountId ->
+                    navController.navigate(TransferCreateRoute(accountId))
+                },
                 onOpenImport = { navController.navigate(ImportRoute) },
                 onOpenImportHistory = { navController.navigate(ImportHistoryRoute) },
                 onOpenRecurring = { navController.navigate(RecurringListRoute) },
@@ -129,6 +133,9 @@ fun MainFlow(
                 },
                 onAddTransaction = { accountId ->
                     navController.navigate(TransactionCreateRoute(accountId))
+                },
+                onTransfer = { accountId ->
+                    navController.navigate(TransferCreateRoute(accountId))
                 },
             )
         }
@@ -224,6 +231,23 @@ fun MainFlow(
                     // beneath (tab/Home launches); an account-detail
                     // launch returns to that detail, which reloads via
                     // the repository mutations signal.
+                    val previous = navController.previousBackStackEntry
+                    if (previous?.destination?.hasRoute<MainShellRoute>() == true) {
+                        previous.savedStateHandle[KEY_OPEN_TRANSACTIONS_TAB] = true
+                    }
+                    navController.popBackStack()
+                },
+                onCreateAccount = { navController.navigate(AccountCreateRoute) },
+            )
+        }
+        composable<TransferCreateRoute> {
+            TransferCreateDestination(
+                onNavigateBack = { navController.popBackStack() },
+                onCreated = {
+                    // Same post-create landing as transaction create:
+                    // the Transactions tab when the shell sits beneath;
+                    // an account-detail launch returns to that detail,
+                    // which reloads via the repository mutations signal.
                     val previous = navController.previousBackStackEntry
                     if (previous?.destination?.hasRoute<MainShellRoute>() == true) {
                         previous.savedStateHandle[KEY_OPEN_TRANSACTIONS_TAB] = true

@@ -254,6 +254,25 @@
     <string name="txn_create_no_accounts_body">Transactions belong to an account.</string>
     <string name="txn_create_no_accounts_action">Create account</string>
 
+    <!-- Transfers (M12/REQ-BE-003, PRODUCT §22) -->
+    <string name="transactions_transfer_cd">Transfer between accounts</string>
+    <string name="account_detail_transfer">Transfer</string>
+    <string name="transfer_create_title">Transfer money</string>
+    <string name="transfer_create_subtitle">Move money between your accounts — both sides are recorded together.</string>
+    <string name="transfer_create_from_label">From account</string>
+    <string name="transfer_create_from_hint">Money moves out of this account.</string>
+    <string name="transfer_create_to_label">To account</string>
+    <string name="transfer_create_to_hint">Money arrives in this account.</string>
+    <string name="transfer_create_amount_hint">Amount in the source account’s currency.</string>
+    <string name="transfer_create_submit">Transfer</string>
+    <string name="transfer_create_submitting">Transferring…</string>
+    <string name="transfer_create_error_same_account">Choose a different account than the source.</string>
+    <string name="transfer_create_error_cross_currency">Accounts use different currencies — pick a destination that also uses %1$s.</string>
+    <string name="transfer_create_error_ambiguous">We couldn’t confirm whether this transfer was recorded — check your transactions before trying again.</string>
+    <string name="transfer_create_need_two_title">Two accounts needed</string>
+    <string name="transfer_create_need_two_body">Transfers move money between two of your accounts — create another account to use them.</string>
+    <string name="transfer_create_need_two_action">Create account</string>
+
     <!-- Import (S12–S14, PRODUCT §23–25, P3A §5–6) -->
     <string name="import_title">Import statement</string>
     <string name="import_account_label">Import into</string>

@@ -12,6 +12,7 @@ import com.spendwise.android.data.repository.RemoteTransactionRepository
 import com.spendwise.android.fakes.FakeAccountRepository
 import com.spendwise.android.fakes.FakeTransactionsService
 import com.spendwise.android.fakes.FakeTokenStore
+import com.spendwise.android.fakes.FakeTransfersService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -36,6 +37,7 @@ class TransactionRepositoryTest {
 
     private data class Harness(
         val service: FakeTransactionsService,
+        val transfers: FakeTransfersService,
         val accounts: FakeAccountRepository,
         val sessionManager: SessionManager,
         val repository: RemoteTransactionRepository,
@@ -43,6 +45,7 @@ class TransactionRepositoryTest {
 
     private fun harness(): Harness {
         val service = FakeTransactionsService()
+        val transfers = FakeTransfersService()
         val accounts = FakeAccountRepository()
         val sessionManager = SessionManager(
             tokenStore = FakeTokenStore(),
@@ -51,9 +54,10 @@ class TransactionRepositoryTest {
         val scope = CoroutineScope(Dispatchers.Unconfined)
         return Harness(
             service,
+            transfers,
             accounts,
             sessionManager,
-            RemoteTransactionRepository(service, accounts, sessionManager, scope),
+            RemoteTransactionRepository(service, transfers, accounts, sessionManager, scope),
         )
     }
 
@@ -64,7 +68,7 @@ class TransactionRepositoryTest {
 
     @Test
     fun `list maps the contract fields and keeps amounts positive`() = runTest {
-        val (service, _, _, repository) = harness()
+        val (service, _, _, _, repository) = harness()
         service.listResponse = listOf(
             dto("t1", type = "EXPENSE"),
             dto("t2", type = "INCOME", category = null, ref = null),
@@ -84,7 +88,7 @@ class TransactionRepositoryTest {
 
     @Test
     fun `a malformed server date fails loudly — no fabricated date`() = runTest {
-        val (service, _, _, repository) = harness()
+        val (service, _, _, _, repository) = harness()
         service.listResponse = listOf(
             FakeTransactionsService.transactionDto(id = "t1", occurredOn = "15/09/2026"),
         )
@@ -99,7 +103,7 @@ class TransactionRepositoryTest {
 
     @Test
     fun `list passes the three server params verbatim and omits All`() = runTest {
-        val (service, _, _, repository) = harness()
+        val (service, _, _, _, repository) = harness()
         repository.list(accountId = "a1", type = TransactionType.INCOME, category = "SALARY")
         repository.list()
 
@@ -115,7 +119,7 @@ class TransactionRepositoryTest {
 
     @Test
     fun `findById resolves from the last fetched list without a request`() = runTest {
-        val (service, _, _, repository) = harness()
+        val (service, _, _, _, repository) = harness()
         service.listResponse = listOf(dto("t1"), dto("t7"))
         repository.list(accountId = "a1")
 
@@ -128,7 +132,7 @@ class TransactionRepositoryTest {
 
     @Test
     fun `findById cache miss falls back to one unfiltered fetch`() = runTest {
-        val (service, _, _, repository) = harness()
+        val (service, _, _, _, repository) = harness()
         service.listResponse = listOf(dto("t5"))
 
         val found = repository.findById("t5")
@@ -142,7 +146,7 @@ class TransactionRepositoryTest {
 
     @Test
     fun `findById absent after fetch maps to NotFound`() = runTest {
-        val (_, _, _, repository) = harness()
+        val (_, _, _, _, repository) = harness()
 
         try {
             repository.findById("ghost")
@@ -154,7 +158,7 @@ class TransactionRepositoryTest {
 
     @Test
     fun `create posts the contract fields and maps the response`() = runTest {
-        val (service, accounts, _, repository) = harness()
+        val (service, _, accounts, _, repository) = harness()
         service.createResponse = dto("new", type = "INCOME", category = "SALARY")
 
         val created = repository.create(
@@ -182,7 +186,7 @@ class TransactionRepositoryTest {
 
     @Test
     fun `blank hint stays off the wire`() = runTest {
-        val (service, _, _, repository) = harness()
+        val (service, _, _, _, repository) = harness()
         service.createResponse = dto("new")
 
         repository.create("a1", TransactionType.EXPENSE, money("5"), testDate, hint = "   ")
@@ -192,7 +196,7 @@ class TransactionRepositoryTest {
 
     @Test
     fun `create rejects transfer and unknown types locally — they never reach the wire`() = runTest {
-        val (service, _, _, repository) = harness()
+        val (service, _, _, _, repository) = harness()
 
         for (type in listOf(
             TransactionType.TRANSFER_IN,
@@ -210,7 +214,7 @@ class TransactionRepositoryTest {
 
     @Test
     fun `successful create emits one mutation and re-lists fresh`() = runTest {
-        val (service, _, _, repository) = harness()
+        val (service, _, _, _, repository) = harness()
         service.listResponse = listOf(dto("t1"))
         repository.list()
 
@@ -232,7 +236,7 @@ class TransactionRepositoryTest {
 
     @Test
     fun `io failure maps to NetworkUnavailable`() = runTest {
-        val (service, _, _, repository) = harness()
+        val (service, _, _, _, repository) = harness()
         service.listError = IOException("offline")
 
         try {
@@ -245,7 +249,7 @@ class TransactionRepositoryTest {
 
     @Test
     fun `400 with fields maps to Validation`() = runTest {
-        val (service, _, _, repository) = harness()
+        val (service, _, _, _, repository) = harness()
         service.createError = ApiException(
             status = 400,
             fields = mapOf("amount" to "must be greater than 0"),
@@ -264,7 +268,7 @@ class TransactionRepositoryTest {
 
     @Test
     fun `unknown-account 404 on create maps to NotFound`() = runTest {
-        val (service, _, _, repository) = harness()
+        val (service, _, _, _, repository) = harness()
         service.createError = ApiException(status = 404)
 
         try {
@@ -277,7 +281,7 @@ class TransactionRepositoryTest {
 
     @Test
     fun `unknown wire type decodes as UNKNOWN instead of crashing`() = runTest {
-        val (service, _, _, repository) = harness()
+        val (service, _, _, _, repository) = harness()
         service.listResponse = listOf(dto("t1", type = "TRANSFER_OUT"))
 
         val list = repository.list()
@@ -289,7 +293,7 @@ class TransactionRepositoryTest {
 
     @Test
     fun `unrecognized sourceRef prefixes read as UNKNOWN provenance, never guessed`() = runTest {
-        val (service, _, _, repository) = harness()
+        val (service, _, _, _, repository) = harness()
         service.listResponse = listOf(
             dto("t1", ref = "IMPORT:CSV:1"),
             dto("t2", ref = "RECURRING:tmpl:2026-10-04"),
@@ -306,5 +310,91 @@ class TransactionRepositoryTest {
             ),
             repository.list().map { it.provenance },
         )
+    }
+
+    // ── M12: POST /api/transfers ────────────────────────────────────
+
+    @Test
+    fun `transfer posts the contract fields and maps the paired response`() = runTest {
+        val (_, transfers, accounts, _, repository) = harness()
+
+        val outcome = repository.transfer(
+            sourceAccountId = "a1",
+            destinationAccountId = "a2",
+            amount = Money(BigDecimal("25.00"), CurrencyCode("USD")),
+        )
+
+        val call = transfers.createCalls.single()
+        assertEquals("a1", call.sourceAccountId)
+        assertEquals("a2", call.destinationAccountId)
+        assertEquals(BigDecimal("25.00"), call.amount)
+        assertEquals("USD", call.currency)
+
+        assertEquals("ref-1", outcome.transferRef)
+        assertEquals(TransactionType.TRANSFER_OUT, outcome.outTransaction.type)
+        assertEquals(TransactionType.TRANSFER_IN, outcome.inTransaction.type)
+        assertEquals("TRANSFER:ref-1:OUT", outcome.outTransaction.sourceRef)
+        assertEquals(TransactionProvenance.TRANSFER, outcome.outTransaction.provenance)
+        assertEquals(TransactionProvenance.TRANSFER, outcome.inTransaction.provenance)
+        // The server moved BOTH balances — the account cache drops, and
+        // no local arithmetic ever touches canonical balances (INV-012).
+        assertEquals(1, accounts.invalidateCalls)
+    }
+
+    @Test
+    fun `transfer emits one mutation and the next list refetches`() = runTest {
+        val (_, _, _, _, repository) = harness()
+        repository.list()
+
+        val emissions = mutableListOf<Unit>()
+        val job = launch { repository.mutations.collect { emissions += Unit } }
+        runCurrent()
+
+        repository.transfer("a1", "a2", money("5"))
+        runCurrent()
+        job.cancel()
+
+        assertEquals(1, emissions.size)
+    }
+
+    @Test
+    fun `transfer rejects identical accounts locally — never reaches the wire`() = runTest {
+        val (_, transfers, _, _, repository) = harness()
+
+        try {
+            repository.transfer("a1", "a1", money("5"))
+            fail("Expected IllegalArgumentException")
+        } catch (_: IllegalArgumentException) {
+        }
+        assertTrue(transfers.createCalls.isEmpty())
+    }
+
+    @Test
+    fun `transfer maps ApiException to AppErrorException`() = runTest {
+        val (_, transfers, _, _, repository) = harness()
+        transfers.createError = ApiException(
+            status = 400,
+            fields = mapOf("amount" to "must be positive"),
+        )
+
+        try {
+            repository.transfer("a1", "a2", money("0"))
+            fail("Expected AppErrorException")
+        } catch (e: AppErrorException) {
+            assertTrue(e.error is AppError.Validation)
+        }
+    }
+
+    @Test
+    fun `transfer io failure maps to NetworkUnavailable`() = runTest {
+        val (_, transfers, _, _, repository) = harness()
+        transfers.createError = IOException("offline")
+
+        try {
+            repository.transfer("a1", "a2", money("5"))
+            fail("Expected AppErrorException")
+        } catch (e: AppErrorException) {
+            assertEquals(AppError.NetworkUnavailable, e.error)
+        }
     }
 }

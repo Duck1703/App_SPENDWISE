@@ -17,6 +17,7 @@ import com.spendwise.android.core.designsystem.SwColors
 fun TransactionsDestination(
     onOpenTransaction: (String) -> Unit,
     onCreateTransaction: () -> Unit,
+    onCreateTransfer: () -> Unit,
     onCreateAccount: () -> Unit,
     viewModel: TransactionsViewModel = hiltViewModel(),
 ) {
@@ -37,6 +38,7 @@ fun TransactionsDestination(
             filters = filters,
             onOpenTransaction = onOpenTransaction,
             onCreateTransaction = onCreateTransaction,
+            onCreateTransfer = onCreateTransfer,
             onCreateAccount = onCreateAccount,
             onAccountFilter = viewModel::onAccountFilter,
             onTypeFilter = viewModel::onTypeFilter,
