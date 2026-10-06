@@ -153,6 +153,24 @@ class ImportHistoryViewModelTest {
     }
 
     @Test
+    fun `a committed import elsewhere refetches — never a local insert`() = runTest {
+        val imports = FakeImportRepository().apply {
+            historyResult = { emptyList() }
+        }
+        val viewModel = vm(imports)
+        assertTrue(viewModel.state.value is ImportHistoryState.Empty)
+        val loadsBefore = imports.historyCalls.size
+
+        // Server truth changes: the just-imported batch now exists.
+        imports.historyResult = { listOf(FakeImportRepository.summary(batchId = "just-imported")) }
+        imports.emitMutation()
+
+        val content = viewModel.state.value as ImportHistoryState.Content
+        assertEquals("just-imported", content.items.single().batchId)
+        assertTrue(imports.historyCalls.size > loadsBefore)
+    }
+
+    @Test
     fun `an account-name lookup failure degrades to empty names — list still renders`() = runTest {
         val imports = FakeImportRepository().apply {
             historyResult = { listOf(FakeImportRepository.summary(accountId = "acc-9")) }

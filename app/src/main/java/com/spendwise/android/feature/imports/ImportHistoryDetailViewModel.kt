@@ -35,6 +35,7 @@ class ImportHistoryDetailViewModel @Inject constructor(
         MutableStateFlow<ImportHistoryDetailState>(ImportHistoryDetailState.Loading)
     val state: StateFlow<ImportHistoryDetailState> = _state.asStateFlow()
 
+    private var loadSerial = 0L
     private var expiredMidLoad = false
 
     init {
@@ -44,6 +45,7 @@ class ImportHistoryDetailViewModel @Inject constructor(
     fun refresh() = load(initial = false)
 
     private fun load(initial: Boolean) {
+        val serial = ++loadSerial
         viewModelScope.launch {
             val current = _state.value
             _state.value = if (current is ImportHistoryDetailState.Content) {
@@ -53,6 +55,7 @@ class ImportHistoryDetailViewModel @Inject constructor(
             }
             try {
                 val batch = importRepository.batch(batchId)
+                if (serial != loadSerial) return@launch
                 _state.value = ImportHistoryDetailState.Content(
                     batch = batch,
                     accountName = accountName(batch.accountId),
@@ -68,6 +71,7 @@ class ImportHistoryDetailViewModel @Inject constructor(
                         ?.let { _state.value = it.copy(isRefreshing = false) }
                     return@launch
                 }
+                if (serial != loadSerial) return@launch
                 _state.value = when (e.error) {
                     is AppError.NotFound -> ImportHistoryDetailState.NotFound
                     AppError.NetworkUnavailable ->

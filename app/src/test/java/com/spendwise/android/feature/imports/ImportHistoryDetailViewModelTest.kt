@@ -98,6 +98,24 @@ class ImportHistoryDetailViewModelTest {
     }
 
     @Test
+    fun `a superseded load can never overwrite a newer result`() = runTest {
+        val first = kotlinx.coroutines.CompletableDeferred<com.spendwise.android.core.model.ImportBatch>()
+        var call = 0
+        val imports = FakeImportRepository().apply {
+            batchResult = {
+                if (++call == 1) first.await()
+                else FakeImportRepository.batch(batchId = "new")
+            }
+        }
+        val viewModel = vm(imports)
+        viewModel.refresh()
+        first.complete(FakeImportRepository.batch(batchId = "stale"))
+
+        val content = viewModel.state.value as ImportHistoryDetailState.Content
+        assertEquals("new", content.batch.batchId)
+    }
+
+    @Test
     fun `an account-name lookup failure degrades to null — detail still renders`() = runTest {
         val accounts = FakeAccountRepository().apply {
             listResult = { _ -> throw AppErrorException(AppError.NetworkUnavailable) }

@@ -18,7 +18,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -143,23 +142,20 @@ private fun ImportHistoryContent(
                 )
             }
         }
-        item(key = "list") {
+        // History is unbounded (the backend list has no pagination) —
+        // real lazy items with stable keys, not an eager Column inside
+        // one item (same bound as the transactions ledger).
+        items(
+            items = state.items,
+            key = { it.batchId },
+            contentType = { "import-batch" },
+        ) { item ->
             SwCard {
-                Column {
-                    state.items.forEachIndexed { index, item ->
-                        if (index > 0) {
-                            HorizontalDivider(
-                                color = SwColors.Line,
-                                modifier = Modifier.padding(horizontal = SwSpacing.Md),
-                            )
-                        }
-                        ImportHistoryRow(
-                            item = item,
-                            accountName = state.accountNames[item.accountId],
-                            onClick = { onOpenBatch(item.batchId) },
-                        )
-                    }
-                }
+                ImportHistoryRow(
+                    item = item,
+                    accountName = state.accountNames[item.accountId],
+                    onClick = { onOpenBatch(item.batchId) },
+                )
             }
         }
         item(key = "bottom-space") { Spacer(Modifier.height(SwSpacing.Md)) }

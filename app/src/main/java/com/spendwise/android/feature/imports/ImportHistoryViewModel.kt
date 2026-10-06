@@ -34,6 +34,11 @@ class ImportHistoryViewModel @Inject constructor(
 
     init {
         refresh()
+        // A committed import elsewhere invalidates this list — the
+        // refetch still goes to the server; nothing is injected locally.
+        viewModelScope.launch {
+            importRepository.mutations.collect { refresh() }
+        }
     }
 
     fun refresh() {

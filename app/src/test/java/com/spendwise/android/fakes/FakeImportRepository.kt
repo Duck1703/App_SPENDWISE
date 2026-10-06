@@ -5,6 +5,8 @@ import com.spendwise.android.core.model.ImportBatchSummary
 import com.spendwise.android.core.model.ImportRow
 import com.spendwise.android.core.model.ImportRowStatus
 import com.spendwise.android.data.repository.ImportRepository
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import com.spendwise.android.data.repository.SelectedStatement
 import java.time.Instant
 
@@ -27,6 +29,12 @@ class FakeImportRepository : ImportRepository {
     val historyCalls = mutableListOf<Unit>()
     val batchCalls = mutableListOf<String>()
 
+    private val _mutations = MutableSharedFlow<Unit>(extraBufferCapacity = 8)
+    override val mutations: SharedFlow<Unit> = _mutations
+
+    /** Simulates a committed import — history surfaces must refetch. */
+    suspend fun emitMutation() = _mutations.emit(Unit)
+
     override suspend fun describe(uri: String): SelectedStatement {
         describeCalls += uri
         return describeResult(uri)
@@ -34,7 +42,9 @@ class FakeImportRepository : ImportRepository {
 
     override suspend fun upload(accountId: String, file: SelectedStatement): ImportBatch {
         uploadCalls += UploadCall(accountId, file)
-        return uploadResult(accountId, file)
+        val batch = uploadResult(accountId, file)
+        _mutations.emit(Unit)
+        return batch
     }
 
     override suspend fun history(): List<ImportBatchSummary> {

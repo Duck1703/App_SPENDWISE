@@ -20,6 +20,9 @@ import kotlin.coroutines.cancellation.CancellationException
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
@@ -66,6 +69,13 @@ interface StatementStore {
  */
 interface ImportRepository {
 
+    /**
+     * Fires once per committed import — history surfaces refetch from
+     * the server (never a locally inserted batch), same convention as
+     * the ledger mutation signal.
+     */
+    val mutations: SharedFlow<Unit>
+
     /** Display name + byte size of a picked document (no content read). */
     suspend fun describe(uri: String): SelectedStatement
 
@@ -94,6 +104,9 @@ class RemoteImportRepository @Inject constructor(
     private val transactionRepository: TransactionRepository,
     private val statements: StatementStore,
 ) : ImportRepository {
+
+    private val _mutations = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    override val mutations: SharedFlow<Unit> = _mutations.asSharedFlow()
 
     override suspend fun describe(uri: String): SelectedStatement =
         statements.describe(uri)
@@ -127,6 +140,7 @@ class RemoteImportRepository @Inject constructor(
         accountRepository.invalidate()
         if (sessionManager.sessionGeneration != generation) throw SessionEndedException()
         transactionRepository.notifyLedgerChanged()
+        _mutations.tryEmit(Unit)
         return batch
     }
 
