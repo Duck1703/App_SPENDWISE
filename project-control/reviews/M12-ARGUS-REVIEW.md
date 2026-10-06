@@ -1,7 +1,10 @@
 # M12 Argus Review — Transfers Between Own Accounts
 
 ```
-VERDICT: PASS (0 blocker / 0 major / 3 minor / 2 notes)
+VERDICT: PASS (0 blocker / 0 major / 3 minor + 3 notes)
+  — a second-cycle external pass found and remediated 1 major +
+    3 minor; see "Second-cycle" below.
+```
 ROLE: Independent QA reviewer — adversarial pass over backend 8803396
   and Android diff 7f7be92..working-tree against PRODUCT/CONTRACT/
   DECISIONS and the M12 brief, not a re-run of Sentinel's
@@ -58,10 +61,14 @@ back-stack entry.
 
 **Pairing integrity.** Same-currency is now a pre-write service guard
 (fails before either leg is persisted) — the prior implicit
-second-leg rollback still exists as backstop; atomicity test-proven
-(rollback leaves zero rows). `transferRef` = one UUID shared by both
-legs and echoed only on the 201 — never on list reads, so nothing can
-depend on a fabricated linkage.
+second-leg rollback still exists as backstop. Atomicity is
+test-proven: `TransferServiceTest` forces a failure on leg 2 via a
+`MockitoSpyBean` after leg 1's write attempt and asserts zero rows +
+unchanged balances (this replaced the now-vacuous cross-currency
+rollback test — see Second-cycle). `transferRef` = one UUID shared by
+both legs and echoed only on the 201 — never on list reads, so nothing
+can depend on a fabricated linkage. Both legs share a single
+`occurredOn` snapshot — they cannot split dates at midnight.
 
 **Nav/back-stack honesty.** Post-create pops to Transactions-tab
 (when pushed over the shell) via the existing
@@ -77,6 +84,18 @@ user always lands on data the server produced.
 | minor | Cross-currency pair surfaced a generic error, not a clear rejection | Fixed — `CrossCurrency` field error + tests |
 | minor | Account-detail Transfer visible with one account, dead-ending | Fixed — gated on `hasTransferPeer` (cache-first, failure→hidden, session-expiry still propagates) |
 | note | `hasTransferPeer` reads the account cache — a just-deleted peer can still show the button, then the submit 404s into `AccountUnavailable` + picker reload | Accepted — degrades to an honest error, never a crash or fake state |
+| note | Repo-level `require(legs differ)` would crash on a programmer error | Accepted — unreachable via UI; server independently validates |
+
+## Second-cycle findings (external adversarial pass)
+
+| Sev | Item | Disposition |
+| --- | --- | --- |
+| major | Pre-write currency guard silently invalidated the old rollback test — it exercised the guard, not rollback-after-write | Fixed — deterministic `existsById` throw on leg 2 via spy; real tx boundary; zero-row + unchanged-balance assertions |
+| minor | Two independent `LocalDate.now()` calls could split the pair's `occurredOn` at midnight | Fixed — single snapshot for both legs |
+| minor | No explicit negative-amount boundary test | Fixed — `-5.00` → 400 in slice test |
+| minor | `hasTransferPeer` unproven at VM level | Fixed — 4 VM tests (true/false/failure-hidden/expiry-resume) |
+| note | `hasTransferPeer` reads the account cache — a just-deleted peer can still show the button, then the submit 404s into `AccountUnavailable` + picker reload | Accepted — degrades to an honest error, never a crash or fake state |
+| note | Different-user reauth preserves inert draft text | Accepted — inherited M8 convention; IDs reconcile to the new user's accounts |
 | note | Repo-level `require(legs differ)` would crash on a programmer error | Accepted — unreachable via UI; server independently validates |
 
 ## Known baseline exception (unchanged by M12)

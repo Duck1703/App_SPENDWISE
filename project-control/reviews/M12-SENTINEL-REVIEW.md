@@ -1,7 +1,9 @@
 # M12 Sentinel Review — Transfers Between Own Accounts
 
 ```
-VERDICT: PASS (0 blocker / 0 major / 4 minor notes)
+VERDICT: PASS (0 blocker / 0 major / 4 minor + 3 notes)
+  — second-cycle independent findings folded in below; all remediated
+    and gates re-run.
 SCOPE: backend D:\spendwise @ 8803396 (REQ-BE-003: TransferController,
   CreateTransferRequest, TransferResponse, TransferService pairing guard
   + 15 new tests) + Android diff 7f7be92..working-tree — TransferDtos,
@@ -94,6 +96,22 @@ BACKEND CONTRACT: POST /api/transfers only — authenticated, owner-scoped,
   is a programmer-invariant assert (UI + VM guard it first) — a thrown
   `IllegalArgumentException` would crash rather than surface `AppError`;
   unreachable from the shipped UI.
+
+## Second-cycle findings (independent external-review pass)
+
+A post-verdict adversarial re-read falsified one test-integrity
+assumption and found three coverage/consistency gaps. All frozen
+before remediation and fixed inside the milestone:
+
+| Sev | Item | Disposition |
+| --- | --- | --- |
+| major | `TransferServiceTest.rollsBackDebitWhenCreditLegFails` became vacuous once same-currency rejection moved pre-write: it now fails *before* leg 1 persists, so no test proved a mid-pair failure rolls back leg 1 | Fixed — test rewritten around a `@MockitoSpyBean` on `TransactionRepository` that makes `existsById` throw deterministically on leg 2's call (call #2), inside a non-transactional test so a real rollback boundary is exercised; asserts zero transaction rows and unchanged balances afterward |
+| minor | Each transfer leg evaluated `LocalDate.now()` independently — a midnight-adjacent transfer could split `occurredOn` across the pair | Fixed — `TransferService` captures one `occurredOn` snapshot and passes it to both `TransactionCreationCommand`s |
+| minor | Negative amount never hit the backend boundary (0 and 10.005 were covered; `-5.00` relied on `@DecimalMin` inference) | Fixed — `TransferControllerSliceTest` now posts `-5.00` and asserts 400 |
+| minor | `hasTransferPeer` had screen-level coverage only — nothing proved the VM derives it from peer count or survives the failure/expiry paths | Fixed — `AccountDetailViewModelTest` gained 4 tests: ≥2 accounts→true, 1 account→false, peer-list failure→false without sinking the detail, SessionExpired→arms the resume contract and recovers true on `onVisible` |
+| note | Different-user reauth can preserve inert draft text — inherited M8 convention; foreign IDs reconcile out on reload | Accepted (inherited convention, safe) |
+| note | Dropdowns stay enabled during submit — same as txn-create; submit lock covers the mutation window | Accepted (convention parity) |
+| note | Repo `require(legs differ)` is a crash-on-programmer-error invariant | Accepted — unreachable via UI; server independently validates |
 
 Gates re-run after remediation: JVM suite green incl. new tests;
 connected suite re-run on Pixel 4 XL.

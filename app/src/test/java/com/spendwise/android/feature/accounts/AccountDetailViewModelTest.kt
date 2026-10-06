@@ -208,6 +208,66 @@ class AccountDetailViewModelTest {
         assertEquals(1, repo.findByIdCalls.size)
     }
 
+    // ── M12: transfer-affordance peer gate ───────────────────────────
+
+    @Test
+    fun `hasTransferPeer is true when a second account exists`() = runTest {
+        val repo = FakeAccountRepository()
+        repo.listResult = {
+            listOf(
+                FakeAccountRepository.account(id = "acc-1"),
+                FakeAccountRepository.account(id = "acc-2"),
+            )
+        }
+
+        val vm = viewModel(repo = repo)
+
+        val state = vm.state.value as AccountDetailUiState.Content
+        assertEquals("acc-1", state.account.id)
+        assertTrue(state.hasTransferPeer)
+    }
+
+    @Test
+    fun `hasTransferPeer is false when the account stands alone`() = runTest {
+        val repo = FakeAccountRepository()
+        repo.listResult = { listOf(FakeAccountRepository.account(id = "acc-1")) }
+
+        val vm = viewModel(repo = repo)
+
+        val state = vm.state.value as AccountDetailUiState.Content
+        assertEquals(false, state.hasTransferPeer)
+    }
+
+    @Test
+    fun `a peer-list failure hides the affordance without sinking the detail`() = runTest {
+        val repo = FakeAccountRepository()
+        repo.listResult = { throw AppErrorException(AppError.Server(503)) }
+
+        val vm = viewModel(repo = repo)
+
+        val state = vm.state.value as AccountDetailUiState.Content
+        assertEquals("acc-1", state.account.id)
+        assertEquals(false, state.hasTransferPeer)
+    }
+
+    @Test
+    fun `session expiry on the peer check still propagates to the resume contract`() = runTest {
+        val repo = FakeAccountRepository()
+        repo.listResult = { throw AppErrorException(AppError.SessionExpired) }
+
+        val vm = viewModel(repo = repo)
+
+        // Expired mid-load arms the retry and publishes no half-state.
+        assertTrue(vm.state.value is AccountDetailUiState.Loading)
+
+        repo.listResult = { listOf(FakeAccountRepository.account(id = "acc-1"),
+            FakeAccountRepository.account(id = "acc-2")) }
+        vm.onVisible()
+
+        val state = vm.state.value as AccountDetailUiState.Content
+        assertTrue(state.hasTransferPeer)
+    }
+
     @Test
     fun `a create mutation reloads account and history`() = runTest {
         val repo = FakeAccountRepository()
