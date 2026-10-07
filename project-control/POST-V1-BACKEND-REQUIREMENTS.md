@@ -68,7 +68,7 @@ Ordered by unlock value.
   flag). Define archived-account semantics: hidden from pickers, still
   in ledger/balances.
 
-## REQ-BE-011 — Budget edit/delete — **IN_DELIVERY (M14)**
+## REQ-BE-011 — Budget edit/delete — **DELIVERED (M14)** — external audit code-complete; physical-runtime closeout gate pending
 
 - Contract: `PATCH /api/budgets/{id}` (amount/period) and/or
   `DELETE /api/budgets/{id}`. Must resolve the unique category+month

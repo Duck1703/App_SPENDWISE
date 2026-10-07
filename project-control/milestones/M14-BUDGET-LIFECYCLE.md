@@ -1,23 +1,29 @@
 # M14 — Budget Lifecycle (edit + delete)
 
 ```
-STATUS: TECHNICAL_COMPLETE — delivery + all gates green; Sentinel and
-Argus reviews PASS (0 blocker / 0 major). Awaiting the one large
-independent external audit.
+STATUS: EXTERNAL_AUDIT_COMPLETE — BLOCKED_PHYSICAL_RUNTIME.
+Independent audit: 0 blocker / 0 major; all contract, safety,
+ownership, ledger, collision, atomicity, M13-no-replay, server-truth,
+session-privacy, test-integrity, and release gates PROVEN. The single
+unmet closeout gate is the mandatory physical-device run (no device
+attached during the audit).
 M13_COMPLETE=YES
 M14_DEFINED=YES
 M14_STARTED=YES
 M14_TECHNICAL_COMPLETE=YES
 M14_READY_FOR_EXTERNAL_AUDIT=YES
+M14_EXTERNAL_AUDIT_FINAL=BLOCKED_PHYSICAL_RUNTIME
 M14_HUMAN_APPROVED=NO
 M14_HUMAN_AUTHORIZATION=EXPLICIT
 CANONICAL_REQUIREMENT=REQ-BE-011
 M15_DEFINED=NO
 M15_STARTED=NO
-SPENDWISE_STATUS=M14_READY_FOR_EXTERNAL_AUDIT
-NEXT_ACTION=ONE_LARGE_INDEPENDENT_EXTERNAL_M14_AUDIT
+SPENDWISE_STATUS=M14_BLOCKED_PHYSICAL_RUNTIME
+NEXT_ACTION=CONNECT_AND_UNLOCK_SAFE_PHYSICAL_ANDROID_DEVICE_THEN_RUN_COMPLETE_CONNECTED_SUITE_TWICE
 BASELINE: Android b6b2751 (M13-accepted) · Backend da147b8
-DELIVERY: Android 1412860 (+ governance b0036c6) · Backend 472b8fd
+DELIVERY: Android 1412860 (+ governance b0036c6 + checkpoint 097fcf0
+  + audit remediation acb807c) · Backend 472b8fd (+ audit tests 4ed4f81)
+AUDIT: reviews/M14-EXTERNAL-AUDIT.md
 ```
 
 ## Selection rationale (decision record)
