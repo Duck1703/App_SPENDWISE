@@ -31,6 +31,7 @@ High-level phase plan. Milestone briefs are created per phase by ATLAS using
 | M13 | Session Refresh / Token Renewal (REQ-BE-002 `POST /api/auth/refresh`, rotating refresh token, logout revocation, single-flight client renewal) | HUMAN_APPROVED — COMPLETE (external audit ACCEPTED: 0 blocker / 0 major, 5 minor remediated in-audit; JVM 570/570, connected 178/178 ×2, backend 330 tests with 1 pre-existing env flake proven file-identical to M12 baseline; backend `f1ac79a` + bounded test additions under human authorization) (see [milestones/M13-SESSION-REFRESH.md](milestones/M13-SESSION-REFRESH.md), [reviews/M13-EXTERNAL-AUDIT-VERDICT.md](reviews/M13-EXTERNAL-AUDIT-VERDICT.md), [reviews/M13-SENTINEL-REVIEW.md](reviews/M13-SENTINEL-REVIEW.md), [reviews/M13-ARGUS-REVIEW.md](reviews/M13-ARGUS-REVIEW.md)) |
 | M14 | Budget Lifecycle (REQ-BE-011 `PATCH`/`DELETE /api/budgets/{id}` + Android edit/delete on budget detail) | COMPLETE — external audit **ACCEPTED**, human-approved via conditional authorization; physical Pixel 4 XL gate PASSED (180/180 ×2 full connected runs, incl. edit/delete flow tests on-device); every contract/safety gate proven (wire-level M13 no-replay, real-tx collision atomicity, ledger untouched, delete→recreate); JVM 596/596, backend 350 tests with 1 documented baseline flake, release verified, emulator 180/180 ×2 supplementary (see [milestones/M14-BUDGET-LIFECYCLE.md](milestones/M14-BUDGET-LIFECYCLE.md), [reviews/M14-EXTERNAL-AUDIT.md](reviews/M14-EXTERNAL-AUDIT.md)) |
 | M15 | Scalable Transaction History (REQ-BE-007 `GET /api/transactions/page` + lazy-paged Transactions tab + From/To date filter) | COMPLETE — external audit **ACCEPTED**, human-approved via conditional authorization; physical Pixel 4 XL gate PASSED (186/186 ×2 final-source + 186/186 ×2 preliminary); audit remediated 1 Major + 3 Minor in-task (ebd966a, backend ef08539); backend 15/15 contract + 365 regression (1 documented baseline flake), JVM 617/617, release R8 verified (see [milestones/M15-TRANSACTION-HISTORY.md](milestones/M15-TRANSACTION-HISTORY.md), [reviews/M15-EXTERNAL-AUDIT.md](reviews/M15-EXTERNAL-AUDIT.md), [reviews/M15-SENTINEL-REVIEW.md](reviews/M15-SENTINEL-REVIEW.md), [reviews/M15-ARGUS-REVIEW.md](reviews/M15-ARGUS-REVIEW.md)) |
+| M16 | Recurring Template Lifecycle (REQ-BE-012 `PATCH /api/recurring-transactions/{id}` + Android edit flow on recurring detail) | IN_DELIVERY — selected from the re-audited BE register: highest user value among non-product-gated candidates; completes the lifecycle the Human approved (create/list/deactivate) under the M14 PATCH precedent; templates are planning objects — edits affect future generation only, ledger untouched; no schema change. M0–M15 COMPLETE; M17 is not defined (see [milestones/M16-RECURRING-LIFECYCLE.md](milestones/M16-RECURRING-LIFECYCLE.md)) |
 
 **Canonical sequence M0–M8 fully delivered and release-accepted.** V1
 was validated on emulator AND physical hardware (135/135 connected ×2
@@ -84,16 +85,24 @@ M14 is approved; M0–M14 are COMPLETE
 (see [milestones/M14-BUDGET-LIFECYCLE.md](milestones/M14-BUDGET-LIFECYCLE.md),
 [reviews/M14-EXTERNAL-AUDIT.md](reviews/M14-EXTERNAL-AUDIT.md)).
 **M15 (Scalable Transaction History — REQ-BE-007 pagination +
-date-range) is CURRENT.** Selected from the re-audited BE register:
-the M11 `occurredOn` delivery unblocked the deferred date-filter
-half, dead `Pageable` methods already exist server-side, and the
-unbounded-ledger fetch is the next real app limitation. Backend
-gains one read-only `GET /api/transactions/page` endpoint; the
-Transactions tab becomes lazy-paged with server-side
-account/type/category/uncategorized/provenance + From/To filters.
-M0–M14 COMPLETE; M16 is not defined
-(see [milestones/M15-TRANSACTION-HISTORY.md](milestones/M15-TRANSACTION-HISTORY.md)).
-Remaining backend-gated capabilities (transaction correction,
+date-range) is COMPLETE** — external audit ACCEPTED and
+Human-approved (see
+[milestones/M15-TRANSACTION-HISTORY.md](milestones/M15-TRANSACTION-HISTORY.md),
+[reviews/M15-EXTERNAL-AUDIT.md](reviews/M15-EXTERNAL-AUDIT.md)).
+
+**M16 (Recurring Template Lifecycle — REQ-BE-012 template edit) is
+CURRENT.** Selected under the Human's explicit M16 delivery block
+from the re-audited register: recurring templates are
+create/list/detail/deactivate only, so a changed rent amount or
+schedule forces deactivate + recreate — the highest remaining user
+pain among non-product-gated candidates. Backend gains one bounded
+`PATCH /api/recurring-transactions/{id}` (amount, category/clear,
+frequency, nextDueDate, endDate/clear — all optional, ≥1 required);
+edits affect future generation only and never rewrite ledger rows.
+Android gains an edit flow on recurring detail. M0–M15 COMPLETE;
+M17 is not defined
+(see [milestones/M16-RECURRING-LIFECYCLE.md](milestones/M16-RECURRING-LIFECYCLE.md)).
+Remaining product-gated capabilities (transaction correction,
 account lifecycle, persisted notes, FX) stay gated.
 
 ## Important

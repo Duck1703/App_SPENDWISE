@@ -121,6 +121,22 @@ Ordered by unlock value.
   fields (currently accepted but dropped after rule-matching).
 - Schema change; medium.
 
+## REQ-BE-012 — Recurring template edit — **IN_DELIVERY (M16)**
+
+- Gap: templates are create/list/detail/deactivate only; a changed
+  amount/schedule/category forces deactivate + recreate.
+- Contract: `PATCH /api/recurring-transactions/{id}` with optional
+  `amount`, `category`/`clearCategory`, `frequency`, `nextDueDate`,
+  `endDate`/`clearEndDate`; ≥1 field required else 400; conflict pairs
+  (value + its clear flag) → 400; owner-scoped 404; 200 full template.
+  `account`/`direction`/`currency`/`active` immutable (DELETE stays
+  the only active-state transition).
+- Semantics: edits apply to future generation only — the scheduler
+  reads template fields at fire time; generated ledger rows are
+  never rewritten. No schema change.
+- Unlock: true recurring maintenance UX replacing the
+  deactivate+recreate stopgap (M14 lifecycle precedent).
+
 ## Explicitly NOT requested
 
 - FX totals/rate-of-record: product-gated (V1 mixed-currency stance);
