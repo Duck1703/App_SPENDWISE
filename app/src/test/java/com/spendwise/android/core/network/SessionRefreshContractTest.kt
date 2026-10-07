@@ -369,6 +369,47 @@ class SessionRefreshContractTest {
     }
 
     @Test
+    fun `locally-expired token renews before exactly one budget PATCH`() = runTest {
+        val budgets = retrofit.create(BudgetsService::class.java)
+        sessionManager.onSignedIn("dead-access", past, "ana", "u1", refreshToken = "rt-1")
+        server.enqueue(refreshOk())
+        server.enqueue(
+            MockResponse(
+                code = 200,
+                body = """{"id":"b1","category":"FOOD","period":"2026-11","limit":750.00,"currency":"VND"}""",
+            ),
+        )
+
+        budgets.update("b1", UpdateBudgetRequestDto(period = "2026-11"))
+
+        // Refresh first, then exactly ONE PATCH bearing the fresh
+        // credential — the stale token never hit the wire.
+        assertEquals("/api/auth/refresh", server.takeRequest().url.encodedPath)
+        val write = server.takeRequest()
+        assertEquals("/api/budgets/b1", write.url.encodedPath)
+        assertEquals("PATCH", write.method)
+        assertEquals("Bearer fresh-access", write.headers["Authorization"])
+        assertEquals(2, server.requestCount)
+    }
+
+    @Test
+    fun `locally-expired token renews before exactly one budget DELETE`() = runTest {
+        val budgets = retrofit.create(BudgetsService::class.java)
+        sessionManager.onSignedIn("dead-access", past, "ana", "u1", refreshToken = "rt-1")
+        server.enqueue(refreshOk())
+        server.enqueue(MockResponse(code = 204, body = ""))
+
+        budgets.delete("b1")
+
+        assertEquals("/api/auth/refresh", server.takeRequest().url.encodedPath)
+        val write = server.takeRequest()
+        assertEquals("/api/budgets/b1", write.url.encodedPath)
+        assertEquals("DELETE", write.method)
+        assertEquals("Bearer fresh-access", write.headers["Authorization"])
+        assertEquals(2, server.requestCount)
+    }
+
+    @Test
     fun `concurrent GETs that all 401 collapse into a single refresh`() = runTest {
         val probe = retrofit.create(ProbeService::class.java)
         sessionManager.onSignedIn("rejected-access", future, "ana", "u1", refreshToken = "rt-1")

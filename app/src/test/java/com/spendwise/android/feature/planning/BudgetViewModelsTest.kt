@@ -325,6 +325,56 @@ class BudgetViewModelsTest {
         assertEquals(1, budgets.updateCalls.size)
     }
 
+    @Test
+    fun `saveEdit dead-generation is ambiguous, never claimed success`() = runTest {
+        val budgets = FakeBudgetRepository().apply {
+            updateResult = { _, _, _ ->
+                throw com.spendwise.android.data.repository.SessionEndedException()
+            }
+        }
+        val vm = detailVm(budgets)
+        runCurrent()
+        vm.openEdit()
+        vm.onEditLimitChange("750")
+        vm.saveEdit()
+        runCurrent()
+        // The response may have committed server-side — the dialog
+        // tells the truth (Ambiguous) and stays open.
+        assertEquals(EditBudgetState.FormError.Ambiguous, vm.edit.value.formError)
+        assertTrue(vm.edit.value.visible)
+        assertEquals(1, budgets.updateCalls.size)
+    }
+
+    @Test
+    fun `saveEdit period change reload lands the new period calculation`() = runTest {
+        var moved = false
+        val budgets = FakeBudgetRepository().apply {
+            calculationResult = { id ->
+                // The server truth moves only when the patch commits.
+                FakeBudgetRepository.calculation(
+                    id = id,
+                    period = if (moved) "2026-11" else "2026-10",
+                )
+            }
+            updateResult = { id, _, p ->
+                moved = true
+                FakeBudgetRepository.budget(id = id, period = p ?: "2026-10")
+            }
+        }
+        val vm = detailVm(budgets)
+        runCurrent()
+        vm.openEdit()
+        vm.onEditPeriodChange("2026-11")
+        vm.saveEdit()
+        runCurrent()
+        // The PATCH actually ran, then the reload landed the new
+        // period's server calculation — stale 2026-10 figures cannot
+        // linger on the detail.
+        assertEquals(1, budgets.updateCalls.size)
+        val content = vm.state.value as BudgetDetailState.Content
+        assertEquals("2026-11", content.calculation.period)
+    }
+
     // ── Detail delete (M14) ─────────────────────────────────────────
 
     @Test

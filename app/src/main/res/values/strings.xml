@@ -438,6 +438,8 @@
     <string name="budget_delete_action">Delete budget</string>
     <string name="budget_delete_dialog_title">Delete this budget?</string>
     <string name="budget_delete_dialog_body">The spending limit is removed; transactions and balances are untouched.</string>
+    <string name="budget_delete_dialog_identity">%1$s — %2$s</string>
+    <string name="budget_delete_dialog_body_named">The spending limit for %1$s is removed; transactions and balances are untouched.</string>
     <string name="budget_delete_confirm">Delete</string>
 
     <!-- Categorization rules (S21–S23) -->

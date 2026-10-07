@@ -174,6 +174,13 @@ class BudgetDetailViewModel @Inject constructor(
                     _edit.value = _edit.value.copy(isSubmitting = false)
                     return@launch
                 }
+                if (e.error is AppError.NotFound) {
+                    // The budget is gone — close the dialog; the reload
+                    // surfaces NotFound underneath.
+                    _edit.value = EditBudgetState()
+                    refresh()
+                    return@launch
+                }
                 _edit.value = _edit.value.copy(
                     isSubmitting = false,
                     limitError = (e.error as? AppError.Validation)
@@ -184,11 +191,6 @@ class BudgetDetailViewModel @Inject constructor(
                         ?.let { CreateBudgetState.PeriodError.Invalid },
                     formError = when (e.error) {
                         is AppError.Conflict -> EditBudgetState.FormError.Conflict
-                        is AppError.NotFound -> {
-                            // The budget is gone — reload surfaces NotFound.
-                            refresh()
-                            null
-                        }
                         AppError.NetworkUnavailable -> EditBudgetState.FormError.Ambiguous
                         is AppError.Server -> EditBudgetState.FormError.Server
                         else -> EditBudgetState.FormError.Generic

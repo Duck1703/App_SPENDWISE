@@ -179,6 +179,11 @@ class BudgetScreensTest {
         composeRule.onNodeWithText(
             ctx.getString(com.spendwise.android.R.string.budget_delete_dialog_title),
         ).assertIsDisplayed()
+        // The dialog names WHICH budget — category + month are visible,
+        // so two budgets can never be confused (external audit M14).
+        composeRule.onNode(
+            androidx.compose.ui.test.hasText("2026-10", substring = true),
+        ).assertIsDisplayed()
         composeRule.onNodeWithText(
             ctx.getString(com.spendwise.android.R.string.budget_delete_confirm),
         ).performClick()

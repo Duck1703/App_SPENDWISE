@@ -178,10 +178,25 @@ fun BudgetDetailScreen(
     }
 
     if (deleteConfirmVisible) {
+        // M14 external audit: the destructive dialog names WHICH budget
+        // (category + month + limit) — two budgets can never be confused.
+        val identity = (state as? BudgetDetailState.Content)?.calculation?.let {
+            stringResource(
+                R.string.budget_delete_dialog_identity,
+                categoryLabel(it.category),
+                it.period,
+            )
+        }
         AlertDialog(
             onDismissRequest = { deleteConfirmVisible = false },
             title = { Text(stringResource(R.string.budget_delete_dialog_title)) },
-            text = { Text(stringResource(R.string.budget_delete_dialog_body)) },
+            text = {
+                Text(
+                    identity?.let {
+                        stringResource(R.string.budget_delete_dialog_body_named, it)
+                    } ?: stringResource(R.string.budget_delete_dialog_body),
+                )
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
