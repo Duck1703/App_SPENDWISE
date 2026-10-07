@@ -1,13 +1,23 @@
 # M14 — Budget Lifecycle (edit + delete)
 
 ```
-STATUS: IN_DELIVERY — authorized under the Human's explicit M14 block
+STATUS: TECHNICAL_COMPLETE — delivery + all gates green; Sentinel and
+Argus reviews PASS (0 blocker / 0 major). Awaiting the one large
+independent external audit.
+M13_COMPLETE=YES
 M14_DEFINED=YES
 M14_STARTED=YES
+M14_TECHNICAL_COMPLETE=YES
+M14_READY_FOR_EXTERNAL_AUDIT=YES
+M14_HUMAN_APPROVED=NO
 M14_HUMAN_AUTHORIZATION=EXPLICIT
 CANONICAL_REQUIREMENT=REQ-BE-011
 M15_DEFINED=NO
 M15_STARTED=NO
+SPENDWISE_STATUS=M14_READY_FOR_EXTERNAL_AUDIT
+NEXT_ACTION=ONE_LARGE_INDEPENDENT_EXTERNAL_M14_AUDIT
+BASELINE: Android b6b2751 (M13-accepted) · Backend da147b8
+DELIVERY: Android 1412860 (+ governance b0036c6) · Backend 472b8fd
 ```
 
 ## Selection rationale (decision record)
