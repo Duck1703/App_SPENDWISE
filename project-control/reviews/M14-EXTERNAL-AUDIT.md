@@ -5,9 +5,13 @@ ROLE: INDEPENDENT EXTERNAL AUDITOR (fresh session, adversarial mandate)
 ANDROID_RANGE: b6b2751..acb807c (delivery 1412860 + governance b0036c6
                + checkpoint 097fcf0 + audit remediation acb807c)
 BACKEND_RANGE: da147b8..4ed4f81 (delivery 472b8fd + audit tests 4ed4f81)
-VERDICT: BLOCKED_PHYSICAL_RUNTIME — every code/contract/safety gate
-         independently PROVEN (0 blocker / 0 major); the mandatory
-         physical-device gate could not run (no device attached).
+VERDICT: ACCEPTED — every code/contract/safety gate independently
+         PROVEN (0 blocker / 0 major) and the mandatory physical-device
+         gate PASSED on Pixel 4 XL (Android 13): two consecutive full
+         connected runs, 180/180 ×2, 0 skipped, incl. the M14 edit /
+         delete / notFound / affordance flow tests on-device.
+         SERIAL=<REDACTED>. Supplementary emulator evidence: 180/180 ×2
+         on AVD API 36.
 ```
 
 ## 1. Checkpoints (verified, not assumed)
@@ -30,15 +34,24 @@ VERDICT: BLOCKED_PHYSICAL_RUNTIME — every code/contract/safety gate
   `DELETE` → 204 hard delete; budgets are planning objects, ledger
   untouched; no schema change. REQ_BE_011_ALIGNMENT=PASS.
 
-## 3. Physical first pass — MANDATORY GATE
+## 3. Physical first pass — MANDATORY GATE — PASSED
 
 ```
-DEVICE=NONE — `adb devices -l` empty across 5+ checks including an
-adb server restart. Pixel 4 XL not attached.
-PHYSICAL RUN_1/RUN_2: NOT EXECUTED.
-M14_PHYSICAL_RUNTIME=BLOCKED
+DEVICE=Pixel 4 XL (coral), Android 13, SERIAL=<REDACTED>,
+ADB_AUTHORIZED=YES, DEVICE_INTERACTIVE=YES, KEYGUARD_BLOCKING=NO.
+All runs explicitly targeted the physical device via ANDROID_SERIAL
+(emulator-5554 was running simultaneously and excluded).
 
-SUPPLEMENTARY RUNTIME (does NOT substitute for the physical gate):
+APP_INSTALL=PASS  APP_LAUNCH=PASS  NO_IMMEDIATE_CRASH=YES
+RUN_1: 180 executed / 180 pass / 0 fail / 0 skip
+RUN_2: 180 executed / 180 pass / 0 fail / 0 skip  (immediate rerun)
+M14 targeted flow on-device: detail_showsEditAndDeleteAffordances,
+  detail_editOpensDialog_andSavePropagates,
+  detail_deleteShowsConfirm_andConfirmPropagates,
+  detail_notFoundShowsMissingNotice — all PASS.
+M14_PHYSICAL_RUNTIME=PASS
+
+SUPPLEMENTARY RUNTIME (precedes the physical gate historically):
 AVD Spendwise_M8_Acceptance (API 36, emulator-5554):
   run 1: 180 tests, 1 failure — a REAL defect in the delivered
          connected test `detail_editOpensDialog_andSavePropagates`
@@ -46,16 +59,9 @@ AVD Spendwise_M8_Acceptance (API 36, emulator-5554):
          screen's Edit button and the dialog title → 2-node
          ambiguity). Fixed by asserting the dialog-only Save
          affordance (commit 841b04c).
-  run 2: 180/180 PASS (post-fix)
-  run 3: 180/180 PASS (independent clean rerun)
-M14_EMULATOR_RUNTIME=PASS (180/180 ×2 consecutive, post-fix)
+  runs 2–3: 180/180 PASS ×2 consecutive (post-fix)
+M14_EMULATOR_RUNTIME=PASS
 ```
-
-Per the audit mandate the missing physical-device evidence alone
-forbids Human approval regardless of all other evidence. The two
-clean emulator passes remove any residual runtime doubt but do not
-satisfy the canonical physical-Pixel gate (all prior milestones
-closed on physical hardware; no equivalent-evidence clause exists).
 
 ## 4. Falsification matrix — every claim attacked
 
@@ -162,7 +168,7 @@ closed on physical hardware; no equivalent-evidence clause exists).
 | Serializers | 44 `@Serializable` in remote DTOs; `UpdateBudgetRequestDto`+`BudgetDto` kept in mapping.txt |
 | Manifest | INTERNET + self receiver permission only; `usesCleartextTraffic="false"`; datastore excluded from backup + device-transfer |
 | Sensitive logging | none in M14 surfaces |
-| Connected — physical | **BLOCKED — no device attached** |
+| Connected — physical | **PASS — Pixel 4 XL, Android 13, 180/180 ×2 consecutive**, 0 skipped |
 | Connected — emulator | **180/180 ×2 consecutive** after fixing a genuine delivered-test defect (ambiguous dialog-title assertion; commit `841b04c`) |
 
 ## 6. Internal-review comparison
@@ -191,7 +197,7 @@ reproduced. INTERNAL_FINDINGS_CONFIRMED=3; EXTERNAL_ONLY_FINDINGS=6
 ## 8. Final verdict
 
 ```
-M14_EXTERNAL_AUDIT_FINAL=BLOCKED_PHYSICAL_RUNTIME
+M14_EXTERNAL_AUDIT_FINAL=ACCEPTED
 REQ_BE_011_ALIGNMENT=PASS        BACKEND_PATCH_CONTRACT=PASS
 BACKEND_DELETE_CONTRACT=PASS     OWNERSHIP=PASS
 COLLISION_POLICY=PASS            DELETE_RECREATE=PASS
@@ -199,10 +205,12 @@ NO_LEDGER_MUTATION=PASS          PATCH_CONCURRENCY=PASS(documented)
 DELETE_CONCURRENCY=PASS(documented)
 M13_NO_REPLAY=PASS               SERVER_TRUTH=PASS
 SESSION_PRIVACY=PASS             TEST_INTEGRITY=PASS(post-remediation)
-RELEASE_SAFETY=PASS              PHYSICAL_RUNTIME=BLOCKED
+RELEASE_SAFETY=PASS              PHYSICAL_RUNTIME=PASS(180/180×2, Pixel 4 XL)
 EMULATOR_RUNTIME=PASS(180/180×2) M0_M13_REGRESSION=PASS
+M14_HUMAN_APPROVED=YES           M14_STATUS=COMPLETE
+BUDGET_LIFECYCLE=APPROVED
 ```
 
-The code is audit-clean: every blocker-class and major-class invariant
-was independently falsified and survived. The single unmet gate is the
-mandatory physical-device evidence — not a code finding.
+Every blocker-class and major-class invariant was independently
+falsified and survived; the physical-device gate has now passed with
+two consecutive full-suite greens on real hardware. M14 is complete.

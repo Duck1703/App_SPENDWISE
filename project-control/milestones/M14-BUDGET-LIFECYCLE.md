@@ -1,28 +1,33 @@
 # M14 — Budget Lifecycle (edit + delete)
 
 ```
-STATUS: EXTERNAL_AUDIT_COMPLETE — BLOCKED_PHYSICAL_RUNTIME.
+STATUS: COMPLETE — external audit ACCEPTED, Human-approved.
 Independent audit: 0 blocker / 0 major; all contract, safety,
 ownership, ledger, collision, atomicity, M13-no-replay, server-truth,
-session-privacy, test-integrity, and release gates PROVEN. The single
-unmet closeout gate is the mandatory physical-device run (no device
-attached during the audit).
+session-privacy, test-integrity, and release gates PROVEN. The
+mandatory physical-device gate PASSED: Pixel 4 XL (Android 13,
+SERIAL=<REDACTED>), full connected suite 180/180 ×2 consecutive,
+including the M14 edit/delete/notFound/affordance flow tests.
+Supplementary emulator evidence: 180/180 ×2 on AVD API 36.
 M13_COMPLETE=YES
 M14_DEFINED=YES
 M14_STARTED=YES
 M14_TECHNICAL_COMPLETE=YES
 M14_READY_FOR_EXTERNAL_AUDIT=YES
-M14_EXTERNAL_AUDIT_FINAL=BLOCKED_PHYSICAL_RUNTIME
-M14_HUMAN_APPROVED=NO
+M14_EXTERNAL_AUDIT_FINAL=ACCEPTED
+M14_EXTERNAL_AUDIT_COMPLETE=YES
+M14_HUMAN_APPROVED=YES
+M14_PHYSICAL_RUNTIME=PASS
 M14_HUMAN_AUTHORIZATION=EXPLICIT
 CANONICAL_REQUIREMENT=REQ-BE-011
+BUDGET_LIFECYCLE=APPROVED
 M15_DEFINED=NO
 M15_STARTED=NO
-SPENDWISE_STATUS=M14_BLOCKED_PHYSICAL_RUNTIME
-NEXT_ACTION=CONNECT_AND_UNLOCK_SAFE_PHYSICAL_ANDROID_DEVICE_THEN_RUN_COMPLETE_CONNECTED_SUITE_TWICE
+SPENDWISE_STATUS=M14_COMPLETE
 BASELINE: Android b6b2751 (M13-accepted) · Backend da147b8
 DELIVERY: Android 1412860 (+ governance b0036c6 + checkpoint 097fcf0
-  + audit remediation acb807c) · Backend 472b8fd (+ audit tests 4ed4f81)
+  + audit remediation acb807c + connected-test fix 841b04c)
+  · Backend 472b8fd (+ audit tests 4ed4f81)
 AUDIT: reviews/M14-EXTERNAL-AUDIT.md
 ```
 

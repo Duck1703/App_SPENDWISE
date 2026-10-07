@@ -29,7 +29,7 @@ High-level phase plan. Milestone briefs are created per phase by ATLAS using
 | M11 | Transaction Occurrence Dates (REQ-BE-001 `occurredOn` on create/read) | COMPLETE — external audit ACCEPTED (0 blocker / 0 major / 3 notes; JVM 503/503, lint/detekt, release, connected 162/162 ×2 on physical Pixel 4 XL); backend `bc6e0bb` under bounded-write authorization; human-approved via conditional authorization (see [milestones/M11-TRANSACTION-DATES.md](milestones/M11-TRANSACTION-DATES.md), [reviews/M11-EXTERNAL-AUDIT.md](reviews/M11-EXTERNAL-AUDIT.md), [reviews/M11-SENTINEL-REVIEW.md](reviews/M11-SENTINEL-REVIEW.md), [reviews/M11-ARGUS-REVIEW.md](reviews/M11-ARGUS-REVIEW.md)) |
 | M12 | Transfers Between Own Accounts (REQ-BE-003 `POST /api/transfers` + Android create flow) | HUMAN_APPROVED — COMPLETE (external audit ACCEPTED after a second cycle: 1 major + 3 minor remediated in-milestone; JVM 533/533, connected 174/174 ×2; backend `8803396` + `fd2ca1b` under bounded-write authorization) (see [milestones/M12-TRANSFERS.md](milestones/M12-TRANSFERS.md), [reviews/M12-EXTERNAL-AUDIT.md](reviews/M12-EXTERNAL-AUDIT.md), [reviews/M12-SENTINEL-REVIEW.md](reviews/M12-SENTINEL-REVIEW.md), [reviews/M12-ARGUS-REVIEW.md](reviews/M12-ARGUS-REVIEW.md)) |
 | M13 | Session Refresh / Token Renewal (REQ-BE-002 `POST /api/auth/refresh`, rotating refresh token, logout revocation, single-flight client renewal) | HUMAN_APPROVED — COMPLETE (external audit ACCEPTED: 0 blocker / 0 major, 5 minor remediated in-audit; JVM 570/570, connected 178/178 ×2, backend 330 tests with 1 pre-existing env flake proven file-identical to M12 baseline; backend `f1ac79a` + bounded test additions under human authorization) (see [milestones/M13-SESSION-REFRESH.md](milestones/M13-SESSION-REFRESH.md), [reviews/M13-EXTERNAL-AUDIT-VERDICT.md](reviews/M13-EXTERNAL-AUDIT-VERDICT.md), [reviews/M13-SENTINEL-REVIEW.md](reviews/M13-SENTINEL-REVIEW.md), [reviews/M13-ARGUS-REVIEW.md](reviews/M13-ARGUS-REVIEW.md)) |
-| M14 | Budget Lifecycle (REQ-BE-011 `PATCH`/`DELETE /api/budgets/{id}` + Android edit/delete on budget detail) | EXTERNAL_AUDIT_COMPLETE — **BLOCKED_PHYSICAL_RUNTIME** (independent audit: 0 blocker / 0 major; every contract/safety gate proven incl. wire-level M13 no-replay, real-tx collision atomicity, ledger untouched, delete→recreate; JVM 596/596, backend 350 tests with 1 documented baseline flake, release verified; connected suite green 180/180 ×2 on emulator after fixing one delivered test defect — supplementary only; the mandatory physical-Pixel gate could not run — no device attached) (see [milestones/M14-BUDGET-LIFECYCLE.md](milestones/M14-BUDGET-LIFECYCLE.md), [reviews/M14-EXTERNAL-AUDIT.md](reviews/M14-EXTERNAL-AUDIT.md)) |
+| M14 | Budget Lifecycle (REQ-BE-011 `PATCH`/`DELETE /api/budgets/{id}` + Android edit/delete on budget detail) | COMPLETE — external audit **ACCEPTED**, human-approved via conditional authorization; physical Pixel 4 XL gate PASSED (180/180 ×2 full connected runs, incl. edit/delete flow tests on-device); every contract/safety gate proven (wire-level M13 no-replay, real-tx collision atomicity, ledger untouched, delete→recreate); JVM 596/596, backend 350 tests with 1 documented baseline flake, release verified, emulator 180/180 ×2 supplementary (see [milestones/M14-BUDGET-LIFECYCLE.md](milestones/M14-BUDGET-LIFECYCLE.md), [reviews/M14-EXTERNAL-AUDIT.md](reviews/M14-EXTERNAL-AUDIT.md)) |
 
 **Canonical sequence M0–M8 fully delivered and release-accepted.** V1
 was validated on emulator AND physical hardware (135/135 connected ×2
@@ -66,24 +66,20 @@ the last undelivered member of the canonical priority subset
 (see [milestones/M13-SESSION-REFRESH.md](milestones/M13-SESSION-REFRESH.md),
 [reviews/M13-EXTERNAL-AUDIT-VERDICT.md](reviews/M13-EXTERNAL-AUDIT-VERDICT.md)).
 
-**M14 (Budget Lifecycle — edit + delete) has completed its independent
-external audit: BLOCKED_PHYSICAL_RUNTIME.** REQ-BE-011 delivered
-end-to-end under the Human's explicit M14 block: backend `472b8fd`
-(PATCH + DELETE `/api/budgets/{id}`) + audit tests `4ed4f81`, Android
-`1412860` + audit remediation `acb807c`. The audit falsified every
-blocker/major-class invariant — ownership, collision atomicity in real
-transactions, ledger untouched, delete→recreate (the formerly
-"permanently unfixable" wrong budget), M13 no-replay wire-proven for
-both new verbs, server-truth reload, session privacy, release safety —
-0 blocker / 0 major. As supplementary evidence the complete connected
-suite ran on the `Spendwise_M8_Acceptance` emulator (API 36): run 1
-caught a genuine delivered-test defect (ambiguous "Edit budget"
-assertion; fixed in `841b04c`), then 180/180 passed twice
-consecutively — supplementary only, not a substitute for the physical
-gate. The sole unmet closeout gate is the mandatory physical-device
-run: no device was attached. M14 is NOT human-approved;
-next action is connecting the safe physical Pixel and running the
-complete connected suite twice
+**M14 (Budget Lifecycle — edit + delete) is COMPLETE — external audit
+ACCEPTED and Human-approved.** REQ-BE-011 delivered end-to-end under
+the Human's explicit M14 block: backend `472b8fd` (PATCH + DELETE
+`/api/budgets/{id}`) + audit tests `4ed4f81`, Android `1412860` +
+audit remediation `acb807c` + connected-test fix `841b04c`. The audit
+falsified every blocker/major-class invariant — ownership, collision
+atomicity in real transactions, ledger untouched, delete→recreate
+(the formerly "permanently unfixable" wrong budget), M13 no-replay
+wire-proven for both new verbs, server-truth reload, session privacy,
+release safety — 0 blocker / 0 major. The mandatory physical gate
+passed on the Pixel 4 XL (Android 13): **180/180 ×2 consecutive full
+connected runs** including the edit-dialog/save and delete-confirm
+flow tests; supplementary emulator evidence 180/180 ×2 on AVD API 36.
+M14 is approved; M0–M14 are COMPLETE
 (see [milestones/M14-BUDGET-LIFECYCLE.md](milestones/M14-BUDGET-LIFECYCLE.md),
 [reviews/M14-EXTERNAL-AUDIT.md](reviews/M14-EXTERNAL-AUDIT.md)).
 Remaining backend-gated capabilities (transaction correction, account
