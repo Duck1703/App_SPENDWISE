@@ -30,6 +30,31 @@ interface TransactionsService {
         @Query("category") category: String? = null,
     ): List<TransactionDto>
 
+    /**
+     * `GET /api/transactions/page` (M15 — `TransactionController.page`
+     * at backend `4ed4f81+`): the paged, fully-server-filtered ledger
+     * read. Every parameter is a real server filter — absent values are
+     * simply omitted from the query (never sentinels). `from`/`to` are
+     * ISO `yyyy-MM-dd` on `occurredOn`; `provenance` is the enum name
+     * (the server maps it to the same `sourceRef` prefix the client
+     * derives); `uncategorized=true` selects null-category rows and is
+     * server-rejected (400) if `category` is also sent. Foreign/unknown
+     * `accountId` → 404, identical to [list]. Ordering is fixed
+     * server-side: `occurredOn DESC, id DESC`.
+     */
+    @GET("api/transactions/page")
+    suspend fun page(
+        @Query("accountId") accountId: String? = null,
+        @Query("type") type: String? = null,
+        @Query("category") category: String? = null,
+        @Query("uncategorized") uncategorized: Boolean? = null,
+        @Query("provenance") provenance: String? = null,
+        @Query("from") from: String? = null,
+        @Query("to") to: String? = null,
+        @Query("page") page: Int,
+        @Query("size") size: Int,
+    ): TransactionPageDto
+
     @POST("api/transactions")
     suspend fun create(@Body body: CreateTransactionRequestDto): TransactionDto
 

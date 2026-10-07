@@ -79,6 +79,22 @@ enum class TransactionProvenance {
 }
 
 /**
+ * One server page of the ledger (M15/REQ-BE-007 —
+ * `GET /api/transactions/page`). [totalElements] is the server's count
+ * for the active filter set (always ≥ [items].size); [hasNext] tells the
+ * UI whether another page can be requested. Ordering is fixed
+ * server-side (`occurredOn DESC, id DESC`).
+ */
+data class TransactionPage(
+    val items: List<Transaction>,
+    val page: Int,
+    val size: Int,
+    val totalElements: Long,
+    val totalPages: Int,
+    val hasNext: Boolean,
+)
+
+/**
  * Result of `POST /api/transfers` (M12/REQ-BE-003): the server-issued
  * linkage key plus both ledger rows it created. [transferRef] is the
  * pair's shared `TRANSFER:<ref>` provenance handle — returned on this

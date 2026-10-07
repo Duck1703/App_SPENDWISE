@@ -176,19 +176,26 @@
         <item quantity="one">%1$d transaction</item>
         <item quantity="other">%1$d transactions</item>
     </plurals>
-    <string name="transactions_list_note">Entries appear in the order Spendwise returns them — dates aren\’t available in this version.</string>
     <string name="transactions_refresh_error_title">Couldn\’t refresh</string>
     <string name="transactions_refresh_error_body">Showing your saved list — pull down to try again.</string>
+    <string name="transactions_page_count">Showing %1$d of %2$d</string>
+    <string name="transactions_loading_more">Loading more transactions</string>
+    <string name="transactions_more_error_title">Couldn\’t load more</string>
+    <string name="transactions_more_error_body">The list you see is complete — tap or pull down to retry.</string>
+    <string name="transactions_end_of_list">End of ledger — all matching entries loaded.</string>
 
     <!-- Filters (P3A §3: one horizontal row, selected value replaces the label) -->
     <string name="filter_account">Account</string>
     <string name="filter_type">Type</string>
     <string name="filter_category">Category</string>
     <string name="filter_source">Source</string>
+    <string name="filter_from">From</string>
+    <string name="filter_to">To</string>
     <string name="filter_all">All</string>
     <string name="filter_uncategorized">Uncategorized</string>
     <string name="filter_cd_selected">%1$s filter: %2$s</string>
     <string name="filter_cd_default">%1$s filter: all</string>
+    <string name="filter_date_clear_cd">Clear %1$s date filter</string>
 
     <!-- Transaction type + provenance labels -->
     <string name="txn_type_income">Income</string>

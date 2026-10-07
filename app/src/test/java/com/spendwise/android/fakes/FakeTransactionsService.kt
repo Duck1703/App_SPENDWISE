@@ -2,6 +2,7 @@ package com.spendwise.android.fakes
 
 import com.spendwise.android.data.remote.CreateTransactionRequestDto
 import com.spendwise.android.data.remote.TransactionDto
+import com.spendwise.android.data.remote.TransactionPageDto
 import com.spendwise.android.data.remote.TransactionsService
 import java.math.BigDecimal
 import okhttp3.MediaType.Companion.toMediaType
@@ -25,12 +26,28 @@ class FakeTransactionsService : TransactionsService {
         null
     var createResponder: (suspend (CreateTransactionRequestDto) -> TransactionDto)? = null
     var exportResponder: (suspend (String?) -> Response<ResponseBody>)? = null
+    var pageResponder: (suspend (PageCall) -> TransactionPageDto)? = null
+    var pageError: Throwable? = null
 
     data class ListCall(val accountId: String?, val type: String?, val category: String?)
+
+    /** The exact query params a page request carried. */
+    data class PageCall(
+        val accountId: String?,
+        val type: String?,
+        val category: String?,
+        val uncategorized: Boolean?,
+        val provenance: String?,
+        val from: String?,
+        val to: String?,
+        val page: Int,
+        val size: Int,
+    )
 
     val listCalls = mutableListOf<ListCall>()
     val createCalls = mutableListOf<CreateTransactionRequestDto>()
     val exportCalls = mutableListOf<String?>()
+    val pageCalls = mutableListOf<PageCall>()
 
     override suspend fun list(
         accountId: String?,
@@ -41,6 +58,31 @@ class FakeTransactionsService : TransactionsService {
         listResponder?.let { return it(accountId, type, category) }
         listError?.let { throw it }
         return listResponse
+    }
+
+    override suspend fun page(
+        accountId: String?,
+        type: String?,
+        category: String?,
+        uncategorized: Boolean?,
+        provenance: String?,
+        from: String?,
+        to: String?,
+        page: Int,
+        size: Int,
+    ): TransactionPageDto {
+        val call = PageCall(accountId, type, category, uncategorized, provenance, from, to, page, size)
+        pageCalls += call
+        pageResponder?.let { return it(call) }
+        pageError?.let { throw it }
+        return TransactionPageDto(
+            content = listResponse,
+            page = page,
+            size = size,
+            totalElements = listResponse.size.toLong(),
+            totalPages = 1,
+            hasNext = false,
+        )
     }
 
     override suspend fun create(body: CreateTransactionRequestDto): TransactionDto {

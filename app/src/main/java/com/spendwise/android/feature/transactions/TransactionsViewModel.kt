@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import javax.inject.Inject
 
 /**
@@ -128,22 +129,27 @@ class TransactionsViewModel @Inject constructor(
     private suspend fun fetch(
         filters: TransactionFilters,
     ): TransactionsUiState = try {
-        val all = transactionRepository.list(
+        val page = transactionRepository.listPage(
             accountId = filters.accountId,
             type = filters.type,
             category = filters.serverCategory,
+            uncategorized = filters.uncategorizedOnly,
+            provenance = filters.provenance,
+            from = filters.from,
+            to = filters.to,
+            page = 0,
         )
-        val displayed = all.filter { transaction ->
-            (filters.category != CategorySelection.Uncategorized || transaction.category == null) &&
-                (filters.provenance == null || transaction.provenance == filters.provenance)
-        }
-        if (displayed.isEmpty() && all.isEmpty() && filters.isEmpty) {
+        if (page.totalElements == 0L && filters.isEmpty) {
             TransactionsUiState.Empty
         } else {
             TransactionsUiState.Content(
-                items = displayed,
+                items = page.items,
                 accountNames = accountNames(),
                 filters = filters,
+                totalElements = page.totalElements,
+                hasMore = page.hasNext,
+                // Page 0 is loaded; the next request targets page 1.
+                nextPage = 1,
             )
         }
     } catch (e: AppErrorException) {
@@ -219,6 +225,8 @@ class TransactionsViewModel @Inject constructor(
     fun onCategoryFilter(category: CategorySelection) = setFilters { copy(category = category) }
     fun onProvenanceFilter(provenance: TransactionProvenance?) =
         setFilters { copy(provenance = provenance) }
+    fun onFromFilter(from: LocalDate?) = setFilters { copy(from = from) }
+    fun onToFilter(to: LocalDate?) = setFilters { copy(to = to) }
 
     fun clearFilters() = setFilters { TransactionFilters() }
 
@@ -228,6 +236,69 @@ class TransactionsViewModel @Inject constructor(
 
     private var expiredMidLoad = false
     private var optionsExpired = false
+
+    /**
+     * M15: append the next server page. No-ops unless the list is live
+     * Content with `hasMore` and nothing already loading. The append is
+     * keyed to the filter set that produced it — a filter change or
+     * refresh mid-request makes the late response publish nothing
+     * ([loadSerial] guard, same discipline as the initial load).
+     */
+    fun loadNextPage() {
+        val content = _state.value as? TransactionsUiState.Content ?: return
+        if (!content.hasMore || content.loadingMore || content.isRefreshing) return
+        val filters = content.filters
+        val tick = loadSerial
+        _state.value = content.copy(loadingMore = true, moreError = null)
+        viewModelScope.launch {
+            val next = try {
+                transactionRepository.listPage(
+                    accountId = filters.accountId,
+                    type = filters.type,
+                    category = filters.serverCategory,
+                    uncategorized = filters.uncategorizedOnly,
+                    provenance = filters.provenance,
+                    from = filters.from,
+                    to = filters.to,
+                    page = content.nextPage,
+                )
+            } catch (e: SessionEndedException) {
+                expiredMidLoad = true
+                (_state.value as? TransactionsUiState.Content)
+                    ?.let { _state.value = it.copy(loadingMore = false) }
+                return@launch
+            } catch (e: AppErrorException) {
+                if (e.error is AppError.SessionExpired) {
+                    expiredMidLoad = true
+                }
+                (_state.value as? TransactionsUiState.Content)
+                    ?.let {
+                        _state.value = it.copy(
+                            loadingMore = false,
+                            moreError = if (e.error is AppError.SessionExpired) {
+                                null
+                            } else {
+                                e.error.toListError()
+                            },
+                        )
+                    }
+                return@launch
+            }
+            // Superseded: a refresh/filter change started a new load —
+            // this page belongs to the old query, so it never publishes.
+            if (tick != loadSerial) return@launch
+            val current = _state.value as? TransactionsUiState.Content ?: return@launch
+            if (current.filters != filters) return@launch
+            _state.value = current.copy(
+                items = (current.items + next.items).distinctBy { it.id },
+                totalElements = next.totalElements,
+                hasMore = next.hasNext,
+                nextPage = current.nextPage + 1,
+                loadingMore = false,
+                moreError = null,
+            )
+        }
+    }
 
     /** Re-runs an aborted load after a same-user resume pops the overlay. */
     fun onVisible() {

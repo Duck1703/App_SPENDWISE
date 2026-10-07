@@ -4,6 +4,7 @@ import com.spendwise.android.core.model.CurrencyCode
 import com.spendwise.android.core.model.Money
 import com.spendwise.android.core.model.TransactionProvenance
 import com.spendwise.android.core.model.TransactionType
+import com.spendwise.android.data.remote.TransactionPageDto
 import com.spendwise.android.core.network.ApiException
 import com.spendwise.android.core.network.AppError
 import com.spendwise.android.core.network.AppErrorException
@@ -395,6 +396,121 @@ class TransactionRepositoryTest {
             fail("Expected AppErrorException")
         } catch (e: AppErrorException) {
             assertEquals(AppError.NetworkUnavailable, e.error)
+        }
+    }
+
+    // ── M15: GET /api/transactions/page ─────────────────────────────
+
+    private fun pageDto(
+        content: List<com.spendwise.android.data.remote.TransactionDto>,
+        page: Int = 0,
+        size: Int = 50,
+        total: Long = content.size.toLong(),
+        pages: Int = 1,
+        hasNext: Boolean = false,
+    ) = TransactionPageDto(
+        content = content,
+        page = page,
+        size = size,
+        totalElements = total,
+        totalPages = pages,
+        hasNext = hasNext,
+    )
+
+    @Test
+    fun `listPage maps the envelope and warms the detail cache`() = runTest {
+        val (service, _, _, _, repository) = harness()
+        service.pageResponder = {
+            pageDto(
+                listOf(dto("t1"), dto("t2", type = "INCOME", category = null, ref = "IMPORT:CSV:7")),
+                total = 40,
+                pages = 20,
+                hasNext = true,
+            )
+        }
+
+        val page = repository.listPage(page = 0)
+
+        assertEquals(2, page.items.size)
+        assertEquals("t1", page.items[0].id)
+        assertEquals(TransactionProvenance.IMPORTED, page.items[1].provenance)
+        assertEquals(40L, page.totalElements)
+        assertEquals(20, page.totalPages)
+        assertTrue(page.hasNext)
+        // Page content feeds findById — no second request.
+        assertEquals("t2", repository.findById("t2").id)
+        assertEquals(1, service.pageCalls.size)
+        assertEquals(0, service.listCalls.size)
+    }
+
+    @Test
+    fun `listPage passes every filter verbatim — dates serialize as ISO`() = runTest {
+        val (service, _, _, _, repository) = harness()
+
+        repository.listPage(
+            accountId = "a1",
+            type = TransactionType.EXPENSE,
+            category = "FOOD",
+            uncategorized = false,
+            provenance = TransactionProvenance.RECURRING,
+            from = LocalDate.of(2026, 9, 1),
+            to = LocalDate.of(2026, 9, 30),
+            page = 3,
+            size = 25,
+        )
+
+        val call = service.pageCalls.single()
+        assertEquals("a1", call.accountId)
+        assertEquals("EXPENSE", call.type)
+        assertEquals("FOOD", call.category)
+        // uncategorized=false is NOT sent — false is "no filter".
+        assertNull(call.uncategorized)
+        assertEquals("RECURRING", call.provenance)
+        assertEquals("2026-09-01", call.from)
+        assertEquals("2026-09-30", call.to)
+        assertEquals(3, call.page)
+        assertEquals(25, call.size)
+    }
+
+    @Test
+    fun `listPage uncategorized=true is the only time the flag is sent`() = runTest {
+        val (service, _, _, _, repository) = harness()
+
+        repository.listPage(uncategorized = true, page = 0)
+
+        assertEquals(true, service.pageCalls.single().uncategorized)
+    }
+
+    @Test
+    fun `listPage merges into the cache — earlier pages stay resolvable`() = runTest {
+        val (service, _, _, _, repository) = harness()
+        service.pageResponder = { call ->
+            when (call.page) {
+                0 -> pageDto(listOf(dto("t1")), total = 2, hasNext = true)
+                else -> pageDto(listOf(dto("t2")), page = 1, total = 2, hasNext = false)
+            }
+        }
+
+        repository.listPage(page = 0)
+        repository.listPage(page = 1)
+
+        // A page-0 row is still resolvable after page 1 merged in.
+        assertEquals("t1", repository.findById("t1").id)
+        assertEquals("t2", repository.findById("t2").id)
+        assertEquals(2, service.pageCalls.size)
+        assertEquals(0, service.listCalls.size) // no unfiltered refetch
+    }
+
+    @Test
+    fun `listPage failure maps errors like the unpaged list`() = runTest {
+        val (service, _, _, _, repository) = harness()
+        service.pageError = ApiException(status = 400)
+
+        try {
+            repository.listPage(page = -1)
+            fail("Expected AppErrorException")
+        } catch (e: AppErrorException) {
+            assertEquals(AppError.BadRequest, e.error)
         }
     }
 }

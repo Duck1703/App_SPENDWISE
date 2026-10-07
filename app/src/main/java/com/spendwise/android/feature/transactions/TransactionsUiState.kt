@@ -7,31 +7,53 @@ import com.spendwise.android.core.model.TransactionType
 import java.time.LocalDate
 
 /**
- * The three server-side filters (BACKEND-CONTRACT §11) plus the two
- * honest client-side views: [CategorySelection.Uncategorized] matches
- * null-category rows locally, and [provenance] filters the already-
- * fetched list by `sourceRef` (PRODUCT §19 — declared client-side, never
- * implied as a server filter).
+ * The filter set for the paged ledger read (M15/REQ-BE-007): every
+ * selection is a real server parameter on `GET /api/transactions/page` —
+ * including [CategorySelection.Uncategorized] (`uncategorized=true` →
+ * null-category rows server-side) and [provenance] (mapped server-side
+ * to the same `sourceRef` prefix rule). [from]/[to] bound the economic
+ * `occurredOn` date inclusively (ISO `yyyy-MM-dd`). Nothing is filtered
+ * client-side anymore: under pagination a local pass would hide matches
+ * on not-yet-loaded pages.
  */
 data class TransactionFilters(
     val accountId: String? = null,
     val type: TransactionType? = null,
     val category: CategorySelection = CategorySelection.All,
     val provenance: TransactionProvenance? = null,
+    /** Inclusive `occurredOn >= from` bound (null = unbounded). */
+    val from: LocalDate? = null,
+    /** Inclusive `occurredOn <= to` bound (null = unbounded). */
+    val to: LocalDate? = null,
 ) {
     val isEmpty: Boolean
         get() = accountId == null && type == null &&
-            category == CategorySelection.All && provenance == null
+            category == CategorySelection.All && provenance == null &&
+            from == null && to == null
 
     /** The category code that goes on the wire, if the selection is one. */
     val serverCategory: String?
         get() = (category as? CategorySelection.Code)?.code
+
+    /** True when the wire `uncategorized` flag should be sent. */
+    val uncategorizedOnly: Boolean
+        get() = category == CategorySelection.Uncategorized
+
+    /** True when a real date bound is set (at least one side). */
+    val hasDateRange: Boolean
+        get() = from != null || to != null
 }
 
+/**
+ * Category chip selection. [Uncategorized] is the wire
+ * `uncategorized=true` server filter (null-category rows); [Code] sends
+ * the category code; [All] sends neither. M15: all three are
+ * server-side parameters on the paged endpoint.
+ */
 sealed interface CategorySelection {
     data object All : CategorySelection
 
-    /** Client-side: matches transactions with a null category. */
+    /** Server-side: `uncategorized=true` matches null-category rows. */
     data object Uncategorized : CategorySelection
 
     data class Code(val code: String) : CategorySelection
@@ -52,11 +74,21 @@ sealed interface TransactionsUiState {
     data object Empty : TransactionsUiState
 
     data class Content(
-        /** Display rows after the client-side provenance/uncategorized pass. */
+        /** Loaded rows — pages 0..N appended, in server order. */
         val items: List<Transaction>,
         /** `accountId → name` for row labels. */
         val accountNames: Map<String, String>,
         val filters: TransactionFilters,
+        /** Server's total for the active filter set (≥ items.size). */
+        val totalElements: Long,
+        /** Whether the server reports another page. */
+        val hasMore: Boolean,
+        /** Index of the next server page to request. */
+        val nextPage: Int = 1,
+        /** A page >0 fetch is in flight (footer spinner). */
+        val loadingMore: Boolean = false,
+        /** Last page-append failure — surfaced inline, list stays live. */
+        val moreError: TransactionsError? = null,
         val isRefreshing: Boolean = false,
         /** MIN-1 pattern: refresh failure over live content stays inline. */
         val refreshError: TransactionsError? = null,

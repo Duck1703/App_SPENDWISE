@@ -4,6 +4,8 @@ import com.spendwise.android.core.common.ApplicationScope
 import com.spendwise.android.core.model.CurrencyCode
 import com.spendwise.android.core.model.Money
 import com.spendwise.android.core.model.Transaction
+import com.spendwise.android.core.model.TransactionPage
+import com.spendwise.android.core.model.TransactionProvenance
 import com.spendwise.android.core.model.TransactionType
 import com.spendwise.android.core.model.TransferOutcome
 import com.spendwise.android.core.network.ApiException
@@ -65,6 +67,28 @@ interface TransactionRepository {
     ): List<Transaction>
 
     /**
+     * `GET /api/transactions/page` (M15/REQ-BE-007): one server page of
+     * the ledger. Every parameter is a real server filter — including
+     * [uncategorized] and [provenance], which are server-computed on the
+     * paged contract (a client pass over page N would hide matches on
+     * later pages). [from]/[to] bound `occurredOn` inclusively (ISO
+     * `yyyy-MM-dd`). Rows merge into the detail-lookup cache; page
+     * responses never fabricate — a page that misses rows just shows
+     * fewer items with the server's `totalElements`.
+     */
+    suspend fun listPage(
+        accountId: String? = null,
+        type: TransactionType? = null,
+        category: String? = null,
+        uncategorized: Boolean = false,
+        provenance: TransactionProvenance? = null,
+        from: LocalDate? = null,
+        to: LocalDate? = null,
+        page: Int = 0,
+        size: Int = DEFAULT_PAGE_SIZE,
+    ): TransactionPage
+
+    /**
      * Resolve a transaction from the last fetched list, or one
      * unfiltered fetch on a miss. No `GET /{id}` exists on the backend.
      * Absent after the fetch → [AppError.NotFound].
@@ -119,6 +143,11 @@ interface TransactionRepository {
      * surfaces (Home activity, Transactions) reload.
      */
     suspend fun notifyLedgerChanged()
+
+    companion object {
+        /** Server-capped page size (`size` 1..100) — the app's default. */
+        const val DEFAULT_PAGE_SIZE = 50
+    }
 }
 
 @Singleton
@@ -152,6 +181,57 @@ class RemoteTransactionRepository @Inject constructor(
         val transactions = fetchTransactions(accountId, type, category)
         if (!cache.write(generation, transactions)) throw SessionEndedException()
         return transactions
+    }
+
+    override suspend fun listPage(
+        accountId: String?,
+        type: TransactionType?,
+        category: String?,
+        uncategorized: Boolean,
+        provenance: TransactionProvenance?,
+        from: LocalDate?,
+        to: LocalDate?,
+        page: Int,
+        size: Int,
+    ): TransactionPage {
+        val generation = cache.generation()
+        val dto = try {
+            service.page(
+                accountId = accountId,
+                type = type?.name,
+                category = category,
+                uncategorized = uncategorized.takeIf { it },
+                provenance = provenance?.name,
+                // LocalDate.toString() is exactly ISO yyyy-MM-dd.
+                from = from?.toString(),
+                to = to?.toString(),
+                page = page,
+                size = size,
+            )
+        } catch (e: ApiException) {
+            throw AppErrorException(e.toAppError(), e)
+        } catch (e: IOException) {
+            throw AppErrorException(AppError.NetworkUnavailable, e)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            throw AppErrorException(AppError.Unknown(e), e)
+        }
+        val items = dto.content.map { it.toDomain() }
+        // Page content feeds the detail-lookup cache so tapping a loaded
+        // row never needs a second fetch. Merge (not replace): earlier
+        // pages stay resolvable while the user scrolls back up.
+        val existing = cache.read() ?: emptyList()
+        val merged = (existing + items).distinctBy { it.id }
+        if (!cache.write(generation, merged)) throw SessionEndedException()
+        return TransactionPage(
+            items = items,
+            page = dto.page,
+            size = dto.size,
+            totalElements = dto.totalElements,
+            totalPages = dto.totalPages,
+            hasNext = dto.hasNext,
+        )
     }
 
     override suspend fun findById(id: String): Transaction {

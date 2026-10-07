@@ -3,6 +3,8 @@ package com.spendwise.android.fakes
 import com.spendwise.android.core.model.CurrencyCode
 import com.spendwise.android.core.model.Money
 import com.spendwise.android.core.model.Transaction
+import com.spendwise.android.core.model.TransactionPage
+import com.spendwise.android.core.model.TransactionProvenance
 import com.spendwise.android.core.model.TransactionType
 import com.spendwise.android.core.model.TransferOutcome
 import com.spendwise.android.data.repository.TransactionRepository
@@ -17,6 +19,17 @@ class FakeTransactionRepository : TransactionRepository {
 
     var listResult: suspend (accountId: String?, type: TransactionType?, category: String?) -> List<Transaction> =
         { _, _, _ -> emptyList() }
+    /** M15: scripted page responder — receives the full filter + page index. */
+    var listPageResult: suspend (PageCall) -> TransactionPage = { call ->
+        TransactionPage(
+            items = emptyList(),
+            page = call.page,
+            size = call.size,
+            totalElements = 0,
+            totalPages = 0,
+            hasNext = false,
+        )
+    }
     var findByIdResult: suspend (id: String) -> Transaction = { transaction() }
     var createResult: suspend (accountId: String, type: TransactionType, amount: Money, occurredOn: LocalDate, category: String?, hint: String?) -> Transaction =
         { _, _, _, _, _, _ -> transaction() }
@@ -52,6 +65,7 @@ class FakeTransactionRepository : TransactionRepository {
     )
 
     val listCalls = mutableListOf<ListCall>()
+    val pageCalls = mutableListOf<PageCall>()
     val findByIdCalls = mutableListOf<String>()
     val createCalls = mutableListOf<CreateCall>()
     val transferCalls = mutableListOf<TransferCall>()
@@ -60,6 +74,19 @@ class FakeTransactionRepository : TransactionRepository {
         val sourceAccountId: String,
         val destinationAccountId: String,
         val amount: Money,
+    )
+
+    /** The exact arguments a page request carried. */
+    data class PageCall(
+        val accountId: String?,
+        val type: TransactionType?,
+        val category: String?,
+        val uncategorized: Boolean,
+        val provenance: TransactionProvenance?,
+        val from: LocalDate?,
+        val to: LocalDate?,
+        val page: Int,
+        val size: Int,
     )
 
     private val _mutations = MutableSharedFlow<Unit>(extraBufferCapacity = 8)
@@ -83,6 +110,22 @@ class FakeTransactionRepository : TransactionRepository {
     ): List<Transaction> {
         listCalls += ListCall(accountId, type, category)
         return listResult(accountId, type, category)
+    }
+
+    override suspend fun listPage(
+        accountId: String?,
+        type: TransactionType?,
+        category: String?,
+        uncategorized: Boolean,
+        provenance: TransactionProvenance?,
+        from: LocalDate?,
+        to: LocalDate?,
+        page: Int,
+        size: Int,
+    ): TransactionPage {
+        val call = PageCall(accountId, type, category, uncategorized, provenance, from, to, page, size)
+        pageCalls += call
+        return listPageResult(call)
     }
 
     override suspend fun findById(id: String): Transaction {

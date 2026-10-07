@@ -391,4 +391,139 @@ class TransactionsServiceContractTest {
             assertEquals(500, e.status)
         }
     }
+
+    // ── M15: GET /api/transactions/page ─────────────────────────────
+
+    private fun pageBody() = """
+        {
+          "content": [
+            {
+              "id":"t1","accountId":"a1","type":"EXPENSE","amount":25.50,
+              "currency":"VND","category":"FOOD","sourceRef":"MANUAL:t1",
+              "occurredOn":"2026-10-04"
+            }
+          ],
+          "page": 0,
+          "size": 50,
+          "totalElements": 57,
+          "totalPages": 2,
+          "hasNext": true
+        }
+    """.trimIndent()
+
+    @Test
+    fun `page hits GET api-transactions-page and parses the envelope`() = runTest {
+        signIn()
+        server.enqueue(MockResponse(code = 200, body = pageBody()))
+
+        val result = transactions.page(page = 0, size = 50)
+
+        assertEquals(1, result.content.size)
+        assertEquals("t1", result.content[0].id)
+        assertEquals(0, result.page)
+        assertEquals(50, result.size)
+        assertEquals(57L, result.totalElements)
+        assertEquals(2, result.totalPages)
+        assertEquals(true, result.hasNext)
+
+        val request = server.takeRequest()
+        assertEquals("GET", request.method)
+        assertEquals("/api/transactions/page", request.url.encodedPath)
+        assertEquals("Bearer live-token", request.headers["Authorization"])
+        assertEquals("0", request.url.queryParameter("page"))
+        assertEquals("50", request.url.queryParameter("size"))
+    }
+
+    @Test
+    fun `page sends every filter as an exact wire parameter`() = runTest {
+        signIn()
+        server.enqueue(MockResponse(code = 200, body = pageBody()))
+
+        transactions.page(
+            accountId = "a1",
+            type = "EXPENSE",
+            category = "FOOD",
+            uncategorized = true,
+            provenance = "IMPORTED",
+            from = "2026-09-01",
+            to = "2026-09-30",
+            page = 2,
+            size = 25,
+        )
+
+        val request = server.takeRequest()
+        assertEquals("a1", request.url.queryParameter("accountId"))
+        assertEquals("EXPENSE", request.url.queryParameter("type"))
+        assertEquals("FOOD", request.url.queryParameter("category"))
+        assertEquals("true", request.url.queryParameter("uncategorized"))
+        assertEquals("IMPORTED", request.url.queryParameter("provenance"))
+        assertEquals("2026-09-01", request.url.queryParameter("from"))
+        assertEquals("2026-09-30", request.url.queryParameter("to"))
+        assertEquals("2", request.url.queryParameter("page"))
+        assertEquals("25", request.url.queryParameter("size"))
+    }
+
+    @Test
+    fun `page omits unset filters — nulls never reach the wire`() = runTest {
+        signIn()
+        server.enqueue(MockResponse(code = 200, body = pageBody()))
+
+        transactions.page(page = 0, size = 50)
+
+        val request = server.takeRequest()
+        assertNull(request.url.queryParameter("accountId"))
+        assertNull(request.url.queryParameter("type"))
+        assertNull(request.url.queryParameter("category"))
+        assertNull(request.url.queryParameter("uncategorized"))
+        assertNull(request.url.queryParameter("provenance"))
+        assertNull(request.url.queryParameter("from"))
+        assertNull(request.url.queryParameter("to"))
+        // Only the two required paging params exist.
+        assertEquals(
+            setOf("page", "size"),
+            request.url.queryParameterNames,
+        )
+    }
+
+    @Test
+    fun `page uncategorized=false is omitted — false is not a filter`() = runTest {
+        signIn()
+        server.enqueue(MockResponse(code = 200, body = pageBody()))
+
+        // The repository only sends the flag when the user selected it;
+        // the service contract is that null means "no param".
+        transactions.page(uncategorized = null, page = 0, size = 50)
+
+        assertNull(server.takeRequest().url.queryParameter("uncategorized"))
+    }
+
+    @Test
+    fun `page 401 expires the session`() = runTest {
+        signIn()
+        server.enqueue(MockResponse(code = 401))
+
+        try {
+            transactions.page(page = 0, size = 50)
+            throw AssertionError("Expected ApiException")
+        } catch (e: ApiException) {
+            assertEquals(401, e.status)
+        }
+        assertEquals(
+            Session.Expired::class,
+            sessionManager.session.value::class,
+        )
+    }
+
+    @Test
+    fun `page 400 surfaces ApiException for validation failures`() = runTest {
+        signIn()
+        server.enqueue(MockResponse(code = 400, body = """{"title":"from must not be after to"}"""))
+
+        try {
+            transactions.page(page = 0, size = 50)
+            throw AssertionError("Expected ApiException")
+        } catch (e: ApiException) {
+            assertEquals(400, e.status)
+        }
+    }
 }

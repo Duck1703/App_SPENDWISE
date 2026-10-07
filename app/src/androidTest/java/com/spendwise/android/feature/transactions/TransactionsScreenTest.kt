@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.spendwise.android.R
 import com.spendwise.android.TestFormats
@@ -66,6 +67,11 @@ class TransactionsScreenTest {
         var typeFilter: TransactionType? = null,
         var categoryFilter: CategorySelection? = null,
         var provenanceFilter: TransactionProvenance? = null,
+        var fromFilter: java.time.LocalDate? = null,
+        var toFilter: java.time.LocalDate? = null,
+        var fromClicks: Int = 0,
+        var toClicks: Int = 0,
+        var loadMoreCalls: Int = 0,
         var cleared: Int = 0,
     )
 
@@ -93,6 +99,9 @@ class TransactionsScreenTest {
                     onTypeFilter = { harness.typeFilter = it },
                     onCategoryFilter = { harness.categoryFilter = it },
                     onProvenanceFilter = { harness.provenanceFilter = it },
+                    onFromFilter = { harness.fromFilter = it },
+                    onToFilter = { harness.toFilter = it },
+                    onLoadMore = { harness.loadMoreCalls++ },
                     onClearFilters = { harness.cleared++ },
                     onRefresh = { harness.refreshes++ },
                     onRetry = { harness.retries++ },
@@ -164,6 +173,8 @@ class TransactionsScreenTest {
                 items = listOf(txn("t1"), txn("t2", type = TransactionType.INCOME, category = "SALARY")),
                 accountNames = mapOf("acc-1" to "Wallet"),
                 filters = TransactionFilters(),
+                totalElements = 2,
+                hasMore = false,
             ),
             harness = harness,
         )
@@ -181,10 +192,10 @@ class TransactionsScreenTest {
                 "USD Salary on Wallet, Manual, " +
                 TestFormats.date(java.time.LocalDate.of(2026, 10, 4)),
         ).assertIsDisplayed()
-        // Count text + the server-order honesty note.
+        // Count text + the end-of-ledger marker (hasMore=false).
         composeRule.onNodeWithText("2 transactions").assertIsDisplayed()
         composeRule.onNodeWithText(
-            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.transactions_list_note),
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.transactions_end_of_list),
         ).assertIsDisplayed()
         // Header add action, not a FAB.
         composeRule.onNodeWithContentDescription("Add transaction").performClick()
@@ -199,6 +210,8 @@ class TransactionsScreenTest {
                 items = listOf(txn("t7")),
                 accountNames = mapOf("acc-1" to "Wallet"),
                 filters = TransactionFilters(),
+                totalElements = 1,
+                hasMore = false,
             ),
             harness = harness,
         )
@@ -223,6 +236,8 @@ class TransactionsScreenTest {
                 items = listOf(txn("t7")),
                 accountNames = mapOf("acc-1" to "Wallet"),
                 filters = TransactionFilters(),
+                totalElements = 1,
+                hasMore = false,
             ),
         )
 
@@ -237,12 +252,14 @@ class TransactionsScreenTest {
     }
 
     @Test
-    fun filterRow_rendersFourChipsInOneRow() {
+    fun filterRow_rendersSixChipsInOneRow() {
         screen(
             TransactionsUiState.Content(
                 items = listOf(txn("t1")),
                 accountNames = emptyMap(),
                 filters = TransactionFilters(),
+                totalElements = 1,
+                hasMore = false,
             ),
         )
 
@@ -250,8 +267,11 @@ class TransactionsScreenTest {
         composeRule.onNodeWithContentDescription("Type filter: all").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Category filter: all").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Source filter: all").assertIsDisplayed()
-        // No date/search/sort controls exist anywhere on this screen.
-        composeRule.onAllNodesWithText("Date", substring = true).assertCountEquals(0)
+        // M15: the From/To date-range chips exist (server-side
+        // occurredOn bounds); no text search — nothing persisted to
+        // match against.
+        composeRule.onNodeWithContentDescription("From filter: all").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("To filter: all").assertIsDisplayed()
         composeRule.onAllNodesWithText("Search", substring = true).assertCountEquals(0)
     }
 
@@ -263,6 +283,8 @@ class TransactionsScreenTest {
                 items = emptyList(),
                 accountNames = emptyMap(),
                 filters = TransactionFilters(type = TransactionType.EXPENSE),
+                totalElements = 0,
+                hasMore = false,
             ),
             harness = harness,
         )
@@ -279,6 +301,8 @@ class TransactionsScreenTest {
                 items = listOf(txn("t1")),
                 accountNames = mapOf("acc-1" to "Wallet"),
                 filters = TransactionFilters(),
+                totalElements = 1,
+                hasMore = false,
                 refreshError = TransactionsError.Network,
             ),
         )
@@ -315,6 +339,8 @@ class TransactionsScreenTest {
                 ),
                 accountNames = emptyMap(),
                 filters = TransactionFilters(),
+                totalElements = 2,
+                hasMore = false,
             ),
         )
 
@@ -329,6 +355,130 @@ class TransactionsScreenTest {
             "Expense ${TestFormats.signedAmount("25.50", "USD", credit = false)} " +
                 "USD Salary on Transaction, Manual, " +
                 TestFormats.date(java.time.LocalDate.of(2026, 10, 4)),
+        ).assertIsDisplayed()
+    }
+
+    // --- M15: paging + date-range ------------------------------------------
+
+    @Test
+    fun content_showsServerTotalWhenPartiallyLoaded() {
+        screen(
+            TransactionsUiState.Content(
+                items = listOf(txn("t1")),
+                accountNames = emptyMap(),
+                filters = TransactionFilters(),
+                totalElements = 57,
+                hasMore = true,
+            ),
+        )
+
+        // Server count, not the loaded slice.
+        composeRule.onNodeWithText("Showing 1 of 57").assertIsDisplayed()
+    }
+
+    @Test
+    fun scrollingToEnd_requestsNextPage() {
+        val harness = Harness()
+        screen(
+            TransactionsUiState.Content(
+                items = (1..30).map { txn("t$it") },
+                accountNames = emptyMap(),
+                filters = TransactionFilters(),
+                totalElements = 60,
+                hasMore = true,
+            ),
+            harness = harness,
+        )
+
+        composeRule.onNode(androidx.compose.ui.test.hasScrollToIndexAction())
+            .performScrollToIndex(29)
+        composeRule.waitForIdle()
+        assertEquals(true, harness.loadMoreCalls > 0)
+    }
+
+    @Test
+    fun footer_showsSpinnerWhileAppending() {
+        screen(
+            TransactionsUiState.Content(
+                items = listOf(txn("t1")),
+                accountNames = emptyMap(),
+                filters = TransactionFilters(),
+                totalElements = 3,
+                hasMore = true,
+                loadingMore = true,
+            ),
+        )
+
+        composeRule.onNodeWithContentDescription("Loading more transactions")
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun footer_showsInlineErrorOnAppendFailure() {
+        screen(
+            TransactionsUiState.Content(
+                items = listOf(txn("t1")),
+                accountNames = emptyMap(),
+                filters = TransactionFilters(),
+                totalElements = 3,
+                hasMore = true,
+                moreError = TransactionsError.Network,
+            ),
+        )
+
+        composeRule.onNodeWithText(
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+                .targetContext.getString(R.string.transactions_more_error_title),
+        ).assertIsDisplayed()
+    }
+
+    @Test
+    fun dateChip_showsSelectedDateAndClears() {
+        val harness = Harness()
+        screen(
+            TransactionsUiState.Content(
+                items = listOf(txn("t1")),
+                accountNames = emptyMap(),
+                filters = TransactionFilters(
+                    from = java.time.LocalDate.of(2026, 9, 1),
+                ),
+                totalElements = 1,
+                hasMore = false,
+            ),
+            harness = harness,
+        )
+
+        // Selected chip announces "From filter: <formatted date>".
+        composeRule.onNodeWithContentDescription(
+            "From filter: " +
+                com.spendwise.android.core.ui.format.DateFormat.format(
+                    java.time.LocalDate.of(2026, 9, 1),
+                ),
+        ).assertIsDisplayed()
+        // The clear affordance nulls the bound.
+        composeRule.onNodeWithContentDescription("Clear From date filter")
+            .performClick()
+        assertEquals(null, harness.fromFilter)
+    }
+
+    @Test
+    fun dateChip_opensPickerDialog() {
+        screen(
+            TransactionsUiState.Content(
+                items = listOf(txn("t1")),
+                accountNames = emptyMap(),
+                filters = TransactionFilters(),
+                totalElements = 1,
+                hasMore = false,
+            ),
+        )
+
+        composeRule.onNodeWithContentDescription("To filter: all").performClick()
+        // The Material3 DatePickerDialog opens with confirm/dismiss actions.
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText(
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+                .targetContext.getString(R.string.import_result_done),
         ).assertIsDisplayed()
     }
 }

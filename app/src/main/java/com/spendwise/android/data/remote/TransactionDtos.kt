@@ -55,6 +55,24 @@ data class CreateTransactionRequestDto(
     val occurredOn: String,
 )
 
+/**
+ * `TransactionPageResponse` (M15/REQ-BE-007):
+ * `{content:[TransactionResponse], page, size, totalElements,
+ * totalPages, hasNext}` — the paginated ledger envelope from
+ * `GET /api/transactions/page`. `totalElements` is the server-computed
+ * total for the active filter set; `hasNext` drives the list's
+ * load-more affordance.
+ */
+@Serializable
+data class TransactionPageDto(
+    val content: List<TransactionDto>,
+    val page: Int,
+    val size: Int,
+    val totalElements: Long,
+    val totalPages: Int,
+    val hasNext: Boolean,
+)
+
 /** `CategoryResponse` = `{value}` — `value` is the category code itself. */
 @Serializable
 data class CategoryDto(val value: String)

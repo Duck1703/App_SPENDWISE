@@ -62,9 +62,14 @@ and does not decide Android architecture (P4).
 10. **Dedup is a two-tier deterministic `sourceRef` scheme** enforced by
     `UNIQUE(user_id, source_ref)`; re-imports produce `DUPLICATE` rows, not
     errors, and are idempotent. **VERIFIED**.
-11. **No pagination, no date-range filter, no search.** `GET /api/transactions`
-    returns the caller's entire ledger (optionally filtered by
-    `accountId`/`type`/`category`). **VERIFIED**.
+11. **Paged ledger read added (M15 / REQ-BE-007) — superseded.** The unpaged
+    `GET /api/transactions` still returns the caller's entire ledger
+    (optionally filtered by `accountId`/`type`/`category`). The new
+    `GET /api/transactions/page` adds server-side pagination plus
+    `uncategorized`, `provenance`, and inclusive `from`/`to` `occurredOn`
+    bounds — every filter executes server-side. No search/sort params;
+    ordering is fixed `occurredOn DESC, id DESC`. **VERIFIED** (backend
+    `d3e73c8`).
 12. **Error model is RFC-7807 `ProblemDetail`** (PARTIALLY_TYPED): status +
     fixed title + sanitized detail; bean-validation errors add a `fields` map.
     404s have an empty body. Domain messages are deliberately swallowed, so
@@ -154,6 +159,7 @@ body). Sources: controller files in §42.
 | Account | GET | `/api/accounts/{id}` | path `UUID id` | `AccountResponse` | 200 | 404 foreign/unknown, 401 | JWT | `AccountController.java` |
 | Transaction | POST | `/api/transactions` | `CreateTransactionRequest` (+ optional `occurredOn` — **M11 / REQ-BE-001 delivered**) | `TransactionResponse` + `Location` | 201 | 400, 404 unknown/foreign `accountId` | JWT | `TransactionController.java` |
 | Transaction | GET | `/api/transactions` | `?accountId?&type?&category?` | `List<TransactionResponse>` (incl. `occurredOn` — **M11 / REQ-BE-001 delivered**) | 200 | 400 bad enum/UUID, 404 foreign `accountId` | JWT | `TransactionController.java` |
+| Transaction | GET | `/api/transactions/page` | `?accountId?&type?&category?&uncategorized?&provenance?&from?&to?&page&size` | `TransactionPageResponse{content,page,size,totalElements,totalPages,hasNext}` | 200 | 400 bad enum/date/`from>to`/`page<0`/`size∉1..100`/category+uncategorized conflict, 404 foreign `accountId` | JWT | `TransactionController.java` — **M15 / REQ-BE-007 delivered** (`d3e73c8`) |
 | Transaction | GET | `/api/transactions/export` | `?accountId?` | `text/csv` file | 200 | 404 foreign `accountId` | JWT | `CsvExportController.java` |
 | Category | GET | `/api/categories` | — | `List<CategoryResponse>` | 200 | 401 | JWT | `CategoryController.java` |
 | Rules | POST | `/api/categorization-rules` | `CreateCategorizationRuleRequest` | `CategorizationRuleResponse` + `Location` | 201 | 400, 409 duplicate priority | JWT | `CategorizationRuleController.java` |
@@ -348,6 +354,22 @@ Semantics:
   (enum; bad value → 400), `category` (code; unknown value → **empty list,
   no error** — `TransactionService.search` in-memory match). No date, text,
   amount, or sourceRef filters. — VERIFIED.
+- `GET /api/transactions/page` (M15 / REQ-BE-007, backend `d3e73c8`): the
+  paged, fully-server-filtered read. Params: `accountId` (UUID; foreign/
+  unknown → 404), `type` (enum; bad → 400), `category` (code; unknown →
+  empty page), `uncategorized` (true selects null-category rows; with
+  `category` together → 400), `provenance` (MANUAL|IMPORTED|RECURRING|
+  TRANSFER|UNKNOWN → `sourceRef LIKE '<P>:%'`; UNKNOWN → `sourceRef IS
+  NULL` — the column is NOT NULL so it honestly matches nothing), `from`/
+  `to` (ISO `yyyy-MM-dd` on `occurredOn`, inclusive; `from>to` → 400),
+  `page` ≥0 (default 0), `size` 1..100 (default 50). Response
+  `TransactionPageResponse{content,page,size,totalElements,totalPages,
+  hasNext}`; ordering `occurredOn DESC, id DESC` (deterministic —
+  `occurredOn` is non-unique, no `createdAt` exists). Every predicate is
+  owner-scoped (`userId = caller`) — content AND totals can never leak a
+  stranger's rows. JPA `Specification`; fetch joins apply to the data
+  query only, never the count query. Past-the-end → `200 {content:[]}`,
+  not an error. — VERIFIED.
 - `category` on request = code (e.g. `FOOD`); `category` on response = the
   same string (`Category.name()` returns the code — `Category.java`). — VERIFIED.
 - `sourceRef` is set by the server (`MANUAL:<uuid>` for manual creates) and

@@ -1,6 +1,7 @@
 package com.spendwise.android.feature.transactions
 
 import com.spendwise.android.core.model.Transaction
+import com.spendwise.android.core.model.TransactionPage
 import com.spendwise.android.core.model.TransactionProvenance
 import com.spendwise.android.core.model.TransactionType
 import com.spendwise.android.core.network.AppError
@@ -8,15 +9,18 @@ import com.spendwise.android.core.network.AppErrorException
 import com.spendwise.android.fakes.FakeAccountRepository
 import com.spendwise.android.fakes.FakeCategoryRepository
 import com.spendwise.android.data.repository.SessionEndedException
+import com.spendwise.android.data.repository.TransactionRepository
 import com.spendwise.android.fakes.FakeTransactionRepository
 import com.spendwise.android.fakes.MainDispatcherRule
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import java.time.LocalDate
 
 class TransactionsViewModelTest {
 
@@ -39,10 +43,30 @@ class TransactionsViewModelTest {
         ),
     )
 
+    /**
+     * Wrap loaded rows in a one-page server envelope — totalElements
+     * defaults to the row count (a full first page), override for
+     * multi-page scenarios.
+     */
+    private fun page(
+        items: List<Transaction>,
+        page: Int = 0,
+        totalElements: Long = items.size.toLong(),
+        hasNext: Boolean = false,
+        size: Int = TransactionRepository.DEFAULT_PAGE_SIZE,
+    ) = TransactionPage(
+        items = items,
+        page = page,
+        size = size,
+        totalElements = totalElements,
+        totalPages = if (size > 0) ((totalElements + size - 1) / size).toInt() else 0,
+        hasNext = hasNext,
+    )
+
     @Test
     fun `init loads Content with account names for row labels`() = runTest {
         val txns = FakeTransactionRepository()
-        txns.listResult = { _, _, _ -> twoRows() }
+        txns.listPageResult = { page(twoRows()) }
         val accounts = FakeAccountRepository()
         accounts.listResult = { _ -> listOf(FakeAccountRepository.account(id = "acc-1", name = "Wallet")) }
 
@@ -51,80 +75,91 @@ class TransactionsViewModelTest {
         val state = viewModel.state.value as TransactionsUiState.Content
         assertEquals(2, state.items.size)
         assertEquals("Wallet", state.accountNames["acc-1"])
-        assertEquals(1, txns.listCalls.size)
+        assertEquals(1, txns.pageCalls.size)
+        assertEquals(0, txns.pageCalls.single().page)
+        assertEquals(TransactionRepository.DEFAULT_PAGE_SIZE, txns.pageCalls.single().size)
     }
 
     @Test
-    fun `empty server list without filters is the Empty entry state`() = runTest {
+    fun `empty server page without filters is the Empty entry state`() = runTest {
         val viewModel = vm()
 
         assertEquals(TransactionsUiState.Empty, viewModel.state.value)
     }
 
     @Test
-    fun `server filters hit the repository while provenance stays client-side`() = runTest {
+    fun `every filter selection is a real server parameter`() = runTest {
+        // M15: provenance, uncategorized and date bounds all travel on
+        // the wire — a client-side pass over page N would hide matches
+        // on not-yet-loaded pages.
         val txns = FakeTransactionRepository()
-        txns.listResult = { _, _, _ -> twoRows() }
+        txns.listPageResult = { page(twoRows()) }
         val viewModel = vm(txns)
 
         viewModel.onAccountFilter("a1")
         viewModel.onTypeFilter(TransactionType.EXPENSE)
         viewModel.onCategoryFilter(CategorySelection.Code("FOOD"))
         viewModel.onProvenanceFilter(TransactionProvenance.IMPORTED)
+        viewModel.onFromFilter(LocalDate.of(2026, 9, 1))
+        viewModel.onToFilter(LocalDate.of(2026, 9, 30))
 
-        val call = txns.listCalls.last()
+        val call = txns.pageCalls.last()
         assertEquals("a1", call.accountId)
         assertEquals(TransactionType.EXPENSE, call.type)
         assertEquals("FOOD", call.category)
-        // IMPORTED is never sent — it filters the fetched rows locally.
+        assertEquals(false, call.uncategorized)
+        assertEquals(TransactionProvenance.IMPORTED, call.provenance)
+        assertEquals(LocalDate.of(2026, 9, 1), call.from)
+        assertEquals(LocalDate.of(2026, 9, 30), call.to)
         val state = viewModel.state.value as TransactionsUiState.Content
-        assertEquals(listOf("t2"), state.items.map { it.id })
-        assertTrue(state.noMatches.not())
+        assertEquals(2, state.items.size)
+        assertTrue(state.filters.hasDateRange)
     }
 
     @Test
-    fun `uncategorized selection is a local null-category pass`() = runTest {
+    fun `uncategorized selection sends the server flag, not a category`() = runTest {
         val txns = FakeTransactionRepository()
-        txns.listResult = { _, _, _ -> twoRows() }
+        txns.listPageResult = { page(twoRows()) }
         val viewModel = vm(txns)
 
         viewModel.onCategoryFilter(CategorySelection.Uncategorized)
 
-        // Never a server param for the uncategorized view.
-        assertEquals(null, txns.listCalls.last().category)
-        val state = viewModel.state.value as TransactionsUiState.Content
-        assertEquals(listOf("t2"), state.items.map { it.id })
+        val call = txns.pageCalls.last()
+        assertEquals(true, call.uncategorized)
+        assertNull(call.category)
     }
 
     @Test
     fun `filtered to zero keeps Content with noMatches`() = runTest {
         val txns = FakeTransactionRepository()
-        txns.listResult = { _, _, _ -> emptyList() }
+        txns.listPageResult = { page(emptyList(), totalElements = 0) }
         val viewModel = vm(txns)
 
         viewModel.onTypeFilter(TransactionType.EXPENSE)
 
         val state = viewModel.state.value as TransactionsUiState.Content
         assertTrue(state.noMatches)
+        assertEquals(0L, state.totalElements)
+        assertFalse(state.hasMore)
     }
 
     @Test
     fun `refresh re-runs the identical query — the nonce defeats conflation`() = runTest {
         val txns = FakeTransactionRepository()
-        txns.listResult = { _, _, _ -> twoRows() }
+        txns.listPageResult = { page(twoRows()) }
         val viewModel = vm(txns)
 
         viewModel.refresh()
 
-        assertEquals(2, txns.listCalls.size)
+        assertEquals(2, txns.pageCalls.size)
     }
 
     @Test
     fun `refresh failure over live content stays an inline banner`() = runTest {
         val txns = FakeTransactionRepository()
         var fail = false
-        txns.listResult = { _, _, _ ->
-            if (fail) throw AppErrorException(AppError.NetworkUnavailable) else twoRows()
+        txns.listPageResult = {
+            if (fail) throw AppErrorException(AppError.NetworkUnavailable) else page(twoRows())
         }
         val viewModel = vm(txns)
 
@@ -140,7 +175,7 @@ class TransactionsViewModelTest {
     @Test
     fun `initial failure maps to the retryable error state`() = runTest {
         val txns = FakeTransactionRepository()
-        txns.listResult = { _, _, _ -> throw AppErrorException(AppError.Server(500)) }
+        txns.listPageResult = { throw AppErrorException(AppError.Server(500)) }
 
         val viewModel = vm(txns)
 
@@ -153,26 +188,24 @@ class TransactionsViewModelTest {
     @Test
     fun `a create mutation reloads the current view`() = runTest {
         val txns = FakeTransactionRepository()
-        txns.listResult = { _, _, _ -> twoRows() }
+        txns.listPageResult = { page(twoRows()) }
         val viewModel = vm(txns)
-        assertEquals(1, txns.listCalls.size)
+        assertEquals(1, txns.pageCalls.size)
 
         txns.emitMutation()
 
-        assertEquals(2, txns.listCalls.size)
+        assertEquals(2, txns.pageCalls.size)
     }
 
     @Test
     fun `latest filter wins — a superseded response never publishes`() = runTest {
         val txns = FakeTransactionRepository()
-        val gateExpense = CompletableDeferred<List<Transaction>>()
+        val gateExpense = CompletableDeferred<TransactionPage>()
         val incomeRows = listOf(
             FakeTransactionRepository.transaction(id = "t9", type = TransactionType.INCOME, category = "SALARY"),
         )
-        var calls = 0
-        txns.listResult = { _, type, _ ->
-            calls++
-            if (type == TransactionType.EXPENSE) gateExpense.await() else incomeRows
+        txns.listPageResult = { call ->
+            if (call.type == TransactionType.EXPENSE) gateExpense.await() else page(incomeRows)
         }
         val viewModel = vm(txns)
 
@@ -184,7 +217,7 @@ class TransactionsViewModelTest {
 
         // The parked fetch's cancellation already ran; completing the gate
         // is a no-op — state must remain the latest filter's result.
-        gateExpense.complete(twoRows())
+        gateExpense.complete(page(twoRows()))
         assertEquals(listOf("t9"), (viewModel.state.value as TransactionsUiState.Content).items.map { it.id })
     }
 
@@ -192,8 +225,8 @@ class TransactionsViewModelTest {
     fun `SessionExpired on first load stays Loading and onVisible reloads`() = runTest {
         val txns = FakeTransactionRepository()
         var expired = true
-        txns.listResult = { _, _, _ ->
-            if (expired) throw AppErrorException(AppError.SessionExpired) else twoRows()
+        txns.listPageResult = {
+            if (expired) throw AppErrorException(AppError.SessionExpired) else page(twoRows())
         }
         val viewModel = vm(txns)
 
@@ -208,11 +241,12 @@ class TransactionsViewModelTest {
 
     @Test
     fun `SessionExpired on the account-name leg still reloads on resume`() = runTest {
-        // Regression: list() succeeds but the trailing accountNames()
-        // call hits the expired session — the load was still in flight,
-        // so onVisible() must re-run it (not leave a stuck skeleton).
+        // Regression: the page fetch succeeds but the trailing
+        // accountNames() call hits the expired session — the load was
+        // still in flight, so onVisible() must re-run it (not leave a
+        // stuck skeleton).
         val txns = FakeTransactionRepository()
-        txns.listResult = { _, _, _ -> twoRows() }
+        txns.listPageResult = { page(twoRows()) }
         val accounts = FakeAccountRepository()
         var expired = true
         accounts.listResult = { _ ->
@@ -237,8 +271,8 @@ class TransactionsViewModelTest {
     fun `SessionExpired during refresh preserves content and stops refreshing`() = runTest {
         val txns = FakeTransactionRepository()
         var expired = false
-        txns.listResult = { _, _, _ ->
-            if (expired) throw AppErrorException(AppError.SessionExpired) else twoRows()
+        txns.listPageResult = {
+            if (expired) throw AppErrorException(AppError.SessionExpired) else page(twoRows())
         }
         val viewModel = vm(txns)
 
@@ -257,8 +291,8 @@ class TransactionsViewModelTest {
         // re-run the aborted load, not sit on the skeleton forever.
         val txns = FakeTransactionRepository()
         var dead = true
-        txns.listResult = { _, _, _ ->
-            if (dead) throw SessionEndedException() else twoRows()
+        txns.listPageResult = {
+            if (dead) throw SessionEndedException() else page(twoRows())
         }
         val viewModel = vm(txns)
 
@@ -275,8 +309,8 @@ class TransactionsViewModelTest {
     fun `dead-generation mid-refresh clears isRefreshing and reloads on resume`() = runTest {
         val txns = FakeTransactionRepository()
         var dead = false
-        txns.listResult = { _, _, _ ->
-            if (dead) throw SessionEndedException() else twoRows()
+        txns.listPageResult = {
+            if (dead) throw SessionEndedException() else page(twoRows())
         }
         val viewModel = vm(txns)
 
@@ -292,13 +326,13 @@ class TransactionsViewModelTest {
 
         state = viewModel.state.value as TransactionsUiState.Content
         assertEquals(2, state.items.size)
-        assertEquals(3, txns.listCalls.size)
+        assertEquals(3, txns.pageCalls.size)
     }
 
     @Test
     fun `dead-generation on options reloads the filter options on resume`() = runTest {
         val txns = FakeTransactionRepository()
-        txns.listResult = { _, _, _ -> twoRows() }
+        txns.listPageResult = { page(twoRows()) }
         val accounts = FakeAccountRepository()
         var dead = true
         accounts.listResult = { _ ->
@@ -321,15 +355,214 @@ class TransactionsViewModelTest {
     @Test
     fun `clear filters restores the unfiltered server call`() = runTest {
         val txns = FakeTransactionRepository()
-        txns.listResult = { _, _, _ -> twoRows() }
+        txns.listPageResult = { page(twoRows()) }
         val viewModel = vm(txns)
 
         viewModel.onAccountFilter("a1")
+        viewModel.onFromFilter(LocalDate.of(2026, 9, 1))
         viewModel.clearFilters()
 
-        val call = txns.listCalls.last()
-        assertEquals(null, call.accountId)
-        assertEquals(null, call.type)
-        assertEquals(null, call.category)
+        val call = txns.pageCalls.last()
+        assertNull(call.accountId)
+        assertNull(call.type)
+        assertNull(call.category)
+        assertNull(call.from)
+        assertNull(call.to)
+        assertNull(call.provenance)
+        assertEquals(false, call.uncategorized)
+    }
+
+    // ── M15: paging state machine ─────────────────────────────────────
+
+    @Test
+    fun `loadNextPage appends the next server page and keeps metadata honest`() = runTest {
+        val txns = FakeTransactionRepository()
+        txns.listPageResult = { call ->
+            when (call.page) {
+                0 -> page(listOf(FakeTransactionRepository.transaction(id = "t1")), totalElements = 3, hasNext = true)
+                else -> page(
+                    listOf(
+                        FakeTransactionRepository.transaction(id = "t2"),
+                        FakeTransactionRepository.transaction(id = "t3"),
+                    ),
+                    page = call.page,
+                    totalElements = 3,
+                    hasNext = false,
+                )
+            }
+        }
+        val viewModel = vm(txns)
+
+        var state = viewModel.state.value as TransactionsUiState.Content
+        assertEquals(1, state.items.size)
+        assertEquals(3L, state.totalElements)
+        assertTrue(state.hasMore)
+
+        viewModel.loadNextPage()
+
+        state = viewModel.state.value as TransactionsUiState.Content
+        assertEquals(listOf("t1", "t2", "t3"), state.items.map { it.id })
+        assertEquals(3L, state.totalElements)
+        assertFalse(state.hasMore)
+        assertFalse(state.loadingMore)
+        assertEquals(1, txns.pageCalls.last().page)
+    }
+
+    @Test
+    fun `loadNextPage is a no-op at the end of the ledger`() = runTest {
+        val txns = FakeTransactionRepository()
+        txns.listPageResult = { page(twoRows(), hasNext = false) }
+        val viewModel = vm(txns)
+
+        viewModel.loadNextPage()
+
+        assertEquals(1, txns.pageCalls.size) // only the initial fetch
+    }
+
+    @Test
+    fun `loadNextPage never double-fires while a page is in flight`() = runTest {
+        val txns = FakeTransactionRepository()
+        val gate = CompletableDeferred<TransactionPage>()
+        txns.listPageResult = { call ->
+            if (call.page == 0) page(twoRows(), totalElements = 4, hasNext = true) else gate.await()
+        }
+        val viewModel = vm(txns)
+
+        viewModel.loadNextPage() // parks on the gate
+        viewModel.loadNextPage() // must no-op — loadingMore is set
+        viewModel.loadNextPage()
+
+        assertEquals(2, txns.pageCalls.size)
+        assertTrue((viewModel.state.value as TransactionsUiState.Content).loadingMore)
+
+        gate.complete(
+            page(
+                listOf(FakeTransactionRepository.transaction(id = "t3")),
+                page = 1,
+                totalElements = 4,
+                hasNext = false,
+            ),
+        )
+        val state = viewModel.state.value as TransactionsUiState.Content
+        assertEquals(3, state.items.size)
+        assertFalse(state.loadingMore)
+    }
+
+    @Test
+    fun `a failed page append surfaces an inline error and keeps the rows`() = runTest {
+        val txns = FakeTransactionRepository()
+        var fail = false
+        txns.listPageResult = { call ->
+            if (fail) {
+                throw AppErrorException(AppError.NetworkUnavailable)
+            } else {
+                page(twoRows(), page = call.page, totalElements = 4, hasNext = true)
+            }
+        }
+        val viewModel = vm(txns)
+
+        fail = true
+        viewModel.loadNextPage()
+
+        val state = viewModel.state.value as TransactionsUiState.Content
+        assertEquals(2, state.items.size) // page 0 untouched
+        assertEquals(TransactionsError.Network, state.moreError)
+        assertFalse(state.loadingMore)
+        assertTrue(state.hasMore) // retry still possible
+    }
+
+    @Test
+    fun `a late page response after a filter change publishes nothing`() = runTest {
+        // The page-1 fetch belongs to query N; the user changes a filter
+        // mid-flight — the late response must not append into query N+1.
+        val txns = FakeTransactionRepository()
+        val gate = CompletableDeferred<TransactionPage>()
+        var page1Armed = false
+        txns.listPageResult = { call ->
+            if (page1Armed && call.page == 1) {
+                gate.await()
+            } else {
+                page(twoRows(), page = call.page, totalElements = 4, hasNext = true)
+            }
+        }
+        val viewModel = vm(txns)
+
+        page1Armed = true
+        viewModel.loadNextPage() // parks on the gate under query N
+
+        page1Armed = false
+        viewModel.onTypeFilter(TransactionType.EXPENSE) // query N+1
+
+        gate.complete(
+            page(
+                listOf(FakeTransactionRepository.transaction(id = "stale-1")),
+                page = 1,
+                totalElements = 4,
+                hasNext = false,
+            ),
+        )
+
+        val state = viewModel.state.value as TransactionsUiState.Content
+        // The stale append never landed: still the EXPENSE query's 2 rows.
+        assertEquals(listOf("t1", "t2"), state.items.map { it.id })
+        assertFalse(state.loadingMore)
+    }
+
+    @Test
+    fun `a filter change resets paging to page 0`() = runTest {
+        val txns = FakeTransactionRepository()
+        txns.listPageResult = { call -> page(twoRows(), page = call.page, totalElements = 4, hasNext = true) }
+        val viewModel = vm(txns)
+        viewModel.loadNextPage()
+        assertEquals(1, txns.pageCalls.last().page)
+
+        viewModel.onTypeFilter(TransactionType.INCOME)
+
+        assertEquals(0, txns.pageCalls.last().page)
+    }
+
+    @Test
+    fun `date filters reset paging and travel as LocalDate`() = runTest {
+        val txns = FakeTransactionRepository()
+        txns.listPageResult = { call -> page(twoRows(), page = call.page, totalElements = 4, hasNext = true) }
+        val viewModel = vm(txns)
+        viewModel.loadNextPage()
+
+        viewModel.onFromFilter(LocalDate.of(2026, 8, 1))
+        viewModel.onToFilter(LocalDate.of(2026, 8, 31))
+
+        val call = txns.pageCalls.last()
+        assertEquals(0, call.page)
+        assertEquals(LocalDate.of(2026, 8, 1), call.from)
+        assertEquals(LocalDate.of(2026, 8, 31), call.to)
+    }
+
+    @Test
+    fun `SessionExpired mid-append keeps content without a fake error`() = runTest {
+        val txns = FakeTransactionRepository()
+        var expired = false
+        txns.listPageResult = { call ->
+            if (expired) {
+                throw AppErrorException(AppError.SessionExpired)
+            } else {
+                page(twoRows(), page = call.page, totalElements = 4, hasNext = true)
+            }
+        }
+        val viewModel = vm(txns)
+
+        expired = true
+        viewModel.loadNextPage()
+
+        val state = viewModel.state.value as TransactionsUiState.Content
+        assertEquals(2, state.items.size)
+        assertFalse(state.loadingMore)
+        // The overlay owns expiry — no misleading inline error.
+        assertNull(state.moreError)
+
+        // Same-user resume re-runs the query.
+        expired = false
+        viewModel.onVisible()
+        assertEquals(3, txns.pageCalls.size)
+        assertEquals(0, txns.pageCalls.last().page) // resume = fresh page 0
     }
 }
