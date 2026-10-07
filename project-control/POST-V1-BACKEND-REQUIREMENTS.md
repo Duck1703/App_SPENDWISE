@@ -68,13 +68,17 @@ Ordered by unlock value.
   flag). Define archived-account semantics: hidden from pickers, still
   in ledger/balances.
 
-## REQ-BE-011 — Budget edit/delete
+## REQ-BE-011 — Budget edit/delete — **IN_DELIVERY (M14)**
 
 - Contract: `PATCH /api/budgets/{id}` (amount/period) and/or
   `DELETE /api/budgets/{id}`. Must resolve the unique category+month
   constraint for "wrong current-month budget" fix.
+- M14 shape: `PATCH {limit?, period?}` (≥1 field → 400 otherwise;
+  currency/category immutable — delete+recreate is the remedy);
+  owner-scoped 404; collision → 409; `DELETE` → 204 hard delete
+  (budgets are planning objects, not ledger — no schema change).
 
-## REQ-BE-002 — Refresh token — **IN_DELIVERY (M13)**
+## REQ-BE-002 — Refresh token — **DELIVERED (M13)**
 
 - Contract: refresh-token issuance at login, rotation on use,
   revocation list (extend `TokenBlacklist` concept), reuse detection,
