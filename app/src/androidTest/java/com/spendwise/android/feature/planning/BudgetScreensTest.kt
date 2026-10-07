@@ -144,9 +144,11 @@ class BudgetScreensTest {
         }
         val ctx = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
             .targetContext
-        // Dialog is open — the user can press Save and it reaches the VM.
+        // Dialog is open — assert on the dialog-only Save affordance
+        // (the title text "Edit budget" also matches the screen's Edit
+        // button, so a title assertion is ambiguous on a real runtime).
         composeRule.onNodeWithText(
-            ctx.getString(com.spendwise.android.R.string.budget_edit_dialog_title),
+            ctx.getString(com.spendwise.android.R.string.budget_edit_save),
         ).assertIsDisplayed()
         composeRule.onNodeWithText(
             ctx.getString(com.spendwise.android.R.string.budget_edit_save),
