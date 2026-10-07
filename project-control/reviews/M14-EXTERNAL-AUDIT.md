@@ -35,12 +35,27 @@ VERDICT: BLOCKED_PHYSICAL_RUNTIME — every code/contract/safety gate
 ```
 DEVICE=NONE — `adb devices -l` empty across 5+ checks including an
 adb server restart. Pixel 4 XL not attached.
-RUN_1/RUN_2: NOT EXECUTED.
+PHYSICAL RUN_1/RUN_2: NOT EXECUTED.
 M14_PHYSICAL_RUNTIME=BLOCKED
+
+SUPPLEMENTARY RUNTIME (does NOT substitute for the physical gate):
+AVD Spendwise_M8_Acceptance (API 36, emulator-5554):
+  run 1: 180 tests, 1 failure — a REAL defect in the delivered
+         connected test `detail_editOpensDialog_andSavePropagates`
+         (assertIsDisplayed on "Edit budget" matched both the
+         screen's Edit button and the dialog title → 2-node
+         ambiguity). Fixed by asserting the dialog-only Save
+         affordance (commit 841b04c).
+  run 2: 180/180 PASS (post-fix)
+  run 3: 180/180 PASS (independent clean rerun)
+M14_EMULATOR_RUNTIME=PASS (180/180 ×2 consecutive, post-fix)
 ```
 
-Per the audit mandate this alone forbids Human approval regardless of
-all other evidence.
+Per the audit mandate the missing physical-device evidence alone
+forbids Human approval regardless of all other evidence. The two
+clean emulator passes remove any residual runtime doubt but do not
+satisfy the canonical physical-Pixel gate (all prior milestones
+closed on physical hardware; no equivalent-evidence clause exists).
 
 ## 4. Falsification matrix — every claim attacked
 
@@ -147,7 +162,8 @@ all other evidence.
 | Serializers | 44 `@Serializable` in remote DTOs; `UpdateBudgetRequestDto`+`BudgetDto` kept in mapping.txt |
 | Manifest | INTERNET + self receiver permission only; `usesCleartextTraffic="false"`; datastore excluded from backup + device-transfer |
 | Sensitive logging | none in M14 surfaces |
-| Connected device | **BLOCKED — no device attached** |
+| Connected — physical | **BLOCKED — no device attached** |
+| Connected — emulator | **180/180 ×2 consecutive** after fixing a genuine delivered-test defect (ambiguous dialog-title assertion; commit `841b04c`) |
 
 ## 6. Internal-review comparison
 
@@ -166,6 +182,10 @@ reproduced. INTERNAL_FINDINGS_CONFIRMED=3; EXTERNAL_ONLY_FINDINGS=6
 - Android `acb807c`: 2 minor fixes (dialog identity; NotFound dialog
   close) + 4 proofs (pre-send PATCH/DELETE, dead-generation Ambiguous,
   new-period reload) + Compose identity assertion.
+- Android `841b04c`: connected-test defect fix — the delivered
+  `detail_editOpensDialog_andSavePropagates` asserted a text that
+  existed twice on a real runtime; now asserts the dialog-only Save
+  affordance. Verified 180/180 ×2 on the emulator.
 - UNRESOLVED_BLOCKERS=0, UNRESOLVED_MAJORS=0.
 
 ## 8. Final verdict
@@ -180,7 +200,7 @@ DELETE_CONCURRENCY=PASS(documented)
 M13_NO_REPLAY=PASS               SERVER_TRUTH=PASS
 SESSION_PRIVACY=PASS             TEST_INTEGRITY=PASS(post-remediation)
 RELEASE_SAFETY=PASS              PHYSICAL_RUNTIME=BLOCKED
-M0_M13_REGRESSION=PASS
+EMULATOR_RUNTIME=PASS(180/180×2) M0_M13_REGRESSION=PASS
 ```
 
 The code is audit-clean: every blocker-class and major-class invariant
