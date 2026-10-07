@@ -1,6 +1,8 @@
 package com.spendwise.android.feature.planning
 
 import androidx.lifecycle.SavedStateHandle
+import com.spendwise.android.core.model.CurrencyCode
+import com.spendwise.android.core.model.Money
 import com.spendwise.android.core.model.RecurringFrequency
 import com.spendwise.android.core.model.TransactionType
 import com.spendwise.android.core.network.AppError
@@ -10,6 +12,7 @@ import com.spendwise.android.fakes.FakeAccountRepository
 import com.spendwise.android.fakes.FakeCategoryRepository
 import com.spendwise.android.fakes.FakeRecurringRepository
 import com.spendwise.android.fakes.MainDispatcherRule
+import java.math.BigDecimal
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -232,6 +235,26 @@ class RecurringViewModelsTest {
         val vm = detailVm(recurring, id = "foreign")
         runCurrent()
         assertEquals(RecurringDetailState.NotFound, vm.state.value)
+    }
+
+    @Test
+    fun `a mutations emission reloads detail to server truth`() = runTest {
+        val recurring = FakeRecurringRepository()
+        val vm = detailVm(recurring)
+        runCurrent()
+        val initial = vm.state.value as RecurringDetailState.Content
+        assertEquals(0, initial.template.amount.amount.compareTo(BigDecimal("1200.00")))
+
+        // An edit lands elsewhere (the edit screen); the mutations
+        // signal must re-pull the template — server truth, not a
+        // locally-patched copy.
+        recurring.findResult = {
+            FakeRecurringRepository.template(id = it, amount = Money(BigDecimal("999.99"), CurrencyCode("VND")))
+        }
+        recurring.emitMutation()
+        runCurrent()
+        val reloaded = vm.state.value as RecurringDetailState.Content
+        assertEquals(0, reloaded.template.amount.amount.compareTo(BigDecimal("999.99")))
     }
 
     @Test

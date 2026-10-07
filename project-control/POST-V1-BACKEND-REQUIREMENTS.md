@@ -121,7 +121,7 @@ Ordered by unlock value.
   fields (currently accepted but dropped after rule-matching).
 - Schema change; medium.
 
-## REQ-BE-012 — Recurring template edit — **IN_DELIVERY (M16)**
+## REQ-BE-012 — Recurring template edit — **DELIVERED (M16, audit-accepted)**
 
 - Gap: templates are create/list/detail/deactivate only; a changed
   amount/schedule/category forces deactivate + recreate.
@@ -133,7 +133,9 @@ Ordered by unlock value.
   the only active-state transition).
 - Semantics: edits apply to future generation only — the scheduler
   reads template fields at fire time; generated ledger rows are
-  never rewritten. No schema change.
+  never rewritten. Bounded schema change added at M16 external audit:
+  `V11__recurring_version.sql` (`version` column for `@Version`
+  optimistic locking — closes the scheduler/edit lost-update).
 - Unlock: true recurring maintenance UX replacing the
   deactivate+recreate stopgap (M14 lifecycle precedent).
 

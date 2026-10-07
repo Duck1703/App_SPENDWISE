@@ -5,10 +5,11 @@ import kotlinx.serialization.Serializable
 import java.math.BigDecimal
 
 /**
- * `RecurringTransactionResponse` / `CreateRecurringTransactionRequest`
- * (verified against `RecurringTransactionController`,
- * `RecurringTransactionResponse`, `CreateRecurringTransactionRequest`
- * at backend `8194daa`).
+ * `RecurringTransactionResponse` / `CreateRecurringTransactionRequest` /
+ * `UpdateRecurringTransactionRequest` (verified against
+ * `RecurringTransactionController`, `RecurringTransactionResponse`,
+ * `CreateRecurringTransactionRequest` at backend `8194daa`;
+ * `UpdateRecurringTransactionRequest` at `eeb2c2f` + audit `133fe18`).
  *
  * Dates are ISO `YYYY-MM-DD` (`LocalDate` on the wire); `direction` and
  * `frequency` arrive as enum names; `category` is the code or null.
@@ -28,14 +29,6 @@ data class RecurringTransactionDto(
     val active: Boolean,
 )
 
-/**
- * `{accountId, direction, amount, currency, category?, frequency,
- * nextDueDate, endDate?}` — `direction` is `INCOME`/`EXPENSE`,
- * `frequency` is `WEEKLY`/`MONTHLY`, dates ISO `YYYY-MM-DD`. Null
- * optionals stay off the wire. `currency` is locked to the chosen
- * account's currency client-side (PRODUCT §158 defect mitigation — the
- * server does not cross-check).
- */
 /**
  * `UpdateRecurringTransactionRequest` for `PATCH
  * /api/recurring-transactions/{id}` (REQ-BE-012, backend `eeb2c2f`).
@@ -59,6 +52,14 @@ data class UpdateRecurringRequestDto(
     val clearEndDate: Boolean = false,
 )
 
+/**
+ * `{accountId, direction, amount, currency, category?, frequency,
+ * nextDueDate, endDate?}` — `direction` is `INCOME`/`EXPENSE`,
+ * `frequency` is `WEEKLY`/`MONTHLY`, dates ISO `YYYY-MM-DD`. Null
+ * optionals stay off the wire. `currency` is locked to the chosen
+ * account's currency client-side (PRODUCT §158 defect mitigation — the
+ * server does not cross-check).
+ */
 @Serializable
 data class CreateRecurringRequestDto(
     val accountId: String,

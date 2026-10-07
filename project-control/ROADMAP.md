@@ -31,7 +31,7 @@ High-level phase plan. Milestone briefs are created per phase by ATLAS using
 | M13 | Session Refresh / Token Renewal (REQ-BE-002 `POST /api/auth/refresh`, rotating refresh token, logout revocation, single-flight client renewal) | HUMAN_APPROVED — COMPLETE (external audit ACCEPTED: 0 blocker / 0 major, 5 minor remediated in-audit; JVM 570/570, connected 178/178 ×2, backend 330 tests with 1 pre-existing env flake proven file-identical to M12 baseline; backend `f1ac79a` + bounded test additions under human authorization) (see [milestones/M13-SESSION-REFRESH.md](milestones/M13-SESSION-REFRESH.md), [reviews/M13-EXTERNAL-AUDIT-VERDICT.md](reviews/M13-EXTERNAL-AUDIT-VERDICT.md), [reviews/M13-SENTINEL-REVIEW.md](reviews/M13-SENTINEL-REVIEW.md), [reviews/M13-ARGUS-REVIEW.md](reviews/M13-ARGUS-REVIEW.md)) |
 | M14 | Budget Lifecycle (REQ-BE-011 `PATCH`/`DELETE /api/budgets/{id}` + Android edit/delete on budget detail) | COMPLETE — external audit **ACCEPTED**, human-approved via conditional authorization; physical Pixel 4 XL gate PASSED (180/180 ×2 full connected runs, incl. edit/delete flow tests on-device); every contract/safety gate proven (wire-level M13 no-replay, real-tx collision atomicity, ledger untouched, delete→recreate); JVM 596/596, backend 350 tests with 1 documented baseline flake, release verified, emulator 180/180 ×2 supplementary (see [milestones/M14-BUDGET-LIFECYCLE.md](milestones/M14-BUDGET-LIFECYCLE.md), [reviews/M14-EXTERNAL-AUDIT.md](reviews/M14-EXTERNAL-AUDIT.md)) |
 | M15 | Scalable Transaction History (REQ-BE-007 `GET /api/transactions/page` + lazy-paged Transactions tab + From/To date filter) | COMPLETE — external audit **ACCEPTED**, human-approved via conditional authorization; physical Pixel 4 XL gate PASSED (186/186 ×2 final-source + 186/186 ×2 preliminary); audit remediated 1 Major + 3 Minor in-task (ebd966a, backend ef08539); backend 15/15 contract + 365 regression (1 documented baseline flake), JVM 617/617, release R8 verified (see [milestones/M15-TRANSACTION-HISTORY.md](milestones/M15-TRANSACTION-HISTORY.md), [reviews/M15-EXTERNAL-AUDIT.md](reviews/M15-EXTERNAL-AUDIT.md), [reviews/M15-SENTINEL-REVIEW.md](reviews/M15-SENTINEL-REVIEW.md), [reviews/M15-ARGUS-REVIEW.md](reviews/M15-ARGUS-REVIEW.md)) |
-| M16 | Recurring Template Lifecycle (REQ-BE-012 `PATCH /api/recurring-transactions/{id}` + Android edit flow on recurring detail) | READY_FOR_EXTERNAL_AUDIT — backend PATCH + Android edit flow delivered; Sentinel/Argus PASS (0 Blocker/Major); all gates green (backend focused 11/11, Android JVM 651/651, lint/detekt/release green, physical Pixel 4 XL 193/193 ×2, installed+launched). External audit pending — not performed in-task. M17 is not defined (see [milestones/M16-RECURRING-LIFECYCLE.md](milestones/M16-RECURRING-LIFECYCLE.md), [reviews/M16-EXTERNAL-AUDIT-HANDOFF.md](reviews/M16-EXTERNAL-AUDIT-HANDOFF.md)) |
+| M16 | Recurring Template Lifecycle (REQ-BE-012 `PATCH /api/recurring-transactions/{id}` + Android edit flow on recurring detail) | COMPLETE — external audit ACCEPTED, Human-approved. Audit remediated 1 Major (recurring `@Version` lost-update vs scheduler) + minors in-task; all gates re-green on final source (backend 383/383, Android JVM 653/653, lint/detekt/release/R8 green, physical 193/193 ×4, installed+launched). M17 is not defined (see [milestones/M16-RECURRING-LIFECYCLE.md](milestones/M16-RECURRING-LIFECYCLE.md), [reviews/M16-EXTERNAL-AUDIT.md](reviews/M16-EXTERNAL-AUDIT.md)) |
 
 **Canonical sequence M0–M8 fully delivered and release-accepted.** V1
 was validated on emulator AND physical hardware (135/135 connected ×2
@@ -91,19 +91,21 @@ Human-approved (see
 [reviews/M15-EXTERNAL-AUDIT.md](reviews/M15-EXTERNAL-AUDIT.md)).
 
 **M16 (Recurring Template Lifecycle — REQ-BE-012 template edit) is
-READY_FOR_EXTERNAL_AUDIT.** Backend `eeb2c2f` + Android `f8d855e`:
+COMPLETE — external audit ACCEPTED and Human-approved.** Backend
+`eeb2c2f` + audit hardening `133fe18`/`ca5b380` + Android `f8d855e`:
 bounded `PATCH /api/recurring-transactions/{id}` (amount,
 category/clear, frequency, nextDueDate, endDate/clear — all optional,
 ≥1 required) with a complete Android edit flow on recurring detail.
-Edits affect future generation only; ledger rows never rewritten —
-proven by the generate→edit→verify contract test. Sentinel + Argus
-both PASS (0 Blocker/Major, 2 documented Minor/Note); physical
-Pixel 4 XL suite 193/193 ×2 on final source; final build installed
-and launched on the device. The independent external audit remains
-pending — not performed in-task
+Edits affect future generation only; ledger rows never rewritten.
+Independent external audit remediated 1 Major (recurring-entity
+`@Version` — scheduler/edit lost-update, now 409 via the existing
+handler) + minors in-task; all gates re-green on final source:
+backend 383/383, Android JVM 653/653, lint 0 errors, detekt 0,
+release/R8 + serializer + manifest green, physical Pixel 4 XL
+193/193 ×4, installed + launched
 (see [milestones/M16-RECURRING-LIFECYCLE.md](milestones/M16-RECURRING-LIFECYCLE.md),
-[reviews/M16-EXTERNAL-AUDIT-HANDOFF.md](reviews/M16-EXTERNAL-AUDIT-HANDOFF.md)).
-M0–M15 COMPLETE; M17 is not defined.
+[reviews/M16-EXTERNAL-AUDIT.md](reviews/M16-EXTERNAL-AUDIT.md)).
+M0–M16 COMPLETE; M17 is not defined.
 Remaining product-gated capabilities (transaction correction,
 account lifecycle, persisted notes, FX) stay gated.
 

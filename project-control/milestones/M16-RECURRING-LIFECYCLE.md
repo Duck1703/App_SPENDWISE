@@ -1,21 +1,22 @@
 # M16 — Recurring Template Lifecycle (edit)
 
 ```
-STATUS: IN_DELIVERY
+STATUS: COMPLETE
 M15_COMPLETE=YES
 M16_DEFINED=YES
 M16_STARTED=YES
-M16_TECHNICAL_COMPLETE=NO
-M16_READY_FOR_EXTERNAL_AUDIT=NO
-M16_HUMAN_APPROVED=NO
+M16_TECHNICAL_COMPLETE=YES
+M16_READY_FOR_EXTERNAL_AUDIT=YES
+M16_EXTERNAL_AUDIT_FINAL=ACCEPTED
+M16_HUMAN_APPROVED=YES
 M16_HUMAN_AUTHORIZATION=EXPLICIT (M16 delivery block)
 CANONICAL_REQUIREMENT=REQ-BE-012 (new register entry —
   recurring template edit; lifecycle completion, M14 precedent)
-RECURRING_LIFECYCLE_EDIT=IN_DELIVERY
+RECURRING_LIFECYCLE_EDIT=APPROVED
 M17_DEFINED=NO
 M17_STARTED=NO
-SPENDWISE_STATUS=M16_IN_DELIVERY
-NEXT_ACTION=ONE_LARGE_INDEPENDENT_EXTERNAL_M16_AUDIT (after gates)
+SPENDWISE_STATUS=M16_COMPLETE
+NEXT_ACTION=HUMAN_M17_DECISION
 BASELINE: Android 102ced2 (M15-accepted) · Backend ef08539
 ```
 
@@ -164,7 +165,9 @@ synchronization pass. `COURSE_UPDATE_EXECUTED=NO`.
 ```
 M16_TECHNICAL_COMPLETE=YES
 M16_READY_FOR_EXTERNAL_AUDIT=YES
-M16_HUMAN_APPROVED=NO
+M16_EXTERNAL_AUDIT_FINAL=ACCEPTED
+M16_HUMAN_APPROVED=YES
+M16_STATUS=COMPLETE
 M17_DEFINED=NO
 M17_STARTED=NO
 PUSH_PERFORMED=NO
@@ -183,4 +186,13 @@ Reviews: [reviews/M16-SENTINEL-REVIEW.md](../reviews/M16-SENTINEL-REVIEW.md)
 PASS, [reviews/M16-ARGUS-REVIEW.md](../reviews/M16-ARGUS-REVIEW.md)
 PASS. Handoff:
 [reviews/M16-EXTERNAL-AUDIT-HANDOFF.md](../reviews/M16-EXTERNAL-AUDIT-HANDOFF.md).
-External audit pending — intentionally not performed in-task.
+
+External audit: [reviews/M16-EXTERNAL-AUDIT.md](../reviews/M16-EXTERNAL-AUDIT.md)
+— **ACCEPTED** after in-task remediation of 1 Major (recurring entity
+optimistic locking, `133fe18` backend) + bounded minors (test-integrity
+falsifications `133fe18`, scheduler clock-flake fix `ca5b380`, fake
+seam + server-truth test, contract-ledger row). Post-remediation gates:
+backend 383/383, Android JVM 653/653, lint 0 errors, detekt 0 smells,
+debug+release+R8 green, serializer/manifest/backup audit green,
+physical Pixel 4 XL 193/193 ×4 total (early ×2 + final-source ×2),
+installed + launched.

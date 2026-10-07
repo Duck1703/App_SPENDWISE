@@ -175,6 +175,7 @@ body). Sources: controller files in §42.
 | Recurring | POST | `/api/recurring-transactions` | `CreateRecurringTransactionRequest` | `RecurringTransactionResponse` + `Location` | 201 | 400 (incl. unknown/foreign `accountId` — drift, §39) | JWT | `RecurringTransactionController.java` |
 | Recurring | GET | `/api/recurring-transactions` | — | `List<RecurringTransactionResponse>` | 200 | 401 | JWT | `RecurringTransactionController.java` |
 | Recurring | GET | `/api/recurring-transactions/{id}` | path `UUID id` | `RecurringTransactionResponse` | 200 | 404 | JWT | `RecurringTransactionController.java` |
+| Recurring | PATCH | `/api/recurring-transactions/{id}` (M16, `eeb2c2f` + audit `ca5b380`/`133fe18`) | `UpdateRecurringTransactionRequest{amount?, category?, clearCategory?, frequency?, nextDueDate?, endDate?, clearEndDate?}` — ≥1 field; clear flags mutually exclusive with their value | `RecurringTransactionResponse` | 200 | 400 empty/invalid/conflict-pair, 404 foreign/absent, 409 optimistic-lock (audit hardening) | JWT | `RecurringTransactionController.java` |
 | Recurring | DELETE | `/api/recurring-transactions/{id}` | path `UUID id` | `RecurringTransactionResponse` (deactivated) | 200 | 404 | JWT | `RecurringTransactionController.java` |
 | Dashboard | GET | `/api/dashboard` | `?month=YYYY-MM` (required) | `DashboardMonthResponse` | 200 | 400 bad/missing month; 400 same-type mixed-currency aggregation | JWT | `DashboardController.java` |
 | Import | POST | `/api/imports` | `?accountId=UUID` + multipart part `file` | `ImportBatchSummaryResponse` + `Location` | 201 | 400 bad file/type/PDF, 404 foreign `accountId`, 500 oversized/malformed-CSV | JWT | `ImportController.java` |
@@ -296,7 +297,7 @@ Semantics:
 | `occurredOn` (transaction) | `LocalDate` | `"yyyy-MM-dd"` | optional on create, **always returned on reads** | **M11 / REQ-BE-001 delivered** (backend `bc6e0bb`): optional on `CreateTransactionRequest` (omission → `LocalDate.now()`; > tomorrow → 400), required on `TransactionResponse` (column NOT NULL). Pre-M11: CSV-export-only | `Transaction.java`, `TransactionMapper`, `CsvExportService`, `TransactionResponse` |
 | `importedAt` (ImportBatch) | `Instant` | ISO-8601 | server-generated | UTC instant — VERIFIED |
 | `expiresAt` (AuthResponse) | `Instant` | ISO-8601 | server-generated | token expiry — VERIFIED |
-| `nextDueDate`, `endDate` (recurring) | `LocalDate` | `"yyyy-MM-dd"` | required / optional | `CreateRecurringTransactionRequest` |
+| `nextDueDate`, `endDate` (recurring) | `LocalDate` | `"yyyy-MM-dd"` | required / optional on create; both optional on PATCH (`clearEndDate` nulls it) | `CreateRecurringTransactionRequest`, `UpdateRecurringTransactionRequest` (M16) |
 | `month` (dashboard param) | parsed to `YearMonth` | `"YYYY-MM"` string | required | malformed → 400 |
 | `period` (budget) | `BudgetPeriod` VO | `"YYYY-MM"` string | required | malformed → 400 |
 | Recurring generated `occurredOn` | `LocalDate` | — | server | generated row carries the **due date**, not generation date | `RecurringGenerationService` |

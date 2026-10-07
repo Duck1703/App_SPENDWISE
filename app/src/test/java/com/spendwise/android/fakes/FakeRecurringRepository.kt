@@ -59,6 +59,9 @@ class FakeRecurringRepository : RecurringRepository {
     private val _mutations = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     override val mutations: SharedFlow<Unit> = _mutations.asSharedFlow()
 
+    /** Drives the mutation signal without a wire call — detail-refresh tests. */
+    suspend fun emitMutation() = _mutations.emit(Unit)
+
     override suspend fun list(): List<RecurringTemplate> {
         listCalls += Unit
         return listResult()

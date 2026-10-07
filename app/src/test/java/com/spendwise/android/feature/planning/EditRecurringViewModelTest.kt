@@ -348,6 +348,27 @@ class EditRecurringViewModelTest {
     }
 
     @Test
+    fun `a field edited mid-save cannot contaminate the sent snapshot`() = runTest {
+        val recurring = FakeRecurringRepository()
+        val gate = CompletableDeferred<com.spendwise.android.core.model.RecurringTemplate>()
+        recurring.updateResult = { gate.await() }
+        val viewModel = vm(recurring)
+        runCurrent()
+        viewModel.onAmountChange("999.00")
+        viewModel.save()
+        runCurrent()
+        // User types again while the request is in flight — the wire
+        // call already captured the submitted snapshot and must still
+        // carry 999.00, not the in-flight edit.
+        viewModel.onAmountChange("111.00")
+        runCurrent()
+        val call = recurring.updateCalls.single()
+        assertEquals(0, call.amount!!.amount.compareTo(BigDecimal("999.00")))
+        gate.complete(FakeRecurringRepository.template())
+        runCurrent()
+    }
+
+    @Test
     fun `success emits the Saved event`() = runTest {
         val recurring = FakeRecurringRepository()
         val viewModel = vm(recurring)
