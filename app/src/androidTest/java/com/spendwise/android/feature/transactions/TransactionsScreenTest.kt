@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.spendwise.android.R
@@ -269,9 +270,14 @@ class TransactionsScreenTest {
         composeRule.onNodeWithContentDescription("Source filter: all").assertIsDisplayed()
         // M15: the From/To date-range chips exist (server-side
         // occurredOn bounds); no text search — nothing persisted to
-        // match against.
-        composeRule.onNodeWithContentDescription("From filter: all").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("To filter: all").assertIsDisplayed()
+        // match against. The chip row scrolls horizontally — a physical
+        // 411dp-wide Pixel shows ~4 chips, so scroll the tail into view.
+        composeRule.onNodeWithContentDescription("From filter: all")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("To filter: all")
+            .performScrollTo()
+            .assertIsDisplayed()
         composeRule.onAllNodesWithText("Search", substring = true).assertCountEquals(0)
     }
 
@@ -448,15 +454,17 @@ class TransactionsScreenTest {
             harness = harness,
         )
 
-        // Selected chip announces "From filter: <formatted date>".
+        // Selected chip announces "From filter: <formatted date>" —
+        // scrolled into view first (horizontal chip row on a real phone).
         composeRule.onNodeWithContentDescription(
             "From filter: " +
                 com.spendwise.android.core.ui.format.DateFormat.format(
                     java.time.LocalDate.of(2026, 9, 1),
                 ),
-        ).assertIsDisplayed()
+        ).performScrollTo().assertIsDisplayed()
         // The clear affordance nulls the bound.
         composeRule.onNodeWithContentDescription("Clear From date filter")
+            .performScrollTo()
             .performClick()
         assertEquals(null, harness.fromFilter)
     }
@@ -473,7 +481,9 @@ class TransactionsScreenTest {
             ),
         )
 
-        composeRule.onNodeWithContentDescription("To filter: all").performClick()
+        composeRule.onNodeWithContentDescription("To filter: all")
+            .performScrollTo()
+            .performClick()
         // The Material3 DatePickerDialog opens with confirm/dismiss actions.
         composeRule.waitForIdle()
         composeRule.onNodeWithText(
