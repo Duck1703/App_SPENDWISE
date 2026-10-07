@@ -382,11 +382,10 @@ private fun DateFilterChip(
             Spacer(Modifier.width(4.dp))
             // The clear affordance needs a real touch target — a bare
             // 18dp icon is untappable on a physical phone. The box owns
-            // the ≥48dp-high hit area; the icon stays visually small.
+            // the full 48×48dp hit area; the icon stays visually small.
             Box(
                 modifier = Modifier
-                    .height(SwSpacing.TouchTargetMin)
-                    .width(40.dp)
+                    .size(SwSpacing.TouchTargetMin)
                     .clickable { onSelect(null) },
                 contentAlignment = Alignment.Center,
             ) {

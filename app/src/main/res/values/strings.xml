@@ -181,7 +181,7 @@
     <string name="transactions_page_count">Showing %1$d of %2$d</string>
     <string name="transactions_loading_more">Loading more transactions</string>
     <string name="transactions_more_error_title">Couldn\’t load more</string>
-    <string name="transactions_more_error_body">The list you see is complete — tap or pull down to retry.</string>
+    <string name="transactions_more_error_body">Loaded entries are still here — tap or pull down to retry.</string>
     <string name="transactions_end_of_list">End of ledger — all matching entries loaded.</string>
 
     <!-- Filters (P3A §3: one horizontal row, selected value replaces the label) -->

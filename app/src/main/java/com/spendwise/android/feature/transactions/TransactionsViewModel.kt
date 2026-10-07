@@ -120,7 +120,7 @@ class TransactionsViewModel @Inject constructor(
     private suspend fun markPending() {
         val current = _state.value
         _state.value = if (current is TransactionsUiState.Content) {
-            current.copy(isRefreshing = true, refreshError = null)
+            current.copy(isRefreshing = true, refreshError = null, moreError = null)
         } else {
             TransactionsUiState.Loading
         }
@@ -264,24 +264,25 @@ class TransactionsViewModel @Inject constructor(
                 )
             } catch (e: SessionEndedException) {
                 expiredMidLoad = true
-                (_state.value as? TransactionsUiState.Content)
-                    ?.let { _state.value = it.copy(loadingMore = false) }
+                clearAppendFlagIfCurrent(tick, filters)
                 return@launch
             } catch (e: AppErrorException) {
                 if (e.error is AppError.SessionExpired) {
                     expiredMidLoad = true
                 }
-                (_state.value as? TransactionsUiState.Content)
-                    ?.let {
-                        _state.value = it.copy(
-                            loadingMore = false,
-                            moreError = if (e.error is AppError.SessionExpired) {
-                                null
-                            } else {
-                                e.error.toListError()
-                            },
-                        )
-                    }
+                if (isCurrentQuery(tick, filters)) {
+                    (_state.value as? TransactionsUiState.Content)
+                        ?.let {
+                            _state.value = it.copy(
+                                loadingMore = false,
+                                moreError = if (e.error is AppError.SessionExpired) {
+                                    null
+                                } else {
+                                    e.error.toListError()
+                                },
+                            )
+                        }
+                }
                 return@launch
             }
             // Superseded: a refresh/filter change started a new load —
@@ -297,6 +298,25 @@ class TransactionsViewModel @Inject constructor(
                 loadingMore = false,
                 moreError = null,
             )
+        }
+    }
+
+    /**
+     * A superseded append must never touch the new query's state —
+     * clearing `loadingMore` on a different query's Content would let
+     * the scroll trigger double-fire the same page (a skipped page →
+     * ledger gap), and a foreign `moreError` would lie about which
+     * request failed. The session-expiry flag still arms regardless:
+     * that boundary is real no matter which query was in flight.
+     */
+    private fun isCurrentQuery(tick: Long, filters: TransactionFilters): Boolean =
+        tick == loadSerial &&
+            (_state.value as? TransactionsUiState.Content)?.filters == filters
+
+    private fun clearAppendFlagIfCurrent(tick: Long, filters: TransactionFilters) {
+        if (isCurrentQuery(tick, filters)) {
+            (_state.value as? TransactionsUiState.Content)
+                ?.let { _state.value = it.copy(loadingMore = false) }
         }
     }
 

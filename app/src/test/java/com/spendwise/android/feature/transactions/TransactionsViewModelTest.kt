@@ -565,4 +565,87 @@ class TransactionsViewModelTest {
         assertEquals(3, txns.pageCalls.size)
         assertEquals(0, txns.pageCalls.last().page) // resume = fresh page 0
     }
+
+    @Test
+    fun `a stale append failure cannot poison the new query's state`() = runTest {
+        // EXT audit: the append's success path drops superseded results,
+        // but its ERROR path must do the same — otherwise a failed F1
+        // page clears loadingMore on F2's Content (double-firing the
+        // same page → skipped page → ledger gap) and leaks its
+        // moreError across the filter boundary.
+        val txns = FakeTransactionRepository()
+        val staleGate = CompletableDeferred<TransactionPage>()
+        val liveGate = CompletableDeferred<TransactionPage>()
+        var pageOneCalls = 0
+        txns.listPageResult = { call ->
+            when {
+                call.page != 1 -> page(
+                    twoRows(),
+                    page = call.page,
+                    totalElements = 4,
+                    hasNext = true,
+                )
+                pageOneCalls++ == 0 -> staleGate.await()
+                else -> liveGate.await()
+            }
+        }
+        val viewModel = vm(txns)
+
+        viewModel.loadNextPage() // first page-1 call — parked (query N)
+        viewModel.onTypeFilter(TransactionType.EXPENSE) // query N+1 loads fresh
+        viewModel.loadNextPage() // second page-1 call — parked (query N+1)
+        assertTrue((viewModel.state.value as TransactionsUiState.Content).loadingMore)
+
+        staleGate.completeExceptionally(AppErrorException(AppError.NetworkUnavailable))
+
+        val mid = viewModel.state.value as TransactionsUiState.Content
+        assertTrue(mid.loadingMore) // the live append is still in flight
+        assertNull(mid.moreError) // the stale error never reached the new query
+        assertEquals(TransactionType.EXPENSE, mid.filters.type)
+
+        liveGate.complete(
+            page(
+                listOf(FakeTransactionRepository.transaction(id = "t3")),
+                page = 1,
+                totalElements = 3,
+                hasNext = false,
+            ),
+        )
+        val state = viewModel.state.value as TransactionsUiState.Content
+        assertEquals(listOf("t1", "t2", "t3"), state.items.map { it.id })
+        assertFalse(state.loadingMore)
+        assertEquals(2, txns.pageCalls.count { it.page == 1 })
+    }
+
+    @Test
+    fun `a stale append session-end clears nothing on the new query`() = runTest {
+        // SessionEndedException (dead-generation cache write) on a
+        // superseded append must not touch the live query's Content.
+        val txns = FakeTransactionRepository()
+        val staleGate = CompletableDeferred<TransactionPage>()
+        var pageOneCalls = 0
+        txns.listPageResult = { call ->
+            when {
+                call.page != 1 -> page(
+                    twoRows(),
+                    page = call.page,
+                    totalElements = 4,
+                    hasNext = true,
+                )
+                pageOneCalls++ == 0 -> staleGate.await()
+                else -> throw SessionEndedException()
+            }
+        }
+        val viewModel = vm(txns)
+
+        viewModel.loadNextPage() // parked append under query N
+        viewModel.onTypeFilter(TransactionType.INCOME) // query N+1
+        staleGate.completeExceptionally(SessionEndedException())
+
+        val state = viewModel.state.value as TransactionsUiState.Content
+        assertEquals(TransactionType.INCOME, state.filters.type)
+        assertNull(state.moreError)
+        assertFalse(state.loadingMore)
+        assertEquals(listOf("t1", "t2"), state.items.map { it.id })
+    }
 }
