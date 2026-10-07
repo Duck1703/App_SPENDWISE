@@ -380,17 +380,26 @@ private fun DateFilterChip(
         }
         if (selected != null) {
             Spacer(Modifier.width(4.dp))
-            Icon(
-                painter = painterResource(R.drawable.ic_lucide_x),
-                contentDescription = stringResource(
-                    R.string.filter_date_clear_cd,
-                    label,
-                ),
-                tint = SwColors.OnAccent,
+            // The clear affordance needs a real touch target — a bare
+            // 18dp icon is untappable on a physical phone. The box owns
+            // the ≥48dp-high hit area; the icon stays visually small.
+            Box(
                 modifier = Modifier
-                    .size(18.dp)
+                    .height(SwSpacing.TouchTargetMin)
+                    .width(40.dp)
                     .clickable { onSelect(null) },
-            )
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_lucide_x),
+                    contentDescription = stringResource(
+                        R.string.filter_date_clear_cd,
+                        label,
+                    ),
+                    tint = SwColors.OnAccent,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
         }
     }
     if (showPicker) {
