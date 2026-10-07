@@ -15,11 +15,20 @@ import kotlinx.coroutines.flow.asSharedFlow
 class FakeBudgetRepository : BudgetRepository {
 
     var listResult: suspend () -> List<Budget> = { emptyList() }
-    var calculationResult: suspend (String) -> BudgetCalculation = { calculation(id = it) }
+    // Qualified: unqualified `calculation(id = it)` here resolves to the
+    // instance member (member shadows companion) → infinite recursion.
+    var calculationResult: suspend (String) -> BudgetCalculation =
+        { FakeBudgetRepository.calculation(id = it) }
     var createResult: suspend (String, String, Money) -> Budget = { c, p, l -> budget(category = c, period = p, limit = l) }
+    var updateResult: suspend (String, Money?, String?) -> Budget = { id, l, p ->
+        budget(id = id, period = p ?: "2026-10", limit = l ?: Money(BigDecimal("500"), CurrencyCode("VND")))
+    }
+    var deleteResult: suspend (String) -> Unit = {}
 
     val listCalls = mutableListOf<Unit>()
     val createCalls = mutableListOf<Triple<String, String, Money>>()
+    val updateCalls = mutableListOf<Triple<String, Money?, String?>>()
+    val deleteCalls = mutableListOf<String>()
 
     private val _mutations = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     override val mutations: SharedFlow<Unit> = _mutations.asSharedFlow()
@@ -34,6 +43,16 @@ class FakeBudgetRepository : BudgetRepository {
     override suspend fun create(category: String, period: String, limit: Money): Budget {
         createCalls += Triple(category, period, limit)
         return createResult(category, period, limit)
+    }
+
+    override suspend fun update(id: String, limit: Money?, period: String?): Budget {
+        updateCalls += Triple(id, limit, period)
+        return updateResult(id, limit, period)
+    }
+
+    override suspend fun delete(id: String) {
+        deleteCalls += id
+        deleteResult(id)
     }
 
     companion object {

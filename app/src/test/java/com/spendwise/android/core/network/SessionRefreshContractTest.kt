@@ -7,8 +7,10 @@ import com.spendwise.android.data.remote.AuthService
 import com.spendwise.android.data.remote.CreateTransactionRequestDto
 import com.spendwise.android.data.remote.CreateTransferRequestDto
 import com.spendwise.android.data.remote.LogoutRequestDto
+import com.spendwise.android.data.remote.BudgetsService
 import com.spendwise.android.data.remote.TransactionsService
 import com.spendwise.android.data.remote.TransfersService
+import com.spendwise.android.data.remote.UpdateBudgetRequestDto
 import com.spendwise.android.fakes.FakeTokenStore
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -316,6 +318,53 @@ class SessionRefreshContractTest {
         val write = server.takeRequest()
         assertEquals("/api/transfers", write.url.encodedPath)
         assertEquals("Bearer fresh-access", write.headers["Authorization"])
+        assertEquals(2, server.requestCount)
+    }
+
+    // ── M14 (REQ-BE-011): budget lifecycle mutations are non-idempotent
+    // methods — the authenticator must never replay them either. ──
+
+    @Test
+    fun `budget PATCH 401 after transmission is never replayed`() = runTest {
+        val budgets = retrofit.create(BudgetsService::class.java)
+        sessionManager.onSignedIn("rejected-access", future, "ana", "u1", refreshToken = "rt-1")
+        server.enqueue(MockResponse(code = 401, body = ""))
+        server.enqueue(refreshOk())
+
+        try {
+            budgets.update("b1", UpdateBudgetRequestDto(limit = java.math.BigDecimal("750")))
+            throw AssertionError("Expected ApiException")
+        } catch (e: ApiException) {
+            assertEquals(401, e.status)
+        }
+
+        // Exactly one PATCH hit the wire; credentials renew for the NEXT
+        // attempt only — a patched budget can never be double-applied.
+        val write = server.takeRequest()
+        assertEquals("/api/budgets/b1", write.url.encodedPath)
+        assertEquals("PATCH", write.method)
+        assertEquals("/api/auth/refresh", server.takeRequest().url.encodedPath)
+        assertEquals(2, server.requestCount)
+    }
+
+    @Test
+    fun `budget DELETE 401 after transmission is never replayed`() = runTest {
+        val budgets = retrofit.create(BudgetsService::class.java)
+        sessionManager.onSignedIn("rejected-access", future, "ana", "u1", refreshToken = "rt-1")
+        server.enqueue(MockResponse(code = 401, body = ""))
+        server.enqueue(refreshOk())
+
+        try {
+            budgets.delete("b1")
+            throw AssertionError("Expected ApiException")
+        } catch (e: ApiException) {
+            assertEquals(401, e.status)
+        }
+
+        // A second DELETE would be a phantom 404 — the wire shows the
+        // single transmitted attempt plus the renewal.
+        assertEquals("/api/budgets/b1", server.takeRequest().url.encodedPath)
+        assertEquals("/api/auth/refresh", server.takeRequest().url.encodedPath)
         assertEquals(2, server.requestCount)
     }
 

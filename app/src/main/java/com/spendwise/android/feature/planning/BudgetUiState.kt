@@ -29,6 +29,25 @@ sealed interface BudgetDetailState {
     ) : BudgetDetailState
 }
 
+/**
+ * Budget edit dialog (M14, REQ-BE-011): `limit` + `period` are the only
+ * correctable fields — category and currency are immutable on the
+ * backend, so a wrong category is fixed by delete + recreate. Errors
+ * reuse the create-form enums; [Conflict] means the target
+ * (category, period) pair is already taken.
+ */
+data class EditBudgetState(
+    val visible: Boolean = false,
+    val limit: String = "",
+    val period: String = "",
+    val isSubmitting: Boolean = false,
+    val limitError: CreateBudgetState.LimitError? = null,
+    val periodError: CreateBudgetState.PeriodError? = null,
+    val formError: FormError? = null,
+) {
+    enum class FormError { Conflict, Ambiguous, Server, Generic }
+}
+
 /** Budget create (S19) — draft + options + field errors. */
 data class CreateBudgetState(
     val category: String? = null,

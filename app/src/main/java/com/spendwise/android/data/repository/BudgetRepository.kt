@@ -14,6 +14,7 @@ import com.spendwise.android.data.remote.BudgetCalculationDto
 import com.spendwise.android.data.remote.BudgetDto
 import com.spendwise.android.data.remote.BudgetsService
 import com.spendwise.android.data.remote.CreateBudgetRequestDto
+import com.spendwise.android.data.remote.UpdateBudgetRequestDto
 import java.io.IOException
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -26,10 +27,12 @@ import javax.inject.Singleton
  * Budgets boundary (PRODUCT §30 S18–S20, BACKEND-CONTRACT — verified at
  * backend `8194daa`).
  *
- * Budgets are create/read-only — the backend offers no update or delete.
- * [calculation] is the sole source of spent/remaining/percentage/status;
+ * `calculation` is the sole source of spent/remaining/percentage/status;
  * all four are derived server-side from the ledger and rendered
  * verbatim — the client never aggregates or recomputes (INV-012).
+ * REQ-BE-011 (M14) adds owner-scoped [update] (limit/period only —
+ * category and currency are immutable) and [delete] (hard delete → 204;
+ * the plan is removed, the ledger is untouched).
  *
  * Session safety: every call captures [SessionManager.sessionGeneration]
  * before the request and re-validates after the response — a result
@@ -56,7 +59,23 @@ interface BudgetRepository {
      */
     suspend fun create(category: String, period: String, limit: Money): Budget
 
-    /** Emitted once per successful [create] — list surfaces reload. */
+    /**
+     * `PATCH /api/budgets/{id}` (M14) — corrects `limit` and/or
+     * `period`; at least one argument must be non-null. Empty patch /
+     * invalid values → [AppError.Validation]; period collision →
+     * [AppError.Conflict]; foreign/absent → [AppError.NotFound].
+     * Emits [mutations] on success.
+     */
+    suspend fun update(id: String, limit: Money?, period: String?): Budget
+
+    /**
+     * `DELETE /api/budgets/{id}` (M14) — hard delete → 204;
+     * missing/foreign/already-deleted → [AppError.NotFound].
+     * Emits [mutations] on success.
+     */
+    suspend fun delete(id: String)
+
+    /** Emitted once per successful [create]/[update]/[delete]. */
     val mutations: SharedFlow<Unit>
 }
 
@@ -99,6 +118,29 @@ class RemoteBudgetRepository @Inject constructor(
         if (sessionManager.sessionGeneration != generation) throw SessionEndedException()
         _mutations.tryEmit(Unit)
         return budget
+    }
+
+    override suspend fun update(id: String, limit: Money?, period: String?): Budget {
+        require(limit != null || period != null) {
+            "update requires at least one field"
+        }
+        val generation = sessionManager.sessionGeneration
+        val budget = fetch {
+            service.update(
+                id,
+                UpdateBudgetRequestDto(limit = limit?.amount, period = period),
+            )
+        }.toDomain()
+        if (sessionManager.sessionGeneration != generation) throw SessionEndedException()
+        _mutations.tryEmit(Unit)
+        return budget
+    }
+
+    override suspend fun delete(id: String) {
+        val generation = sessionManager.sessionGeneration
+        fetch { service.delete(id) }
+        if (sessionManager.sessionGeneration != generation) throw SessionEndedException()
+        _mutations.tryEmit(Unit)
     }
 
     private suspend fun <T> fetch(call: suspend () -> T): T =

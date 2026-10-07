@@ -138,11 +138,26 @@ fun BudgetDetailDestination(
     viewModel: BudgetDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val edit by viewModel.edit.collectAsStateWithLifecycle()
     ResumeEffect(viewModel::onVisible)
+    LaunchedEffect(viewModel) {
+        viewModel.events.collect { event ->
+            when (event) {
+                BudgetDetailViewModel.Event.Deleted -> onBack()
+            }
+        }
+    }
     BudgetDetailScreen(
         state = state,
+        edit = edit,
         onRetry = viewModel::refresh,
         onBack = onBack,
+        onOpenEdit = viewModel::openEdit,
+        onDismissEdit = viewModel::dismissEdit,
+        onEditLimitChange = viewModel::onEditLimitChange,
+        onEditPeriodChange = viewModel::onEditPeriodChange,
+        onSaveEdit = viewModel::saveEdit,
+        onDelete = viewModel::delete,
     )
 }
 

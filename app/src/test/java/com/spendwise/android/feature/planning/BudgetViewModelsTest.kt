@@ -237,4 +237,131 @@ class BudgetViewModelsTest {
         runCurrent()
         assertEquals(BudgetDetailState.NotFound, vm.state.value)
     }
+
+    // ── Detail edit dialog (M14) ────────────────────────────────────
+
+    @Test
+    fun `openEdit seeds the dialog from the server figures`() = runTest {
+        val vm = detailVm(FakeBudgetRepository())
+        runCurrent()
+        vm.openEdit()
+        val edit = vm.edit.value
+        assertEquals(true, edit.visible)
+        assertEquals("500", edit.limit)
+        assertEquals("2026-10", edit.period)
+    }
+
+    @Test
+    fun `saveEdit with invalid inputs sets field errors and never calls`() = runTest {
+        val budgets = FakeBudgetRepository()
+        val vm = detailVm(budgets)
+        runCurrent()
+        vm.openEdit()
+        vm.onEditLimitChange("abc")
+        vm.onEditPeriodChange("not-a-month")
+        vm.saveEdit()
+        runCurrent()
+        assertEquals(CreateBudgetState.LimitError.Invalid, vm.edit.value.limitError)
+        assertEquals(CreateBudgetState.PeriodError.Invalid, vm.edit.value.periodError)
+        assertTrue(budgets.updateCalls.isEmpty())
+    }
+
+    @Test
+    fun `saveEdit unchanged inputs close without a request`() = runTest {
+        val budgets = FakeBudgetRepository()
+        val vm = detailVm(budgets)
+        runCurrent()
+        vm.openEdit() // prefilled with current values
+        vm.saveEdit()
+        runCurrent()
+        assertTrue(budgets.updateCalls.isEmpty())
+        assertFalse(vm.edit.value.visible)
+    }
+
+    @Test
+    fun `saveEdit sends the patch then reloads the calculation`() = runTest {
+        val budgets = FakeBudgetRepository()
+        val vm = detailVm(budgets)
+        runCurrent()
+        vm.openEdit()
+        vm.onEditLimitChange("750")
+        vm.onEditPeriodChange("2026-11")
+        vm.saveEdit()
+        runCurrent()
+        val (id, limit, period) = budgets.updateCalls.single()
+        assertEquals("b1", id)
+        assertEquals(BigDecimal("750"), limit?.amount)
+        assertEquals("2026-11", period)
+        assertFalse(vm.edit.value.visible)
+    }
+
+    @Test
+    fun `saveEdit conflict surfaces the honest 409 copy`() = runTest {
+        val budgets = FakeBudgetRepository().apply {
+            updateResult = { _, _, _ -> throw AppErrorException(AppError.Conflict) }
+        }
+        val vm = detailVm(budgets)
+        runCurrent()
+        vm.openEdit()
+        vm.onEditPeriodChange("2026-12")
+        vm.saveEdit()
+        runCurrent()
+        assertEquals(EditBudgetState.FormError.Conflict, vm.edit.value.formError)
+        assertTrue(vm.edit.value.visible) // dialog stays open for correction
+    }
+
+    @Test
+    fun `saveEdit network drop is ambiguous, never auto-retried`() = runTest {
+        val budgets = FakeBudgetRepository().apply {
+            updateResult = { _, _, _ -> throw AppErrorException(AppError.NetworkUnavailable) }
+        }
+        val vm = detailVm(budgets)
+        runCurrent()
+        vm.openEdit()
+        vm.onEditLimitChange("750")
+        vm.saveEdit()
+        runCurrent()
+        assertEquals(EditBudgetState.FormError.Ambiguous, vm.edit.value.formError)
+        assertEquals(1, budgets.updateCalls.size)
+    }
+
+    // ── Detail delete (M14) ─────────────────────────────────────────
+
+    @Test
+    fun `delete emits the Deleted event once`() = runTest {
+        val budgets = FakeBudgetRepository()
+        val vm = detailVm(budgets)
+        runCurrent()
+        val events = mutableListOf<BudgetDetailViewModel.Event>()
+        val collector = launch { vm.events.collect { events += it } }
+        vm.delete()
+        runCurrent()
+        assertEquals(listOf("b1"), budgets.deleteCalls)
+        assertEquals(listOf(BudgetDetailViewModel.Event.Deleted), events)
+        collector.cancel()
+    }
+
+    @Test
+    fun `delete on an already-gone budget reloads instead of navigating`() = runTest {
+        var gone = false
+        val budgets = FakeBudgetRepository().apply {
+            calculationResult = {
+                if (gone) throw AppErrorException(AppError.NotFound)
+                else FakeBudgetRepository.calculation(id = it)
+            }
+            // The delete already landed server-side — the reload must see
+            // the budget gone too, so the surface settles on NotFound.
+            deleteResult = { gone = true; throw AppErrorException(AppError.NotFound) }
+        }
+        val vm = detailVm(budgets)
+        runCurrent()
+        val events = mutableListOf<BudgetDetailViewModel.Event>()
+        val collector = launch { vm.events.collect { events += it } }
+        vm.delete()
+        runCurrent()
+        // No Deleted event — the surface reloads into NotFound instead.
+        assertTrue(events.isEmpty())
+        assertEquals(BudgetDetailState.NotFound, vm.state.value)
+        collector.cancel()
+    }
 }

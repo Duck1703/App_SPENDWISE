@@ -178,7 +178,7 @@ private fun BudgetsContent(
         }
         item(key = "note") {
             Text(
-                text = stringResource(R.string.budgets_readonly_note),
+                text = stringResource(R.string.budgets_lifecycle_note),
                 style = MaterialTheme.typography.bodySmall,
                 color = SwColors.Muted,
             )

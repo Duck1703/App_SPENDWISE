@@ -86,7 +86,11 @@ class BudgetScreensTest {
             SpendwiseTheme {
                 BudgetDetailScreen(
                     state = BudgetDetailState.Content(calculation = calculation()),
+                    edit = EditBudgetState(),
                     onRetry = {}, onBack = {},
+                    onOpenEdit = {}, onDismissEdit = {},
+                    onEditLimitChange = {}, onEditPeriodChange = {},
+                    onSaveEdit = {}, onDelete = {},
                 )
             }
         }
@@ -96,21 +100,89 @@ class BudgetScreensTest {
     }
 
     @Test
-    fun detail_showsReadOnlyNotice_noEditAffordance() {
+    fun detail_showsEditAndDeleteAffordances() {
         composeRule.setContent {
             SpendwiseTheme {
                 BudgetDetailScreen(
                     state = BudgetDetailState.Content(
                         calculation = calculation(BudgetStatus.WITHIN_BUDGET),
                     ),
+                    edit = EditBudgetState(),
                     onRetry = {}, onBack = {},
+                    onOpenEdit = {}, onDismissEdit = {},
+                    onEditLimitChange = {}, onEditPeriodChange = {},
+                    onSaveEdit = {}, onDelete = {},
                 )
             }
         }
+        val ctx = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+            .targetContext
         composeRule.onNodeWithText(
-            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
-                .targetContext.getString(com.spendwise.android.R.string.budget_readonly_title),
+            ctx.getString(com.spendwise.android.R.string.budget_edit_action),
         ).assertIsDisplayed()
+        composeRule.onNodeWithText(
+            ctx.getString(com.spendwise.android.R.string.budget_delete_action),
+        ).assertIsDisplayed()
+    }
+
+    @Test
+    fun detail_editOpensDialog_andSavePropagates() {
+        var saved = false
+        composeRule.setContent {
+            SpendwiseTheme {
+                BudgetDetailScreen(
+                    state = BudgetDetailState.Content(
+                        calculation = calculation(BudgetStatus.WITHIN_BUDGET),
+                    ),
+                    edit = EditBudgetState(visible = true, limit = "500", period = "2026-10"),
+                    onRetry = {}, onBack = {},
+                    onOpenEdit = {}, onDismissEdit = {},
+                    onEditLimitChange = {}, onEditPeriodChange = {},
+                    onSaveEdit = { saved = true }, onDelete = {},
+                )
+            }
+        }
+        val ctx = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+            .targetContext
+        // Dialog is open — the user can press Save and it reaches the VM.
+        composeRule.onNodeWithText(
+            ctx.getString(com.spendwise.android.R.string.budget_edit_dialog_title),
+        ).assertIsDisplayed()
+        composeRule.onNodeWithText(
+            ctx.getString(com.spendwise.android.R.string.budget_edit_save),
+        ).performClick()
+        assertEquals(true, saved)
+    }
+
+    @Test
+    fun detail_deleteShowsConfirm_andConfirmPropagates() {
+        var deleted = false
+        composeRule.setContent {
+            SpendwiseTheme {
+                BudgetDetailScreen(
+                    state = BudgetDetailState.Content(
+                        calculation = calculation(BudgetStatus.WITHIN_BUDGET),
+                    ),
+                    edit = EditBudgetState(),
+                    onRetry = {}, onBack = {},
+                    onOpenEdit = {}, onDismissEdit = {},
+                    onEditLimitChange = {}, onEditPeriodChange = {},
+                    onSaveEdit = {}, onDelete = { deleted = true },
+                )
+            }
+        }
+        val ctx = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+            .targetContext
+        composeRule.onNodeWithText(
+            ctx.getString(com.spendwise.android.R.string.budget_delete_action),
+        ).performClick()
+        composeRule.onNodeWithText(
+            ctx.getString(com.spendwise.android.R.string.budget_delete_dialog_title),
+        ).assertIsDisplayed()
+        composeRule.onNodeWithText(
+            ctx.getString(com.spendwise.android.R.string.budget_delete_confirm),
+        ).performClick()
+        assertEquals(true, deleted)
     }
 
     @Test
@@ -119,7 +191,11 @@ class BudgetScreensTest {
             SpendwiseTheme {
                 BudgetDetailScreen(
                     state = BudgetDetailState.NotFound,
+                    edit = EditBudgetState(),
                     onRetry = {}, onBack = {},
+                    onOpenEdit = {}, onDismissEdit = {},
+                    onEditLimitChange = {}, onEditPeriodChange = {},
+                    onSaveEdit = {}, onDelete = {},
                 )
             }
         }

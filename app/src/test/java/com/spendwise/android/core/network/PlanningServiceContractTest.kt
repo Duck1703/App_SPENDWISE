@@ -7,6 +7,7 @@ import com.spendwise.android.data.remote.CreateRecurringRequestDto
 import com.spendwise.android.data.remote.CreateRuleRequestDto
 import com.spendwise.android.data.remote.RecurringService
 import com.spendwise.android.data.remote.RulesService
+import com.spendwise.android.data.remote.UpdateBudgetRequestDto
 import com.spendwise.android.fakes.FakeTokenStore
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -188,6 +189,104 @@ class PlanningServiceContractTest {
                 mapOf("limit" to "must be greater than 0"),
                 (e.toAppError() as AppError.Validation).fields,
             )
+        }
+    }
+
+    // ── Budget lifecycle (M14 / REQ-BE-011) ─────────────────────────
+
+    @Test
+    fun `budget PATCH sends only the provided fields`() = runTest {
+        signIn()
+        server.enqueue(
+            jsonResponse(
+                200,
+                """{"id":"b1","category":"FOOD","period":"2026-11","limit":750.00,"currency":"VND"}""",
+            ),
+        )
+        val updated = budgets.update("b1", UpdateBudgetRequestDto(period = "2026-11"))
+        val request = server.takeRequest()
+        assertEquals("/api/budgets/b1", request.target)
+        assertEquals("PATCH", request.method)
+        assertEquals("Bearer live-token", request.headers["Authorization"])
+        val body = request.body?.utf8().orEmpty()
+        assertTrue(body.contains("\"period\":\"2026-11\""))
+        // Absent fields stay off the wire — a true partial update, not
+        // "limit":null (which the server would read as an explicit null).
+        assertFalse("absent limit must be omitted", body.contains("limit"))
+        assertEquals(BigDecimal("750.00"), updated.limit)
+        assertEquals("2026-11", updated.period)
+    }
+
+    @Test
+    fun `budget PATCH with both fields sends both`() = runTest {
+        signIn()
+        server.enqueue(
+            jsonResponse(
+                200,
+                """{"id":"b1","category":"FOOD","period":"2026-12","limit":750.00,"currency":"VND"}""",
+            ),
+        )
+        budgets.update("b1", UpdateBudgetRequestDto(limit = BigDecimal("750.00"), period = "2026-12"))
+        val body = server.takeRequest().body?.utf8().orEmpty()
+        assertTrue(body.contains("\"limit\":750"))
+        assertTrue(body.contains("\"period\":\"2026-12\""))
+        // Immutable fields are never sent.
+        assertFalse(body.contains("category"))
+        assertFalse(body.contains("currency"))
+    }
+
+    @Test
+    fun `budget PATCH collision surfaces as Conflict`() = runTest {
+        signIn()
+        server.enqueue(
+            jsonResponse(
+                409,
+                """{"title":"Conflict","status":409,"detail":"The request conflicts with an existing record."}""",
+            ),
+        )
+        try {
+            budgets.update("b1", UpdateBudgetRequestDto(period = "2026-10"))
+            fail("expected ApiException")
+        } catch (e: ApiException) {
+            assertEquals(409, e.status)
+            assertEquals(AppError.Conflict, e.toAppError())
+        }
+    }
+
+    @Test
+    fun `budget PATCH foreign id surfaces as 404`() = runTest {
+        signIn()
+        server.enqueue(jsonResponse(404, """{"title":"Not found","status":404}"""))
+        try {
+            budgets.update("foreign", UpdateBudgetRequestDto(limit = BigDecimal.ONE))
+            fail("expected ApiException")
+        } catch (e: ApiException) {
+            assertEquals(404, e.status)
+            assertEquals(AppError.NotFound, e.toAppError())
+        }
+    }
+
+    @Test
+    fun `budget DELETE hits the exact path and returns 204`() = runTest {
+        signIn()
+        server.enqueue(jsonResponse(204, ""))
+        budgets.delete("b1")
+        val request = server.takeRequest()
+        assertEquals("/api/budgets/b1", request.target)
+        assertEquals("DELETE", request.method)
+        assertEquals("Bearer live-token", request.headers["Authorization"])
+    }
+
+    @Test
+    fun `budget DELETE on an already-deleted id surfaces 404`() = runTest {
+        signIn()
+        server.enqueue(jsonResponse(404, """{"title":"Not found","status":404}"""))
+        try {
+            budgets.delete("b1")
+            fail("expected ApiException")
+        } catch (e: ApiException) {
+            assertEquals(404, e.status)
+            assertEquals(AppError.NotFound, e.toAppError())
         }
     }
 

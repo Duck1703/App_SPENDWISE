@@ -164,6 +164,8 @@ body). Sources: controller files in §42.
 | Budget | GET | `/api/budgets` | — | `List<BudgetResponse>` | 200 | 401 | JWT | `BudgetController.java` |
 | Budget | GET | `/api/budgets/{id}` | path `UUID id` | `BudgetResponse` | 200 | 404 | JWT | `BudgetController.java` |
 | Budget | GET | `/api/budgets/{id}/calculation` | path `UUID id` | `BudgetCalculationResponse` | 200 | 404 | JWT | `BudgetController.java` |
+| Budget | PATCH | `/api/budgets/{id}` (M14, `472b8fd`) | `UpdateBudgetRequest{limit?, period?}` — ≥1 field | `BudgetResponse` | 200 | 400 empty/invalid, 404 foreign/absent, 409 (user,category,period) collision | JWT | `BudgetController.java` |
+| Budget | DELETE | `/api/budgets/{id}` (M14, `472b8fd`) | path `UUID id` | — | 204 | 404 missing/foreign | JWT | `BudgetController.java` |
 | Recurring | POST | `/api/recurring-transactions` | `CreateRecurringTransactionRequest` | `RecurringTransactionResponse` + `Location` | 201 | 400 (incl. unknown/foreign `accountId` — drift, §39) | JWT | `RecurringTransactionController.java` |
 | Recurring | GET | `/api/recurring-transactions` | — | `List<RecurringTransactionResponse>` | 200 | 401 | JWT | `RecurringTransactionController.java` |
 | Recurring | GET | `/api/recurring-transactions/{id}` | path `UUID id` | `RecurringTransactionResponse` | 200 | 404 | JWT | `RecurringTransactionController.java` |
