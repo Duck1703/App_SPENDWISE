@@ -115,11 +115,16 @@ Ordered by unlock value.
   currency statistics policy; batch status field if async import ever
   lands.
 
-## REQ-BE-010 — Persisted description/notes
+## REQ-BE-010 — Persisted description/notes — **IN_DELIVERY (M17)**
 
 - Contract: `description` column on `Transaction` + request/response
   fields (currently accepted but dropped after rule-matching).
 - Schema change; medium.
+- M17 shape (see [milestones/M17-TRANSACTION-NOTES.md](milestones/M17-TRANSACTION-NOTES.md)):
+  additive nullable `VARCHAR(255)` (`V12`); request field unchanged
+  (`@Size(255)`); `TransactionResponse.description` added; blank →
+  null; CSV export gains a `description` column; no edit surface
+  (REQ-BE-005 stays gated); rules input unchanged.
 
 ## REQ-BE-012 — Recurring template edit — **DELIVERED (M16, audit-accepted)**
 

@@ -32,6 +32,7 @@ High-level phase plan. Milestone briefs are created per phase by ATLAS using
 | M14 | Budget Lifecycle (REQ-BE-011 `PATCH`/`DELETE /api/budgets/{id}` + Android edit/delete on budget detail) | COMPLETE — external audit **ACCEPTED**, human-approved via conditional authorization; physical Pixel 4 XL gate PASSED (180/180 ×2 full connected runs, incl. edit/delete flow tests on-device); every contract/safety gate proven (wire-level M13 no-replay, real-tx collision atomicity, ledger untouched, delete→recreate); JVM 596/596, backend 350 tests with 1 documented baseline flake, release verified, emulator 180/180 ×2 supplementary (see [milestones/M14-BUDGET-LIFECYCLE.md](milestones/M14-BUDGET-LIFECYCLE.md), [reviews/M14-EXTERNAL-AUDIT.md](reviews/M14-EXTERNAL-AUDIT.md)) |
 | M15 | Scalable Transaction History (REQ-BE-007 `GET /api/transactions/page` + lazy-paged Transactions tab + From/To date filter) | COMPLETE — external audit **ACCEPTED**, human-approved via conditional authorization; physical Pixel 4 XL gate PASSED (186/186 ×2 final-source + 186/186 ×2 preliminary); audit remediated 1 Major + 3 Minor in-task (ebd966a, backend ef08539); backend 15/15 contract + 365 regression (1 documented baseline flake), JVM 617/617, release R8 verified (see [milestones/M15-TRANSACTION-HISTORY.md](milestones/M15-TRANSACTION-HISTORY.md), [reviews/M15-EXTERNAL-AUDIT.md](reviews/M15-EXTERNAL-AUDIT.md), [reviews/M15-SENTINEL-REVIEW.md](reviews/M15-SENTINEL-REVIEW.md), [reviews/M15-ARGUS-REVIEW.md](reviews/M15-ARGUS-REVIEW.md)) |
 | M16 | Recurring Template Lifecycle (REQ-BE-012 `PATCH /api/recurring-transactions/{id}` + Android edit flow on recurring detail) | COMPLETE — external audit ACCEPTED, Human-approved. Audit remediated 1 Major (recurring `@Version` lost-update vs scheduler) + minors in-task; all gates re-green on final source (backend 383/383, Android JVM 653/653, lint/detekt/release/R8 green, physical 193/193 ×4, installed+launched). M17 is not defined (see [milestones/M16-RECURRING-LIFECYCLE.md](milestones/M16-RECURRING-LIFECYCLE.md), [reviews/M16-EXTERNAL-AUDIT.md](reviews/M16-EXTERNAL-AUDIT.md)) |
+| M17 | Transaction Notes (REQ-BE-010 — persist `description` on `Transaction` + response/export surfaces; Android: note input reframed + detail display) | IN_DELIVERY — Human-authorized M17 delivery block; bounded additive `VARCHAR(255)` column (`V12`), no new endpoint, notes feed rules unchanged (see [milestones/M17-TRANSACTION-NOTES.md](milestones/M17-TRANSACTION-NOTES.md)) |
 
 **Canonical sequence M0–M8 fully delivered and release-accepted.** V1
 was validated on emulator AND physical hardware (135/135 connected ×2
@@ -105,9 +106,11 @@ release/R8 + serializer + manifest green, physical Pixel 4 XL
 193/193 ×4, installed + launched
 (see [milestones/M16-RECURRING-LIFECYCLE.md](milestones/M16-RECURRING-LIFECYCLE.md),
 [reviews/M16-EXTERNAL-AUDIT.md](reviews/M16-EXTERNAL-AUDIT.md)).
-M0–M16 COMPLETE; M17 is not defined.
+M0–M16 COMPLETE; **M17 (Transaction Notes — REQ-BE-010 persisted
+description) is IN_DELIVERY** under explicit Human authorization
+(see [milestones/M17-TRANSACTION-NOTES.md](milestones/M17-TRANSACTION-NOTES.md)).
 Remaining product-gated capabilities (transaction correction,
-account lifecycle, persisted notes, FX) stay gated.
+account lifecycle, FX, server search) stay gated.
 
 ## Important
 
