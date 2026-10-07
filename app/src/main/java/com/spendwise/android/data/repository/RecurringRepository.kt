@@ -13,6 +13,7 @@ import com.spendwise.android.core.session.SessionManager
 import com.spendwise.android.data.remote.CreateRecurringRequestDto
 import com.spendwise.android.data.remote.RecurringService
 import com.spendwise.android.data.remote.RecurringTransactionDto
+import com.spendwise.android.data.remote.UpdateRecurringRequestDto
 import java.io.IOException
 import java.time.LocalDate
 import kotlin.coroutines.cancellation.CancellationException
@@ -56,6 +57,25 @@ interface RecurringRepository {
         frequency: RecurringFrequency,
         nextDueDate: LocalDate,
         endDate: LocalDate?,
+    ): RecurringTemplate
+
+    /**
+     * `PATCH /{id}` — sparse edit of future-generation inputs
+     * (REQ-BE-012). Pass only the fields that changed; set
+     * [clearCategory]/[clearEndDate] to null a field out (the caller
+     * must not also pass a replacement — the server 400s that pair).
+     * Account, direction, currency, and active are immutable and are
+     * never sent. Emits [mutations] on success.
+     */
+    suspend fun update(
+        id: String,
+        amount: Money? = null,
+        category: String? = null,
+        clearCategory: Boolean = false,
+        frequency: RecurringFrequency? = null,
+        nextDueDate: LocalDate? = null,
+        endDate: LocalDate? = null,
+        clearEndDate: Boolean = false,
     ): RecurringTemplate
 
     /**
@@ -123,6 +143,48 @@ class RemoteRecurringRepository @Inject constructor(
                     frequency = frequency.name,
                     nextDueDate = nextDueDate.toString(),
                     endDate = endDate?.toString(),
+                ),
+            )
+        }.toDomain()
+        if (sessionManager.sessionGeneration != generation) throw SessionEndedException()
+        _mutations.tryEmit(Unit)
+        return template
+    }
+
+    override suspend fun update(
+        id: String,
+        amount: Money?,
+        category: String?,
+        clearCategory: Boolean,
+        frequency: RecurringFrequency?,
+        nextDueDate: LocalDate?,
+        endDate: LocalDate?,
+        clearEndDate: Boolean,
+    ): RecurringTemplate {
+        // Wire-armored enum values never write a fabricated frequency.
+        require(
+            frequency == null ||
+                frequency == RecurringFrequency.WEEKLY ||
+                frequency == RecurringFrequency.MONTHLY,
+        ) { "recurring frequency is WEEKLY or MONTHLY" }
+        require(!(clearCategory && category != null)) {
+            "category and clearCategory are mutually exclusive"
+        }
+        require(!(clearEndDate && endDate != null)) {
+            "endDate and clearEndDate are mutually exclusive"
+        }
+        val generation = sessionManager.sessionGeneration
+        val template = fetch {
+            service.update(
+                id,
+                UpdateRecurringRequestDto(
+                    amount = amount?.amount,
+                    category = category,
+                    clearCategory = clearCategory,
+                    frequency = frequency?.name,
+                    nextDueDate = nextDueDate?.toString(),
+                    endDate = endDate?.toString(),
+                    clearEndDate = clearEndDate,
                 ),
             )
         }.toDomain()

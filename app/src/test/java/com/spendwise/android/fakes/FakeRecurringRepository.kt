@@ -19,6 +19,27 @@ class FakeRecurringRepository : RecurringRepository {
     var findResult: suspend (String) -> RecurringTemplate = { template(id = it) }
     var createResult: suspend (CreateCall) -> RecurringTemplate = { template() }
     var deactivateResult: suspend (String) -> RecurringTemplate = { template(id = it, active = false) }
+    var updateResult: suspend (UpdateCall) -> RecurringTemplate = { call ->
+        template(
+            id = call.id,
+            amount = call.amount ?: template(id = call.id).amount,
+            category = if (call.clearCategory) null else call.category ?: "HOUSING",
+            frequency = call.frequency ?: RecurringFrequency.MONTHLY,
+            nextDueDate = call.nextDueDate ?: template(id = call.id).nextDueDate,
+            endDate = if (call.clearEndDate) null else call.endDate,
+        )
+    }
+
+    data class UpdateCall(
+        val id: String,
+        val amount: Money?,
+        val category: String?,
+        val clearCategory: Boolean,
+        val frequency: RecurringFrequency?,
+        val nextDueDate: LocalDate?,
+        val endDate: LocalDate?,
+        val clearEndDate: Boolean,
+    )
 
     data class CreateCall(
         val accountId: String,
@@ -33,6 +54,7 @@ class FakeRecurringRepository : RecurringRepository {
     val listCalls = mutableListOf<Unit>()
     val createCalls = mutableListOf<CreateCall>()
     val deactivateCalls = mutableListOf<String>()
+    val updateCalls = mutableListOf<UpdateCall>()
 
     private val _mutations = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     override val mutations: SharedFlow<Unit> = _mutations.asSharedFlow()
@@ -56,6 +78,21 @@ class FakeRecurringRepository : RecurringRepository {
         val call = CreateCall(accountId, direction, amount, category, frequency, nextDueDate, endDate)
         createCalls += call
         return createResult(call)
+    }
+
+    override suspend fun update(
+        id: String,
+        amount: Money?,
+        category: String?,
+        clearCategory: Boolean,
+        frequency: RecurringFrequency?,
+        nextDueDate: LocalDate?,
+        endDate: LocalDate?,
+        clearEndDate: Boolean,
+    ): RecurringTemplate {
+        val call = UpdateCall(id, amount, category, clearCategory, frequency, nextDueDate, endDate, clearEndDate)
+        updateCalls += call
+        return updateResult(call)
     }
 
     override suspend fun deactivate(id: String): RecurringTemplate {

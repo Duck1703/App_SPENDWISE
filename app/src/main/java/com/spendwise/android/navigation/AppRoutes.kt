@@ -128,6 +128,9 @@ data object RecurringCreateRoute : AppRoute
 data class RecurringDetailRoute(val templateId: String) : AppRoute
 
 @Serializable
+data class RecurringEditRoute(val templateId: String) : AppRoute
+
+@Serializable
 data object BudgetsRoute : AppRoute
 
 @Serializable

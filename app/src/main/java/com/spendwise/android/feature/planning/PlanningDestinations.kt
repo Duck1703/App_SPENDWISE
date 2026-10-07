@@ -76,6 +76,7 @@ fun CreateRecurringDestination(
 
 @Composable
 fun RecurringDetailDestination(
+    onEdit: (String) -> Unit,
     onBack: () -> Unit,
     viewModel: RecurringDetailViewModel = hiltViewModel(),
 ) {
@@ -84,6 +85,33 @@ fun RecurringDetailDestination(
     RecurringDetailScreen(
         state = state,
         onDeactivate = viewModel::deactivate,
+        onEdit = onEdit,
+        onRetry = viewModel::refresh,
+        onBack = onBack,
+    )
+}
+
+@Composable
+fun EditRecurringDestination(
+    onSaved: () -> Unit,
+    onBack: () -> Unit,
+    viewModel: EditRecurringViewModel = hiltViewModel(),
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    ResumeEffect(viewModel::onVisible)
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            if (event is EditRecurringViewModel.Event.Saved) onSaved()
+        }
+    }
+    EditRecurringScreen(
+        state = state,
+        onAmountChange = viewModel::onAmountChange,
+        onCategoryChange = viewModel::onCategoryChange,
+        onFrequencyChange = viewModel::onFrequencyChange,
+        onNextDueDateChange = viewModel::onNextDueDateChange,
+        onEndDateChange = viewModel::onEndDateChange,
+        onSave = viewModel::save,
         onRetry = viewModel::refresh,
         onBack = onBack,
     )

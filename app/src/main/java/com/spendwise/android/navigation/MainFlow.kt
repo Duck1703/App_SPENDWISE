@@ -23,6 +23,7 @@ import com.spendwise.android.feature.planning.BudgetsDestination
 import com.spendwise.android.feature.planning.CreateBudgetDestination
 import com.spendwise.android.feature.planning.CreateRecurringDestination
 import com.spendwise.android.feature.planning.CreateRuleDestination
+import com.spendwise.android.feature.planning.EditRecurringDestination
 import com.spendwise.android.feature.planning.RecurringDetailDestination
 import com.spendwise.android.feature.planning.RecurringListDestination
 import com.spendwise.android.feature.planning.RuleDetailDestination
@@ -179,6 +180,13 @@ fun MainFlow(
         }
         composable<RecurringDetailRoute> {
             RecurringDetailDestination(
+                onEdit = { navController.navigate(RecurringEditRoute(it)) },
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable<RecurringEditRoute> {
+            EditRecurringDestination(
+                onSaved = { navController.popBackStack() },
                 onBack = { navController.popBackStack() },
             )
         }

@@ -36,6 +36,29 @@ data class RecurringTransactionDto(
  * account's currency client-side (PRODUCT §158 defect mitigation — the
  * server does not cross-check).
  */
+/**
+ * `UpdateRecurringTransactionRequest` for `PATCH
+ * /api/recurring-transactions/{id}` (REQ-BE-012, backend `eeb2c2f`).
+ * Every field is optional and absent fields stay off the wire —
+ * kotlinx.serialization's default `explicitNulls = false` drops null
+ * properties — so `null` here means "not part of the patch", never
+ * "set null".
+ * Clearing category/endDate is the server's explicit
+ * `clearCategory`/`clearEndDate` flags; sending a value plus its flag
+ * is a server 400.
+ */
+@Serializable
+data class UpdateRecurringRequestDto(
+    @Serializable(with = BigDecimalSerializer::class)
+    val amount: BigDecimal? = null,
+    val category: String? = null,
+    val clearCategory: Boolean = false,
+    val frequency: String? = null,
+    val nextDueDate: String? = null,
+    val endDate: String? = null,
+    val clearEndDate: Boolean = false,
+)
+
 @Serializable
 data class CreateRecurringRequestDto(
     val accountId: String,

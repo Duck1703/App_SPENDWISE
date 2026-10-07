@@ -1,6 +1,7 @@
 package com.spendwise.android.feature.planning
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
@@ -97,7 +98,7 @@ class RecurringScreensTest {
                         accountName = "Wallet",
                     ),
                     onDeactivate = { deactivateClicks++ },
-                    onRetry = {}, onBack = {},
+                    onEdit = {}, onRetry = {}, onBack = {},
                 )
             }
         }
@@ -117,7 +118,7 @@ class RecurringScreensTest {
             SpendwiseTheme {
                 RecurringDetailScreen(
                     state = RecurringDetailState.Content(template = template(active = false)),
-                    onDeactivate = {}, onRetry = {}, onBack = {},
+                    onDeactivate = {}, onEdit = {}, onRetry = {}, onBack = {},
                 )
             }
         }
@@ -130,7 +131,7 @@ class RecurringScreensTest {
             SpendwiseTheme {
                 RecurringDetailScreen(
                     state = RecurringDetailState.NotFound,
-                    onDeactivate = {}, onRetry = {}, onBack = {},
+                    onDeactivate = {}, onEdit = {}, onRetry = {}, onBack = {},
                 )
             }
         }
@@ -165,5 +166,153 @@ class RecurringScreensTest {
         composeRule.onNodeWithText("New recurring item").assertIsDisplayed()
         // Long form — the submit sits below the fold.
         composeRule.onNodeWithText("Save recurring item").performScrollTo().assertIsDisplayed()
+    }
+
+    // ── Edit (M16 / REQ-BE-012) ─────────────────────────────────────
+
+    private fun editForm(
+        template: RecurringTemplate = template(),
+        amount: String = "1200",
+        category: String? = "HOUSING",
+        frequency: RecurringFrequency = RecurringFrequency.MONTHLY,
+        nextDueDate: String = "2026-11-01",
+        endDate: String = "",
+        formError: EditRecurringState.Form.FormError? = null,
+    ) = EditRecurringState.Form(
+        template = template,
+        accountName = "Wallet",
+        amount = amount,
+        category = category,
+        frequency = frequency,
+        nextDueDate = nextDueDate,
+        endDate = endDate,
+        categories = listOf("FOOD", "HOUSING"),
+        formError = formError,
+    )
+
+    @Test
+    fun detail_activeShowsEdit_andClickFiresNavigation() {
+        var edited: String? = null
+        composeRule.setContent {
+            SpendwiseTheme {
+                RecurringDetailScreen(
+                    state = RecurringDetailState.Content(
+                        template = template(),
+                        accountName = "Wallet",
+                    ),
+                    onDeactivate = {},
+                    onEdit = { edited = it },
+                    onRetry = {}, onBack = {},
+                )
+            }
+        }
+        composeRule.onNodeWithText("Edit").performScrollTo().performClick()
+        assertEquals("r1", edited)
+    }
+
+    @Test
+    fun detail_inactiveHidesTheEditAffordance() {
+        composeRule.setContent {
+            SpendwiseTheme {
+                RecurringDetailScreen(
+                    state = RecurringDetailState.Content(template = template(active = false)),
+                    onDeactivate = {}, onEdit = {}, onRetry = {}, onBack = {},
+                )
+            }
+        }
+        composeRule.onNodeWithText("Deactivated").assertIsDisplayed()
+        composeRule.onAllNodesWithText("Edit").fetchSemanticsNodes().also {
+            assertEquals(0, it.size)
+        }
+    }
+
+    @Test
+    fun edit_prefillsFields_andShowsImmutableIdentity() {
+        composeRule.setContent {
+            SpendwiseTheme {
+                EditRecurringScreen(
+                    state = editForm(),
+                    onAmountChange = {}, onCategoryChange = {}, onFrequencyChange = {},
+                    onNextDueDateChange = {}, onEndDateChange = {},
+                    onSave = {}, onRetry = {}, onBack = {},
+                )
+            }
+        }
+        composeRule.onNodeWithText("Edit recurring item").assertIsDisplayed()
+        // Immutable identity rows are visible, never editable fields.
+        composeRule.onNodeWithText(
+            "Account, type, and currency can’t be changed.",
+        ).assertIsDisplayed()
+        // Prefilled editable values.
+        composeRule.onNodeWithText("1200").assertIsDisplayed()
+        composeRule.onNodeWithText("2026-11-01").assertIsDisplayed()
+    }
+
+    @Test
+    fun edit_saveStaysDisabledUntilAFieldChanges() {
+        var amount = "1200"
+        composeRule.setContent {
+            SpendwiseTheme {
+                EditRecurringScreen(
+                    state = editForm(amount = amount),
+                    onAmountChange = { amount = it },
+                    onCategoryChange = {}, onFrequencyChange = {},
+                    onNextDueDateChange = {}, onEndDateChange = {},
+                    onSave = {}, onRetry = {}, onBack = {},
+                )
+            }
+        }
+        composeRule.onNodeWithText("Save changes").performScrollTo().assertIsNotEnabled()
+    }
+
+    @Test
+    fun edit_changedFieldEnablesSave_andSaveFires() {
+        var saveClicks = 0
+        composeRule.setContent {
+            SpendwiseTheme {
+                EditRecurringScreen(
+                    state = editForm(amount = "950.50"),
+                    onAmountChange = {}, onCategoryChange = {}, onFrequencyChange = {},
+                    onNextDueDateChange = {}, onEndDateChange = {},
+                    onSave = { saveClicks++ }, onRetry = {}, onBack = {},
+                )
+            }
+        }
+        composeRule.onNodeWithText("Save changes").performScrollTo().performClick()
+        assertEquals(1, saveClicks)
+    }
+
+    @Test
+    fun edit_formErrorBannerRenders() {
+        composeRule.setContent {
+            SpendwiseTheme {
+                EditRecurringScreen(
+                    state = editForm(
+                        amount = "999",
+                        formError = EditRecurringState.Form.FormError.Ambiguous,
+                    ),
+                    onAmountChange = {}, onCategoryChange = {}, onFrequencyChange = {},
+                    onNextDueDateChange = {}, onEndDateChange = {},
+                    onSave = {}, onRetry = {}, onBack = {},
+                )
+            }
+        }
+        composeRule.onNodeWithText("Couldn’t confirm").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun edit_notFoundShowsMissingNotice() {
+        composeRule.setContent {
+            SpendwiseTheme {
+                EditRecurringScreen(
+                    state = EditRecurringState.NotFound,
+                    onAmountChange = {}, onCategoryChange = {}, onFrequencyChange = {},
+                    onNextDueDateChange = {}, onEndDateChange = {},
+                    onSave = {}, onRetry = {}, onBack = {},
+                )
+            }
+        }
+        composeRule.onNodeWithText("This recurring item is no longer available.")
+            .assertIsDisplayed()
     }
 }

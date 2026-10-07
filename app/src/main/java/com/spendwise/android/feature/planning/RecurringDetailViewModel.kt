@@ -41,6 +41,11 @@ class RecurringDetailViewModel @Inject constructor(
 
     init {
         load(initial = true)
+        // A save on the edit screen emits a mutation — reload so this
+        // detail reflects server truth when it resumes (M16).
+        viewModelScope.launch {
+            recurringRepository.mutations.collect { refresh() }
+        }
     }
 
     fun refresh() = load(initial = false)

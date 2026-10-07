@@ -398,6 +398,11 @@
     <string name="recurring_deactivate_confirm">Deactivate</string>
     <string name="recurring_deactivated_title">Deactivated</string>
     <string name="recurring_deactivated_body">This template no longer generates transactions. Previously generated entries remain.</string>
+    <string name="recurring_edit_action">Edit</string>
+    <string name="recurring_edit_title">Edit recurring item</string>
+    <string name="recurring_edit_subtitle">Changes apply to future generated transactions — existing entries stay as they are.</string>
+    <string name="recurring_edit_locked_hint">Account, type, and currency can\’t be changed.</string>
+    <string name="recurring_edit_save">Save changes</string>
     <string name="recurring_error_next_due_required">Enter the next due date.</string>
     <string name="recurring_error_date_invalid">Use YYYY-MM-DD.</string>
     <string name="recurring_error_end_before_next">The end date can’t be before the next due date.</string>

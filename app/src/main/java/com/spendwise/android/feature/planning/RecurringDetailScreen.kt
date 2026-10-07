@@ -14,6 +14,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -55,6 +56,7 @@ import java.time.format.FormatStyle
 fun RecurringDetailScreen(
     state: RecurringDetailState,
     onDeactivate: () -> Unit,
+    onEdit: (String) -> Unit,
     onRetry: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -98,6 +100,7 @@ fun RecurringDetailScreen(
                 is RecurringDetailState.Content -> Detail(
                     state = state,
                     onDeactivate = { confirmVisible = true },
+                    onEdit = onEdit,
                 )
             }
         }
@@ -134,6 +137,7 @@ fun RecurringDetailScreen(
 private fun Detail(
     state: RecurringDetailState.Content,
     onDeactivate: () -> Unit,
+    onEdit: (String) -> Unit,
 ) {
     val template = state.template
     SwCard {
@@ -208,6 +212,18 @@ private fun Detail(
             )
             Spacer(Modifier.height(SwSpacing.Md))
         }
+        // Edit (M16): sparse PATCH of future-generation inputs — the
+        // destructive action stays visually secondary.
+        OutlinedButton(
+            onClick = { onEdit(template.id) },
+            enabled = !state.isDeactivating,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
+        ) {
+            Text(stringResource(R.string.recurring_edit_action))
+        }
+        Spacer(Modifier.height(SwSpacing.Sm))
         Button(
             onClick = onDeactivate,
             enabled = !state.isDeactivating,

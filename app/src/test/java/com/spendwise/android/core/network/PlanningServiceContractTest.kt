@@ -8,6 +8,7 @@ import com.spendwise.android.data.remote.CreateRuleRequestDto
 import com.spendwise.android.data.remote.RecurringService
 import com.spendwise.android.data.remote.RulesService
 import com.spendwise.android.data.remote.UpdateBudgetRequestDto
+import com.spendwise.android.data.remote.UpdateRecurringRequestDto
 import com.spendwise.android.fakes.FakeTokenStore
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -365,6 +366,85 @@ class PlanningServiceContractTest {
         )
         try {
             recurring.getById("foreign")
+            fail("expected ApiException")
+        } catch (e: ApiException) {
+            assertEquals(404, e.status)
+            assertEquals(AppError.NotFound, e.toAppError())
+        }
+    }
+
+    // ── Recurring edit (M16 / REQ-BE-012) ────────────────────────────
+
+    @Test
+    fun `recurring PATCH sends only the changed fields`() = runTest {
+        signIn()
+        server.enqueue(
+            jsonResponse(
+                200,
+                """{"id":"r1","accountId":"a1","direction":"EXPENSE","amount":950.50,"currency":"VND","category":"HOUSING","frequency":"MONTHLY","nextDueDate":"2026-11-01","endDate":null,"active":true}""",
+            ),
+        )
+        val updated = recurring.update(
+            "r1",
+            UpdateRecurringRequestDto(amount = BigDecimal("950.50")),
+        )
+        val request = server.takeRequest()
+        assertEquals("/api/recurring-transactions/r1", request.target)
+        assertEquals("PATCH", request.method)
+        assertEquals("Bearer live-token", request.headers["Authorization"])
+        val body = request.body?.utf8().orEmpty()
+        assertTrue(body.contains("\"amount\":950.50"))
+        // Absent fields stay off the wire — a true partial update; the
+        // clear flags are omitted too (false is the default and is not
+        // sent as "clearCategory":false noise).
+        assertFalse("absent fields must be omitted", body.contains("category"))
+        assertFalse(body.contains("frequency"))
+        assertFalse(body.contains("nextDueDate"))
+        assertFalse(body.contains("endDate"))
+        // Immutable identity is never sent by the DTO's shape.
+        assertFalse(body.contains("accountId"))
+        assertFalse(body.contains("direction"))
+        assertFalse(body.contains("currency"))
+        assertFalse(body.contains("active"))
+        assertEquals(BigDecimal("950.50"), updated.amount)
+        assertTrue(updated.active)
+    }
+
+    @Test
+    fun `recurring PATCH clear flags serialize as true when clearing`() = runTest {
+        signIn()
+        server.enqueue(
+            jsonResponse(
+                200,
+                """{"id":"r1","accountId":"a1","direction":"EXPENSE","amount":42.00,"currency":"VND","category":null,"frequency":"WEEKLY","nextDueDate":"2026-11-15","endDate":null,"active":true}""",
+            ),
+        )
+        recurring.update(
+            "r1",
+            UpdateRecurringRequestDto(
+                amount = BigDecimal("42.00"),
+                clearCategory = true,
+                frequency = "WEEKLY",
+                nextDueDate = "2026-11-15",
+                clearEndDate = true,
+            ),
+        )
+        val body = server.takeRequest().body?.utf8().orEmpty()
+        assertTrue(body.contains("\"amount\":42"))
+        assertTrue("clear flag must reach the wire", body.contains("\"clearCategory\":true"))
+        assertTrue(body.contains("\"frequency\":\"WEEKLY\""))
+        assertTrue(body.contains("\"nextDueDate\":\"2026-11-15\""))
+        assertTrue(body.contains("\"clearEndDate\":true"))
+        assertFalse(body.contains("\"category\""))
+        assertFalse(body.contains("\"endDate\""))
+    }
+
+    @Test
+    fun `recurring PATCH foreign id surfaces as 404`() = runTest {
+        signIn()
+        server.enqueue(jsonResponse(404, """{"title":"Not found","status":404}"""))
+        try {
+            recurring.update("foreign", UpdateRecurringRequestDto(amount = BigDecimal.ONE))
             fail("expected ApiException")
         } catch (e: ApiException) {
             assertEquals(404, e.status)

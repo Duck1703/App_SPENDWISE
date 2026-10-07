@@ -3,6 +3,7 @@ package com.spendwise.android.fakes
 import com.spendwise.android.data.remote.CreateRecurringRequestDto
 import com.spendwise.android.data.remote.RecurringService
 import com.spendwise.android.data.remote.RecurringTransactionDto
+import com.spendwise.android.data.remote.UpdateRecurringRequestDto
 import java.math.BigDecimal
 
 /** Scripted [RecurringService] — records calls, runs configured results. */
@@ -16,11 +17,15 @@ class FakeRecurringService : RecurringService {
             nextDueDate = it.nextDueDate, endDate = it.endDate)
     }
     var deactivateResult: suspend (String) -> RecurringTransactionDto = { template(id = it, active = false) }
+    var updateResult: suspend (String, UpdateRecurringRequestDto) -> RecurringTransactionDto = { id, _ ->
+        template(id = id)
+    }
 
     val listCalls = mutableListOf<Unit>()
     val getCalls = mutableListOf<String>()
     val createCalls = mutableListOf<CreateRecurringRequestDto>()
     val deactivateCalls = mutableListOf<String>()
+    val updateCalls = mutableListOf<Pair<String, UpdateRecurringRequestDto>>()
 
     override suspend fun list(): List<RecurringTransactionDto> {
         listCalls += Unit
@@ -40,6 +45,11 @@ class FakeRecurringService : RecurringService {
     override suspend fun deactivate(id: String): RecurringTransactionDto {
         deactivateCalls += id
         return deactivateResult(id)
+    }
+
+    override suspend fun update(id: String, body: UpdateRecurringRequestDto): RecurringTransactionDto {
+        updateCalls += id to body
+        return updateResult(id, body)
     }
 
     companion object {

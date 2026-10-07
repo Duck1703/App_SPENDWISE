@@ -152,6 +152,118 @@ class RecurringRepositoryTest {
         assertTrue((thrown as? AppErrorException)?.error is AppError.Unknown)
     }
 
+    // ── Update (M16 / REQ-BE-012) ───────────────────────────────────
+
+    @Test
+    fun `update maps a sparse patch to the wire DTO`() = runTest {
+        val h = harness()
+        signIn(h)
+        h.repository.update(
+            id = "r1",
+            amount = Money(BigDecimal("950.50"), CurrencyCode("VND")),
+            frequency = RecurringFrequency.WEEKLY,
+            nextDueDate = LocalDate.parse("2026-11-15"),
+            endDate = LocalDate.parse("2027-01-15"),
+        )
+        val (id, body) = h.service.updateCalls.single()
+        assertEquals("r1", id)
+        assertEquals(BigDecimal("950.50"), body.amount)
+        assertEquals("WEEKLY", body.frequency)
+        assertEquals("2026-11-15", body.nextDueDate)
+        assertEquals("2027-01-15", body.endDate)
+        assertNull(body.category)
+        assertEquals(false, body.clearCategory)
+        assertEquals(false, body.clearEndDate)
+    }
+
+    @Test
+    fun `update sends clear flags and no category value when clearing`() = runTest {
+        val h = harness()
+        signIn(h)
+        h.repository.update(id = "r1", clearCategory = true, clearEndDate = true)
+        val (_, body) = h.service.updateCalls.single()
+        assertEquals(true, body.clearCategory)
+        assertEquals(true, body.clearEndDate)
+        assertNull(body.category)
+        assertNull(body.endDate)
+        assertNull(body.amount)
+        assertNull(body.frequency)
+        assertNull(body.nextDueDate)
+    }
+
+    @Test
+    fun `update emits the mutation signal`() = runTest {
+        val h = harness()
+        signIn(h)
+        val emissions = mutableListOf<Unit>()
+        val collector = async { h.repository.mutations.collect { emissions += Unit } }
+        runCurrent()
+        h.repository.update(id = "r1", amount = Money(BigDecimal("1"), CurrencyCode("VND")))
+        runCurrent()
+        collector.cancel()
+        assertEquals(1, emissions.size)
+    }
+
+    @Test
+    fun `a dead-generation update is discarded and emits nothing`() = runTest {
+        val h = harness()
+        signIn(h)
+        val gate = CompletableDeferred<com.spendwise.android.data.remote.RecurringTransactionDto>()
+        h.service.updateResult = { _, _ -> gate.await() }
+        val emissions = mutableListOf<Unit>()
+        val collector = async { h.repository.mutations.collect { emissions += Unit } }
+        val pending = async {
+            h.repository.update(id = "r1", amount = Money(BigDecimal("1"), CurrencyCode("VND")))
+        }
+        runCurrent()
+        h.sessionManager.signOut()
+        gate.complete(FakeRecurringService.template())
+        val thrown = runCatching { pending.await() }.exceptionOrNull()
+        runCurrent()
+        collector.cancel()
+        assertTrue(thrown is SessionEndedException)
+        assertTrue(emissions.isEmpty())
+    }
+
+    @Test
+    fun `update rejects an armored frequency before any wire call`() = runTest {
+        val h = harness()
+        signIn(h)
+        val thrown = runCatching {
+            h.repository.update(id = "r1", frequency = RecurringFrequency.UNKNOWN)
+        }.exceptionOrNull()
+        assertTrue(thrown is IllegalArgumentException)
+        assertTrue(h.service.updateCalls.isEmpty())
+    }
+
+    @Test
+    fun `update rejects a value paired with its own clear flag`() = runTest {
+        val h = harness()
+        signIn(h)
+        runCatching {
+            h.repository.update(id = "r1", category = "FOOD", clearCategory = true)
+        }.also { assertTrue(it.exceptionOrNull() is IllegalArgumentException) }
+        runCatching {
+            h.repository.update(
+                id = "r1",
+                endDate = LocalDate.parse("2027-01-01"),
+                clearEndDate = true,
+            )
+        }.also { assertTrue(it.exceptionOrNull() is IllegalArgumentException) }
+        assertTrue(h.service.updateCalls.isEmpty())
+    }
+
+    @Test
+    fun `update maps a 404 to NotFound`() = runTest {
+        val h = harness()
+        signIn(h)
+        h.service.updateResult = { _, _ -> throw ApiException(404, "Not found") }
+        val thrown = runCatching {
+            h.repository.update(id = "r1", amount = Money(BigDecimal("1"), CurrencyCode("VND")))
+        }.exceptionOrNull()
+        assertTrue((thrown as? AppErrorException)?.error is AppError.NotFound)
+    }
+
     @Test
     fun `a dead-generation list result is discarded`() = runTest {
         val h = harness()

@@ -8,9 +8,11 @@ import com.spendwise.android.data.remote.CreateTransactionRequestDto
 import com.spendwise.android.data.remote.CreateTransferRequestDto
 import com.spendwise.android.data.remote.LogoutRequestDto
 import com.spendwise.android.data.remote.BudgetsService
+import com.spendwise.android.data.remote.RecurringService
 import com.spendwise.android.data.remote.TransactionsService
 import com.spendwise.android.data.remote.TransfersService
 import com.spendwise.android.data.remote.UpdateBudgetRequestDto
+import com.spendwise.android.data.remote.UpdateRecurringRequestDto
 import com.spendwise.android.fakes.FakeTokenStore
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -387,6 +389,56 @@ class SessionRefreshContractTest {
         assertEquals("/api/auth/refresh", server.takeRequest().url.encodedPath)
         val write = server.takeRequest()
         assertEquals("/api/budgets/b1", write.url.encodedPath)
+        assertEquals("PATCH", write.method)
+        assertEquals("Bearer fresh-access", write.headers["Authorization"])
+        assertEquals(2, server.requestCount)
+    }
+
+    @Test
+    fun `recurring PATCH 401 after transmission is never replayed`() = runTest {
+        val recurring = retrofit.create(RecurringService::class.java)
+        sessionManager.onSignedIn("rejected-access", future, "ana", "u1", refreshToken = "rt-1")
+        server.enqueue(MockResponse(code = 401, body = ""))
+        server.enqueue(refreshOk())
+
+        try {
+            recurring.update(
+                "r1",
+                UpdateRecurringRequestDto(amount = java.math.BigDecimal("950.50")),
+            )
+            throw AssertionError("Expected ApiException")
+        } catch (e: ApiException) {
+            assertEquals(401, e.status)
+        }
+
+        // Exactly one PATCH hit the wire; credentials renew for the NEXT
+        // attempt only — a template edit can never be double-applied.
+        val write = server.takeRequest()
+        assertEquals("/api/recurring-transactions/r1", write.url.encodedPath)
+        assertEquals("PATCH", write.method)
+        assertEquals("/api/auth/refresh", server.takeRequest().url.encodedPath)
+        assertEquals(2, server.requestCount)
+    }
+
+    @Test
+    fun `locally-expired token renews before exactly one recurring PATCH`() = runTest {
+        val recurring = retrofit.create(RecurringService::class.java)
+        sessionManager.onSignedIn("dead-access", past, "ana", "u1", refreshToken = "rt-1")
+        server.enqueue(refreshOk())
+        server.enqueue(
+            MockResponse(
+                code = 200,
+                body = """{"id":"r1","accountId":"a1","direction":"EXPENSE","amount":950.50,"currency":"VND","category":"HOUSING","frequency":"MONTHLY","nextDueDate":"2026-11-01","endDate":null,"active":true}""",
+            ),
+        )
+
+        recurring.update("r1", UpdateRecurringRequestDto(amount = java.math.BigDecimal("950.50")))
+
+        // Refresh first, then exactly ONE PATCH bearing the fresh
+        // credential — the stale token never hit the wire.
+        assertEquals("/api/auth/refresh", server.takeRequest().url.encodedPath)
+        val write = server.takeRequest()
+        assertEquals("/api/recurring-transactions/r1", write.url.encodedPath)
         assertEquals("PATCH", write.method)
         assertEquals("Bearer fresh-access", write.headers["Authorization"])
         assertEquals(2, server.requestCount)
