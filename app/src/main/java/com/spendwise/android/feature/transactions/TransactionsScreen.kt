@@ -445,7 +445,7 @@ private fun TransactionsContent(
     // viewport bottom, ask for the next page. Guarding on hasMore/
     // loadingMore/moreError (not just position) lets the trigger
     // auto-chain until the viewport fills while making an append
-    // failure stop cleanly — the footer banner's button is the retry.
+    // failure stop cleanly — tapping the footer banner is the retry.
     val shouldLoadMore by remember {
         derivedStateOf {
             val info = listState.layoutInfo
