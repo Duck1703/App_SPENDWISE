@@ -1,24 +1,36 @@
 # M15 — Scalable Transaction History (pagination + date-range)
 
 ```
-STATUS: READY_FOR_EXTERNAL_AUDIT — all gates green, Sentinel+Argus PASS.
-M14_COMPLETE=YES (ACCEPTED + Human-approved; physical gate passed
-  Pixel 4 XL 180/180 ×2 — closeout 256c2ce)
+STATUS: COMPLETE — external audit ACCEPTED, Human-approved.
+Independent external audit: 1 Major + 3 Minor found and remediated
+in-task (stale-append error-path state mutation → page-skip gap risk;
+48dp touch-target shortfall; dishonest append-error copy; backend
+boundary-test gaps); all final gates re-green on remediated source.
+Physical Pixel 4 XL (Android 13, SERIAL=<REDACTED>): 186/186 ×2
+consecutive on final source (+186/186 ×2 preliminary on delivery
+source), install+launch clean.
+M14_COMPLETE=YES
 M15_DEFINED=YES
 M15_STARTED=YES
 M15_TECHNICAL_COMPLETE=YES
 M15_READY_FOR_EXTERNAL_AUDIT=YES
-M15_HUMAN_APPROVED=NO
-M15_HUMAN_AUTHORIZATION=EXPLICIT (THE HUMAN's M15 delivery block:
-  "select exactly one substantial capability ... implement the
-  complete backend + Android vertical slice")
+M15_EXTERNAL_AUDIT_FINAL=ACCEPTED
+M15_EXTERNAL_AUDIT_COMPLETE=YES
+M15_HUMAN_APPROVED=YES
+M15_PHYSICAL_RUNTIME=PASS
+M15_STATUS=COMPLETE
+M15_HUMAN_AUTHORIZATION=EXPLICIT (M15 delivery block + conditional
+  external-audit closeout authorization)
 CANONICAL_REQUIREMENT=REQ-BE-007
+SCALABLE_TRANSACTION_HISTORY=APPROVED
 M16_DEFINED=NO
 M16_STARTED=NO
-SPENDWISE_STATUS=M15_READY_FOR_EXTERNAL_AUDIT
-NEXT_ACTION=ONE_LARGE_INDEPENDENT_EXTERNAL_M15_AUDIT
+SPENDWISE_STATUS=M15_COMPLETE
+NEXT_ACTION=HUMAN_M16_DECISION
 BASELINE: Android 256c2ce (M14-accepted) · Backend 4ed4f81
-DELIVERED:  Android 3081349 + 6cfcaf2 + 685eb14 + 7488d47 · Backend d3e73c8
+DELIVERED:  Android 3081349 + 6cfcaf2 + 685eb14 + 7488d47
+  + audit remediation ebd966a (+ hygiene 48ec4ab) · Backend d3e73c8
+  + audit test-strengthening ef08539
 ```
 
 ## Selection rationale (decision record)
@@ -167,9 +179,11 @@ green and review blockers/majors are remediated.
 | Android JVM | 615/615, 0 skipped |
 | lint / detekt | clean / 0 smells |
 | assembleDebug / assembleRelease | green; `app-release-unsigned.apk` 2,451,754 B sha256 `25908dd83246200a8b09…` |
-| Physical Pixel 4 XL (Android 13, `ANDROID_SERIAL` forced) | **186/186 ×2 consecutive** + 19/19 re-run after a11y remediation |
-| Install + launch | `MainActivity` top-resumed, no crash |
-| Sentinel / Argus | PASS / PASS — reviews in `project-control/reviews/` |
+| Physical Pixel 4 XL (Android 13, `ANDROID_SERIAL` forced) | **186/186 ×2 consecutive** + 19/19 re-run after a11y remediation; external audit re-ran **186/186 ×2 preliminary + 186/186 ×2 final-source** |
+| Install + launch | `MainActivity` top-resumed, no crash (re-verified post-remediation) |
+| Sentinel / Argus / External | PASS / PASS / **ACCEPTED** — reviews in `project-control/reviews/` |
+| External-audit remediation | `ebd966a` (VM stale-append guard + 48dp clear target + copy fix + 2 regression tests) · backend `ef08539` (3 boundary/composition contract tests) |
+| Post-remediation gates | backend targeted 15/15 · backend full 365 (1 documented baseline flake) · JVM 617/617 fresh · lint/detekt/debug/release green · release sha256 `5075f0e1e3c46b86…` |
 
 Device-only defect found and fixed in-milestone: the From/To chips
 start clipped inside the horizontally-scrolling filter row on a
@@ -183,10 +197,12 @@ the date-chip clear affordance was enlarged from an 18dp icon to a
 ```
 COURSE_UPDATE_EXECUTED=NO
 COURSE_SYNC_DEFERRED=YES
-BACKEND_RANGE_FOR_FUTURE_SYNC=4ed4f81..d3e73c8
+M14_BACKEND_RANGE_FOR_FUTURE_SYNC=da147b8fe5b1d836fe8e26f0a9fb961bbde80a59..4ed4f813b4aaed3721622dede6dfe3a527db3b89
+M15_BACKEND_RANGE_FOR_FUTURE_SYNC=4ed4f813b4aaed3721622dede6dfe3a527db3b89..ef08539
 BACKEND_SYNC_SUMMARY=one read-only endpoint GET /api/transactions/page
   (TransactionController#page + TransactionService#searchPage spec +
   TransactionRepository JpaSpecificationExecutor + TransactionPageResponse
-  + TransactionProvenance + TransactionPageContractTest); unpaged list
+  + TransactionProvenance + TransactionPageContractTest, incl. external-audit
+  single-day/leap-day/filter-before-slicing contract tests); unpaged list
   endpoint unchanged; no schema migration; no auth-surface change.
 ```
