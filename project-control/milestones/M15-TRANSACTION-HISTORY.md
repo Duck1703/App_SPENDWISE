@@ -1,13 +1,13 @@
 # M15 — Scalable Transaction History (pagination + date-range)
 
 ```
-STATUS: CURRENT — defined, implementation in progress.
+STATUS: READY_FOR_EXTERNAL_AUDIT — all gates green, Sentinel+Argus PASS.
 M14_COMPLETE=YES (ACCEPTED + Human-approved; physical gate passed
   Pixel 4 XL 180/180 ×2 — closeout 256c2ce)
 M15_DEFINED=YES
 M15_STARTED=YES
-M15_TECHNICAL_COMPLETE=NO
-M15_READY_FOR_EXTERNAL_AUDIT=NO
+M15_TECHNICAL_COMPLETE=YES
+M15_READY_FOR_EXTERNAL_AUDIT=YES
 M15_HUMAN_APPROVED=NO
 M15_HUMAN_AUTHORIZATION=EXPLICIT (THE HUMAN's M15 delivery block:
   "select exactly one substantial capability ... implement the
@@ -15,8 +15,10 @@ M15_HUMAN_AUTHORIZATION=EXPLICIT (THE HUMAN's M15 delivery block:
 CANONICAL_REQUIREMENT=REQ-BE-007
 M16_DEFINED=NO
 M16_STARTED=NO
-SPENDWISE_STATUS=M15_IN_PROGRESS
+SPENDWISE_STATUS=M15_READY_FOR_EXTERNAL_AUDIT
+NEXT_ACTION=ONE_LARGE_INDEPENDENT_EXTERNAL_M15_AUDIT
 BASELINE: Android 256c2ce (M14-accepted) · Backend 4ed4f81
+DELIVERED:  Android 3081349 + 6cfcaf2 + 685eb14 + 7488d47 · Backend d3e73c8
 ```
 
 ## Selection rationale (decision record)
@@ -155,11 +157,36 @@ final install+launch sanity · Sentinel · Argus → external-audit
 handoff. `M15_READY_FOR_EXTERNAL_AUDIT=YES` only when every gate is
 green and review blockers/majors are remediated.
 
+## Delivery evidence (all reproduced live)
+
+| Gate | Result |
+|---|---|
+| Backend focused | `TransactionPageContractTest` 12/12 — real MockMvc + Postgres |
+| Backend regression | 362 tests, 1 failure = documented `RecurringSchedulingJobTest` date-dependent baseline flake (expected 1 got 2; identical since M10) |
+| Backend package | `spendwise-0.1.0-SNAPSHOT.jar` built |
+| Android JVM | 615/615, 0 skipped |
+| lint / detekt | clean / 0 smells |
+| assembleDebug / assembleRelease | green; `app-release-unsigned.apk` 2,451,754 B sha256 `25908dd83246200a8b09…` |
+| Physical Pixel 4 XL (Android 13, `ANDROID_SERIAL` forced) | **186/186 ×2 consecutive** + 19/19 re-run after a11y remediation |
+| Install + launch | `MainActivity` top-resumed, no crash |
+| Sentinel / Argus | PASS / PASS — reviews in `project-control/reviews/` |
+
+Device-only defect found and fixed in-milestone: the From/To chips
+start clipped inside the horizontally-scrolling filter row on a
+411dp-wide physical phone — screen tests now `performScrollTo()`
+before asserting (a real device-only catch the emulator missed), and
+the date-chip clear affordance was enlarged from an 18dp icon to a
+40dp-wide full-chip-height tappable target (a11y remediation).
+
 ## Course-sync record (deferred)
 
 ```
 COURSE_UPDATE_EXECUTED=NO
 COURSE_SYNC_DEFERRED=YES
-BACKEND_RANGE_FOR_FUTURE_SYNC=<recorded on delivery commit>
-BACKEND_SYNC_SUMMARY=<recorded on delivery commit>
+BACKEND_RANGE_FOR_FUTURE_SYNC=4ed4f81..d3e73c8
+BACKEND_SYNC_SUMMARY=one read-only endpoint GET /api/transactions/page
+  (TransactionController#page + TransactionService#searchPage spec +
+  TransactionRepository JpaSpecificationExecutor + TransactionPageResponse
+  + TransactionProvenance + TransactionPageContractTest); unpaged list
+  endpoint unchanged; no schema migration; no auth-surface change.
 ```
