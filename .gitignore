@@ -11,3 +11,6 @@ local.properties
 # OS metadata
 .DS_Store
 Thumbs.db
+
+# Kotlin daemon session metadata
+.kotlin/
