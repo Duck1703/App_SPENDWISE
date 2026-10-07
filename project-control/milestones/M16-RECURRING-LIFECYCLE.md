@@ -158,3 +158,29 @@ audit is OUT OF SCOPE for this delivery (stops at
 Deferred. Backend production delta will be recorded as
 `ef08539..<M16 backend head>` + contract summary for a later
 synchronization pass. `COURSE_UPDATE_EXECUTED=NO`.
+
+## Final status (delivery-block close)
+
+```
+M16_TECHNICAL_COMPLETE=YES
+M16_READY_FOR_EXTERNAL_AUDIT=YES
+M16_HUMAN_APPROVED=NO
+M17_DEFINED=NO
+M17_STARTED=NO
+PUSH_PERFORMED=NO
+TAG_CREATED=NO
+COURSE_UPDATE_EXECUTED=NO
+```
+
+Backend `eeb2c2f` (bounded prerequisite, human-authorized — 6 files,
+`com.spendwise.recurring` only). Android `f8d855e` (19 files).
+Gates: backend focused 11/11; backend full 376 tests / 1 documented
+pre-existing `RecurringSchedulingJobTest` flake; Android JVM 651/651
+fresh; lint PASS (0 errors, pre-existing warnings only); detekt 0
+smells; debug+release builds green; R8 serializer audit green;
+physical Pixel 4 XL 193/193 ×2 on final source; installed + launched.
+Reviews: [reviews/M16-SENTINEL-REVIEW.md](../reviews/M16-SENTINEL-REVIEW.md)
+PASS, [reviews/M16-ARGUS-REVIEW.md](../reviews/M16-ARGUS-REVIEW.md)
+PASS. Handoff:
+[reviews/M16-EXTERNAL-AUDIT-HANDOFF.md](../reviews/M16-EXTERNAL-AUDIT-HANDOFF.md).
+External audit pending — intentionally not performed in-task.
