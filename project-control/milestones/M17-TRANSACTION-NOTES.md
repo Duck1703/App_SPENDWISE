@@ -1,25 +1,30 @@
 # M17 — Transaction Notes (persisted description)
 
 ```
-STATUS: READY_FOR_EXTERNAL_AUDIT
+STATUS: COMPLETE
 M16_COMPLETE=YES
 M17_DEFINED=YES
 M17_STARTED=YES
 M17_TECHNICAL_COMPLETE=YES
 M17_READY_FOR_EXTERNAL_AUDIT=YES
-M17_EXTERNAL_AUDIT=NOT_RUN (out of scope for this delivery block)
-M17_HUMAN_APPROVED=NO
+M17_EXTERNAL_AUDIT_FINAL=ACCEPTED
+M17_HUMAN_APPROVED=YES (per audit-authorization directive —
+  see reviews/M17-EXTERNAL-AUDIT.md)
 M17_HUMAN_AUTHORIZATION=EXPLICIT (M17 delivery block)
 CANONICAL_REQUIREMENT=REQ-BE-010 (persisted transaction
   description/notes)
-TRANSACTION_NOTES=DELIVERED_TECHNICAL
+TRANSACTION_NOTES=COMPLETE
 M18_DEFINED=NO
 M18_STARTED=NO
-SPENDWISE_STATUS=M17_READY_FOR_EXTERNAL_AUDIT
-NEXT_ACTION=ONE_LARGE_INDEPENDENT_EXTERNAL_M17_AUDIT
+SPENDWISE_STATUS=M17_COMPLETE
+NEXT_ACTION=RESUME_PREPARED_M18_DELIVERY_TASK
 BASELINE: Android 63fef64 (M16-accepted) · Backend ca5b380
-DELIVERY: Backend ca5b380..9c123f7 · Android f304c5b..HEAD
-COURSE_SYNC_DEFERRED=YES (backend range recorded below)
+DELIVERY: Backend ca5b380..9c123f7 · Android f304c5b..25db8ab
+AUDIT_REMEDIATION: Backend 752eac3 · Android deccaf2
+  (2 Major: surrogate-split cap, CSV formula injection;
+   2 Minor: Android take() surrogate, racy storm test)
+ACCEPTED_HEADS: Backend 752eac3 · Android deccaf2
+COURSE_SYNC_DEFERRED=YES (backend range: ca5b380..752eac3)
 ```
 
 ## Selection rationale (decision record)
