@@ -24,7 +24,9 @@ GATES: backend 407/407 · Android JVM 672/672 · lint 0e/22w · detekt 0
   · debug+release+R8 green · physical Pixel 4 XL 200/200 ×2 ·
   install+launch verified · SENTINEL PASS · ARGUS PASS
   (0 Blocker/0 Major/0 Minor — see reviews/M18-*-REVIEW.md)
-COURSE_SYNC_DEFERRED=YES (backend range recorded at closeout)
+DELIVERY: Android 83a5679 (slice) + 1deeb16 (reviews/status)
+  · Backend 752eac3..0719836 (bounded `q` prerequisite + contract test)
+COURSE_SYNC_DEFERRED=YES
 ```
 
 ## Selection rationale (decision record)
