@@ -134,7 +134,17 @@ class TransactionsViewModel @Inject constructor(
     private suspend fun markPending() {
         val current = _state.value
         _state.value = if (current is TransactionsUiState.Content) {
-            current.copy(isRefreshing = true, refreshError = null, moreError = null)
+            // A fresh page-0 load supersedes any in-flight append — the
+            // append's stale tick can never publish, so clearing its flag
+            // now is honest: without it a failed refetch would leave
+            // loadingMore stuck true and dead-end scroll-loading until
+            // the next manual refresh (EXT-M18-1).
+            current.copy(
+                isRefreshing = true,
+                refreshError = null,
+                moreError = null,
+                loadingMore = false,
+            )
         } else {
             TransactionsUiState.Loading
         }

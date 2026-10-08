@@ -878,4 +878,65 @@ class TransactionsViewModelTest {
         assertEquals("coffee", txns.pageCalls.last().q)
         assertEquals("coffee", viewModel.filters.value.query)
     }
+
+    @Test
+    fun `a failed refetch releases a superseded append flag`() = runTest {
+        // EXT audit: append parked -> query change -> NEW fetch fails.
+        // The retained (old-filter) Content must not keep loadingMore
+        // stuck true — the append can never publish (stale tick), and a
+        // live flag would dead-end scroll-loading until manual refresh.
+        val txns = FakeTransactionRepository()
+        val appendGate = CompletableDeferred<TransactionPage>()
+        txns.listPageResult = { call ->
+            when {
+                call.page == 1 -> appendGate.await()
+                call.q == "new" ->
+                    throw AppErrorException(AppError.NetworkUnavailable)
+                else -> page(twoRows(), page = call.page, totalElements = 4, hasNext = true)
+            }
+        }
+        val viewModel = vm(txns)
+        viewModel.loadNextPage() // parked append: loadingMore=true
+        assertTrue((viewModel.state.value as TransactionsUiState.Content).loadingMore)
+
+        viewModel.onSearchQueryChange("new")
+        advanceUntilIdle() // the fresh page-0 fetch fails
+
+        val state = viewModel.state.value as TransactionsUiState.Content
+        assertEquals(TransactionsError.Network, state.refreshError)
+        assertFalse(state.loadingMore) // dead append's flag must not linger
+        // and the parked append landing late still publishes nothing
+        appendGate.complete(page(
+            listOf(FakeTransactionRepository.transaction(id = "stale")),
+            page = 1, totalElements = 4, hasNext = false))
+        assertEquals(listOf("t1", "t2"),
+            (viewModel.state.value as TransactionsUiState.Content).items.map { it.id })
+    }
+
+    @Test
+    fun `refresh during an active search resends the query at page 0`() = runTest {
+        // Pull-to-refresh must not silently drop the applied term — the
+        // fresh load is another emission of the SAME query, so q stays
+        // on the wire and pagination restarts at page 0.
+        val txns = FakeTransactionRepository()
+        txns.listPageResult = { call ->
+            page(twoRows(), page = call.page, totalElements = 4, hasNext = true)
+        }
+        val viewModel = vm(txns)
+        viewModel.onSearchQueryChange("coffee")
+        advanceUntilIdle()
+        viewModel.loadNextPage() // page 1 lands
+        advanceUntilIdle()
+        assertEquals("coffee", txns.pageCalls.last().q)
+
+        viewModel.refresh()
+        advanceUntilIdle()
+
+        val call = txns.pageCalls.last()
+        assertEquals(0, call.page)
+        assertEquals("coffee", call.q)
+        val state = viewModel.state.value as TransactionsUiState.Content
+        assertFalse(state.isRefreshing)
+        assertEquals(1, state.nextPage)
+    }
 }
