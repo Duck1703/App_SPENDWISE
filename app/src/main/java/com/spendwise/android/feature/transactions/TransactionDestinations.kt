@@ -24,6 +24,7 @@ fun TransactionsDestination(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val options by viewModel.options.collectAsStateWithLifecycle()
     val filters by viewModel.filters.collectAsStateWithLifecycle()
+    val searchInput by viewModel.searchInput.collectAsStateWithLifecycle()
     // Re-runs when this destination re-enters composition — e.g. when a
     // same-user resume pops the expired overlay back off this screen.
     LaunchedEffect(Unit) { viewModel.onVisible() }
@@ -46,6 +47,9 @@ fun TransactionsDestination(
             onProvenanceFilter = viewModel::onProvenanceFilter,
             onFromFilter = viewModel::onFromFilter,
             onToFilter = viewModel::onToFilter,
+            searchInput = searchInput,
+            onSearchQueryChange = viewModel::onSearchQueryChange,
+            onClearSearch = viewModel::clearSearch,
             onLoadMore = viewModel::loadNextPage,
             onClearFilters = viewModel::clearFilters,
             onRefresh = viewModel::refresh,

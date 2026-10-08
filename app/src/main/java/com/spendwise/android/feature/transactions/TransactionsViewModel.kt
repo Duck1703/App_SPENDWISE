@@ -11,6 +11,8 @@ import com.spendwise.android.data.repository.CategoryRepository
 import com.spendwise.android.data.repository.SessionEndedException
 import com.spendwise.android.data.repository.TransactionRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -53,6 +55,18 @@ class TransactionsViewModel @Inject constructor(
     private val _options = MutableStateFlow(FilterOptions())
     /** Account + category values behind the filter chips. */
     val options: StateFlow<FilterOptions> = _options.asStateFlow()
+
+    /**
+     * M18: the raw text in the search field — updates on every keystroke
+     * so the input never lags. The applied server query lives on
+     * `filters.query` and only changes after a bounded debounce (or
+     * immediately on clear), so typing never storms the wire.
+     */
+    private val _searchInput = MutableStateFlow("")
+    val searchInput: StateFlow<String> = _searchInput.asStateFlow()
+
+    /** The pending debounce applying the latest typed query. */
+    private var searchDebounce: Job? = null
 
     private val query = MutableStateFlow(Query())
 
@@ -137,6 +151,7 @@ class TransactionsViewModel @Inject constructor(
             provenance = filters.provenance,
             from = filters.from,
             to = filters.to,
+            q = filters.serverQuery,
             page = 0,
         )
         if (page.totalElements == 0L && filters.isEmpty) {
@@ -228,7 +243,40 @@ class TransactionsViewModel @Inject constructor(
     fun onFromFilter(from: LocalDate?) = setFilters { copy(from = from) }
     fun onToFilter(to: LocalDate?) = setFilters { copy(to = to) }
 
-    fun clearFilters() = setFilters { TransactionFilters() }
+    /**
+     * M18: a keystroke updates the field instantly but applies to the
+     * server query only after a quiet period — a fast typist produces
+     * one request for "coffee", not six. Applying a query is a filter
+     * change: it takes a new load tick and restarts pagination at
+     * page 0, so late responses from older terms can never publish
+     * (same loadSerial discipline as every other filter).
+     */
+    fun onSearchQueryChange(value: String) {
+        _searchInput.value = value
+        searchDebounce?.cancel()
+        searchDebounce = viewModelScope.launch {
+            delay(SEARCH_DEBOUNCE_MS)
+            setFilters { copy(query = value.trim()) }
+        }
+    }
+
+    /**
+     * Clear is an explicit user action — the field empties and the
+     * unfiltered query applies immediately, no debounce wait.
+     */
+    fun clearSearch() {
+        searchDebounce?.cancel()
+        _searchInput.value = ""
+        setFilters { copy(query = "") }
+    }
+
+    fun clearFilters() {
+        // "Clear filters" is the all-filters reset — it clears a live
+        // search term too so the chips and the field never disagree.
+        searchDebounce?.cancel()
+        _searchInput.value = ""
+        setFilters { TransactionFilters() }
+    }
 
     private fun setFilters(transform: TransactionFilters.() -> TransactionFilters) {
         query.value = query.value.copy(filters = query.value.filters.transform())
@@ -260,6 +308,7 @@ class TransactionsViewModel @Inject constructor(
                     provenance = filters.provenance,
                     from = filters.from,
                     to = filters.to,
+                    q = filters.serverQuery,
                     page = content.nextPage,
                 )
             } catch (e: SessionEndedException) {
@@ -336,5 +385,11 @@ class TransactionsViewModel @Inject constructor(
         AppError.NetworkUnavailable -> TransactionsError.Network
         is AppError.Server -> TransactionsError.Server
         else -> TransactionsError.Generic
+    }
+
+    private companion object {
+        // Short enough to feel live, long enough to collapse a word's
+        // keystrokes into one wire request.
+        const val SEARCH_DEBOUNCE_MS = 350L
     }
 }

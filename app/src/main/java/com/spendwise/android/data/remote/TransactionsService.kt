@@ -15,9 +15,9 @@ import retrofit2.http.Streaming
  * List filters are the three real server params only: `accountId` (UUID —
  * unknown/foreign → 404), `type` (enum name — bad value → 400),
  * `category` (code — unknown value → empty list, no error). There is no
- * `GET /{id}`, no PUT/PATCH/DELETE, no pagination, no date or text
- * filter, no search — the ledger is append-only and read-only after
- * creation.
+ * `GET /{id}` and no PUT/PATCH/DELETE — the ledger is append-only and
+ * read-only after creation. Pagination, date bounds, and note search
+ * live on `GET /api/transactions/page` ([page]) — never on this list.
  *
  * All endpoints are authenticated — a 401 drives `Session.Expired`.
  */
@@ -51,6 +51,13 @@ interface TransactionsService {
         @Query("provenance") provenance: String? = null,
         @Query("from") from: String? = null,
         @Query("to") to: String? = null,
+        /**
+         * M18 (REQ-BE-007 residual): server-side substring match on the
+         * persisted note — absent/blank means unfiltered. Composes with
+         * every other parameter; matching is case-insensitive over
+         * `description` only.
+         */
+        @Query("q") q: String? = null,
         @Query("page") page: Int,
         @Query("size") size: Int,
     ): TransactionPageDto

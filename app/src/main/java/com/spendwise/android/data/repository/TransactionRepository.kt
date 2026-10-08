@@ -84,6 +84,12 @@ interface TransactionRepository {
         provenance: TransactionProvenance? = null,
         from: LocalDate? = null,
         to: LocalDate? = null,
+        /**
+         * M18 (REQ-BE-007 residual): `q` — server-side substring match
+         * on the persisted note; null means unfiltered. Composes with
+         * every other filter server-side before pagination.
+         */
+        q: String? = null,
         page: Int = 0,
         size: Int = DEFAULT_PAGE_SIZE,
     ): TransactionPage
@@ -191,6 +197,7 @@ class RemoteTransactionRepository @Inject constructor(
         provenance: TransactionProvenance?,
         from: LocalDate?,
         to: LocalDate?,
+        q: String?,
         page: Int,
         size: Int,
     ): TransactionPage {
@@ -205,6 +212,9 @@ class RemoteTransactionRepository @Inject constructor(
                 // LocalDate.toString() is exactly ISO yyyy-MM-dd.
                 from = from?.toString(),
                 to = to?.toString(),
+                // Blank never reaches the wire — a whitespace-only query
+                // is identical to no query on the server.
+                q = q?.takeIf { it.isNotBlank() },
                 page = page,
                 size = size,
             )

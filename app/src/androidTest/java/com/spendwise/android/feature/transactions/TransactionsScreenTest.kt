@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.spendwise.android.R
 import com.spendwise.android.TestFormats
@@ -74,6 +75,8 @@ class TransactionsScreenTest {
         var toClicks: Int = 0,
         var loadMoreCalls: Int = 0,
         var cleared: Int = 0,
+        var searchChange: String? = null,
+        var searchCleared: Int = 0,
     )
 
     private fun screen(
@@ -84,6 +87,7 @@ class TransactionsScreenTest {
         ),
         filters: TransactionFilters =
             (state as? TransactionsUiState.Content)?.filters ?: TransactionFilters(),
+        searchInput: String = "",
         harness: Harness = Harness(),
     ) {
         composeRule.setContent {
@@ -102,6 +106,9 @@ class TransactionsScreenTest {
                     onProvenanceFilter = { harness.provenanceFilter = it },
                     onFromFilter = { harness.fromFilter = it },
                     onToFilter = { harness.toFilter = it },
+                    searchInput = searchInput,
+                    onSearchQueryChange = { harness.searchChange = it },
+                    onClearSearch = { harness.searchCleared++ },
                     onLoadMore = { harness.loadMoreCalls++ },
                     onClearFilters = { harness.cleared++ },
                     onRefresh = { harness.refreshes++ },
@@ -269,16 +276,15 @@ class TransactionsScreenTest {
         composeRule.onNodeWithContentDescription("Category filter: all").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Source filter: all").assertIsDisplayed()
         // M15: the From/To date-range chips exist (server-side
-        // occurredOn bounds); no text search — nothing persisted to
-        // match against. The chip row scrolls horizontally — a physical
-        // 411dp-wide Pixel shows ~4 chips, so scroll the tail into view.
+        // occurredOn bounds). The chip row scrolls horizontally — a
+        // physical 411dp-wide Pixel shows ~4 chips, so scroll the tail
+        // into view.
         composeRule.onNodeWithContentDescription("From filter: all")
             .performScrollTo()
             .assertIsDisplayed()
         composeRule.onNodeWithContentDescription("To filter: all")
             .performScrollTo()
             .assertIsDisplayed()
-        composeRule.onAllNodesWithText("Search", substring = true).assertCountEquals(0)
     }
 
     @Test
@@ -490,5 +496,83 @@ class TransactionsScreenTest {
             androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
                 .targetContext.getString(R.string.import_result_done),
         ).assertIsDisplayed()
+    }
+
+    // --- M18: server-side note search ---------------------------------------
+
+    @Test
+    fun searchField_rendersWithTalkBackLabelAndPlaceholder() {
+        screen(
+            TransactionsUiState.Content(
+                items = listOf(txn("t1")),
+                accountNames = emptyMap(),
+                filters = TransactionFilters(),
+                totalElements = 1,
+                hasMore = false,
+            ),
+        )
+
+        composeRule.onNodeWithContentDescription("Search transactions")
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("Search notes…", useUnmergedTree = true)
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun searchField_typingForwardsEveryKeystroke() {
+        val harness = Harness()
+        screen(
+            TransactionsUiState.Content(
+                items = listOf(txn("t1")),
+                accountNames = emptyMap(),
+                filters = TransactionFilters(),
+                totalElements = 1,
+                hasMore = false,
+            ),
+            harness = harness,
+        )
+
+        // The field is stateless — the VM owns the value and the debounce.
+        // What the screen must guarantee: every keystroke reaches the
+        // handler so the applied query can follow it.
+        composeRule.onNodeWithContentDescription("Search transactions")
+            .performTextInput("coffee")
+        assertEquals("coffee", harness.searchChange)
+    }
+
+    @Test
+    fun searchField_clearAffordanceOnlyWithText_andClears() {
+        val harness = Harness()
+        screen(
+            TransactionsUiState.Content(
+                items = listOf(txn("t1")),
+                accountNames = emptyMap(),
+                filters = TransactionFilters(query = "coffee"),
+                totalElements = 1,
+                hasMore = false,
+            ),
+            searchInput = "coffee",
+            harness = harness,
+        )
+
+        composeRule.onNodeWithContentDescription("Clear search")
+            .assertIsDisplayed()
+            .performClick()
+        assertEquals(1, harness.searchCleared)
+    }
+
+    @Test
+    fun searchField_noClearAffordanceWhenEmpty() {
+        screen(
+            TransactionsUiState.Content(
+                items = listOf(txn("t1")),
+                accountNames = emptyMap(),
+                filters = TransactionFilters(),
+                totalElements = 1,
+                hasMore = false,
+            ),
+        )
+
+        composeRule.onNodeWithContentDescription("Clear search").assertDoesNotExist()
     }
 }

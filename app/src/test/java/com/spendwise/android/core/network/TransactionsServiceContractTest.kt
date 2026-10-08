@@ -466,6 +466,7 @@ class TransactionsServiceContractTest {
             provenance = "IMPORTED",
             from = "2026-09-01",
             to = "2026-09-30",
+            q = "coffee",
             page = 2,
             size = 25,
         )
@@ -478,8 +479,22 @@ class TransactionsServiceContractTest {
         assertEquals("IMPORTED", request.url.queryParameter("provenance"))
         assertEquals("2026-09-01", request.url.queryParameter("from"))
         assertEquals("2026-09-30", request.url.queryParameter("to"))
+        assertEquals("coffee", request.url.queryParameter("q"))
         assertEquals("2", request.url.queryParameter("page"))
         assertEquals("25", request.url.queryParameter("size"))
+    }
+
+    @Test
+    fun `page q url-encodes special characters verbatim`() = runTest {
+        signIn()
+        server.enqueue(MockResponse(code = 200, body = pageBody()))
+
+        transactions.page(q = "cà phê & bánh", page = 0, size = 50)
+
+        // The server does the substring match — the client must deliver
+        // the exact bytes: decoded query param equals the typed string.
+        val request = server.takeRequest()
+        assertEquals("cà phê & bánh", request.url.queryParameter("q"))
     }
 
     @Test
@@ -497,6 +512,7 @@ class TransactionsServiceContractTest {
         assertNull(request.url.queryParameter("provenance"))
         assertNull(request.url.queryParameter("from"))
         assertNull(request.url.queryParameter("to"))
+        assertNull(request.url.queryParameter("q"))
         // Only the two required paging params exist.
         assertEquals(
             setOf("page", "size"),

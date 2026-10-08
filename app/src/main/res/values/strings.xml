@@ -172,6 +172,9 @@
     <string name="transactions_filtered_empty_title">No matches</string>
     <string name="transactions_filtered_empty_body">No transactions fit these filters.</string>
     <string name="transactions_filtered_empty_action">Clear filters</string>
+    <string name="transactions_search_label">Search transactions</string>
+    <string name="transactions_search_placeholder">Search notes…</string>
+    <string name="transactions_search_clear_cd">Clear search</string>
     <plurals name="transactions_count">
         <item quantity="one">%1$d transaction</item>
         <item quantity="other">%1$d transactions</item>

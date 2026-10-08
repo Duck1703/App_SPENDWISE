@@ -13,6 +13,8 @@ import com.spendwise.android.data.repository.TransactionRepository
 import com.spendwise.android.fakes.FakeTransactionRepository
 import com.spendwise.android.fakes.MainDispatcherRule
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -22,6 +24,7 @@ import org.junit.Rule
 import org.junit.Test
 import java.time.LocalDate
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class TransactionsViewModelTest {
 
     @get:Rule
@@ -647,5 +650,232 @@ class TransactionsViewModelTest {
         assertNull(state.moreError)
         assertFalse(state.loadingMore)
         assertEquals(listOf("t1", "t2"), state.items.map { it.id })
+    }
+
+    // ── M18: server-side note search ─────────────────────────────────
+
+    @Test
+    fun `search input is instant but the server query waits for the debounce`() = runTest {
+        val txns = FakeTransactionRepository()
+        txns.listPageResult = { page(twoRows()) }
+        val viewModel = vm(txns)
+        assertEquals(1, txns.pageCalls.size)
+
+        viewModel.onSearchQueryChange("coffee")
+
+        // The field reflects the keystroke at once; no request yet —
+        // the applied query only changes after the quiet period.
+        assertEquals("coffee", viewModel.searchInput.value)
+        assertEquals(1, txns.pageCalls.size)
+
+        advanceUntilIdle()
+
+        assertEquals(2, txns.pageCalls.size)
+        assertEquals("coffee", txns.pageCalls.last().q)
+        assertEquals(0, txns.pageCalls.last().page) // a query change restarts paging
+        assertEquals("coffee", viewModel.filters.value.query)
+    }
+
+    @Test
+    fun `rapid typing produces one request for the final term`() = runTest {
+        // Six characters must not mean six requests — each keystroke
+        // cancels the pending apply, so only the settled term lands.
+        val txns = FakeTransactionRepository()
+        txns.listPageResult = { page(twoRows()) }
+        val viewModel = vm(txns)
+
+        viewModel.onSearchQueryChange("c")
+        viewModel.onSearchQueryChange("co")
+        viewModel.onSearchQueryChange("coffee")
+
+        advanceUntilIdle()
+
+        assertEquals(2, txns.pageCalls.size)
+        assertEquals("coffee", txns.pageCalls.last().q)
+    }
+
+    @Test
+    fun `clear search applies immediately — no debounce wait`() = runTest {
+        val txns = FakeTransactionRepository()
+        txns.listPageResult = { page(twoRows()) }
+        val viewModel = vm(txns)
+        viewModel.onSearchQueryChange("coffee")
+        advanceUntilIdle()
+        assertEquals("coffee", txns.pageCalls.last().q)
+
+        viewModel.clearSearch()
+
+        // Applied before any scheduler advance — explicit clear is not
+        // a keystroke, so the unfiltered load fires right now.
+        assertEquals(3, txns.pageCalls.size)
+        assertNull(txns.pageCalls.last().q)
+        assertEquals("", viewModel.searchInput.value)
+        assertEquals("", viewModel.filters.value.query)
+    }
+
+    @Test
+    fun `search composes with the other server filters on one call`() = runTest {
+        val txns = FakeTransactionRepository()
+        txns.listPageResult = { page(twoRows()) }
+        val viewModel = vm(txns)
+        viewModel.onSearchQueryChange("coffee")
+        advanceUntilIdle()
+
+        viewModel.onAccountFilter("a1")
+
+        val call = txns.pageCalls.last()
+        assertEquals("a1", call.accountId)
+        assertEquals("coffee", call.q)
+    }
+
+    @Test
+    fun `a pending debounce never overwrites a later clear`() = runTest {
+        // Type → immediately hit the clear affordance before the
+        // debounce fires. The stale apply must die with its job or the
+        // cleared field would snap back to the typed term.
+        val txns = FakeTransactionRepository()
+        txns.listPageResult = { page(twoRows()) }
+        val viewModel = vm(txns)
+        viewModel.onSearchQueryChange("coffee")
+
+        viewModel.clearSearch()
+        advanceUntilIdle()
+
+        val call = txns.pageCalls.last()
+        assertNull(call.q)
+        assertEquals("", viewModel.searchInput.value)
+        assertEquals("", viewModel.filters.value.query)
+    }
+
+    @Test
+    fun `whitespace-only input never becomes a server query`() = runTest {
+        val txns = FakeTransactionRepository()
+        txns.listPageResult = { page(twoRows()) }
+        val viewModel = vm(txns)
+
+        viewModel.onSearchQueryChange("   ")
+        advanceUntilIdle()
+
+        // Trimmed to "" — identical to the current query, so the
+        // StateFlow conflation correctly emits nothing: still 1 call.
+        assertEquals(1, txns.pageCalls.size)
+        assertEquals("", viewModel.filters.value.query)
+    }
+
+    @Test
+    fun `clearFilters also resets the search field`() = runTest {
+        // The all-filters affordance and the field never disagree — a
+        // "Clear filters" tap on a searched empty result clears both.
+        val txns = FakeTransactionRepository()
+        txns.listPageResult = { page(twoRows()) }
+        val viewModel = vm(txns)
+        viewModel.onSearchQueryChange("coffee")
+        advanceUntilIdle()
+        viewModel.onAccountFilter("a1")
+
+        viewModel.clearFilters()
+
+        assertEquals("", viewModel.searchInput.value)
+        val call = txns.pageCalls.last()
+        assertNull(call.q)
+        assertNull(call.accountId)
+    }
+
+    @Test
+    fun `loadNextPage carries the active query`() = runTest {
+        val txns = FakeTransactionRepository()
+        txns.listPageResult = { call ->
+            page(twoRows(), page = call.page, totalElements = 4, hasNext = true)
+        }
+        val viewModel = vm(txns)
+        viewModel.onSearchQueryChange("coffee")
+        advanceUntilIdle()
+
+        viewModel.loadNextPage()
+
+        val call = txns.pageCalls.last()
+        assertEquals(1, call.page)
+        assertEquals("coffee", call.q)
+    }
+
+    @Test
+    fun `a superseded search response never publishes`() = runTest {
+        // The user types "old", it applies, the request parks; they
+        // type "new" before it lands. The late "old" page must never
+        // replace the "new" result — query rides the same
+        // flatMapLatest + loadSerial discipline as every M15 filter.
+        val txns = FakeTransactionRepository()
+        val staleGate = CompletableDeferred<TransactionPage>()
+        val liveRows = listOf(FakeTransactionRepository.transaction(id = "t9"))
+        txns.listPageResult = { call ->
+            if (call.q == "old") staleGate.await() else page(liveRows)
+        }
+        val viewModel = vm(txns)
+
+        viewModel.onSearchQueryChange("old")
+        advanceUntilIdle() // Q("old") in flight, parked on the gate
+        viewModel.onSearchQueryChange("new")
+        advanceUntilIdle() // Q("new") supersedes it
+
+        val state = viewModel.state.value as TransactionsUiState.Content
+        assertEquals(listOf("t9"), state.items.map { it.id })
+        assertEquals("new", state.filters.query)
+
+        staleGate.complete(page(twoRows())) // the stale page lands late
+        assertEquals(
+            listOf("t9"),
+            (viewModel.state.value as TransactionsUiState.Content).items.map { it.id },
+        )
+    }
+
+    @Test
+    fun `a superseded search failure cannot error the live query`() = runTest {
+        // Same race, failure shape: Q("old")'s late failure must not
+        // tear down Q("new")'s Content into an Error state.
+        val txns = FakeTransactionRepository()
+        val staleGate = CompletableDeferred<TransactionPage>()
+        txns.listPageResult = { call ->
+            if (call.q == "old") staleGate.await() else page(twoRows())
+        }
+        val viewModel = vm(txns)
+
+        viewModel.onSearchQueryChange("old")
+        advanceUntilIdle()
+        viewModel.onSearchQueryChange("new")
+        advanceUntilIdle()
+
+        staleGate.completeExceptionally(AppErrorException(AppError.NetworkUnavailable))
+
+        val state = viewModel.state.value as TransactionsUiState.Content
+        assertEquals("new", state.filters.query)
+        assertEquals(2, state.items.size)
+        assertNull(state.refreshError)
+    }
+
+    @Test
+    fun `a search load lost to a session switch reloads with the query`() = runTest {
+        // A→B: the searched page's cache write lands on a dead
+        // generation — dropped, not published; the same-user resume
+        // re-runs the load and must still send the active q.
+        val txns = FakeTransactionRepository()
+        var dead = false
+        txns.listPageResult = { call ->
+            if (dead) throw SessionEndedException() else page(twoRows())
+        }
+        val viewModel = vm(txns) // unfiltered page 0 lands while alive
+
+        dead = true
+        viewModel.onSearchQueryChange("coffee")
+        advanceUntilIdle() // the searched load dies on the boundary
+
+        val mid = viewModel.state.value as TransactionsUiState.Content
+        assertFalse(mid.isRefreshing) // pending mark released
+        assertEquals(2, mid.items.size) // prior content preserved
+
+        dead = false
+        viewModel.onVisible()
+
+        assertEquals("coffee", txns.pageCalls.last().q)
+        assertEquals("coffee", viewModel.filters.value.query)
     }
 }

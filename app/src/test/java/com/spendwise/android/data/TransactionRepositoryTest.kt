@@ -495,6 +495,31 @@ class TransactionRepositoryTest {
         assertEquals(true, service.pageCalls.single().uncategorized)
     }
 
+    // ── M18: q — the server-side note-search term ─────────────────────
+
+    @Test
+    fun `listPage forwards q verbatim`() = runTest {
+        val (service, _, _, _, repository) = harness()
+
+        repository.listPage(q = "  cà phê  ", page = 0)
+
+        // The repository must not trim or rewrite the term — the server
+        // normalizes; double spaces and unicode pass through.
+        assertEquals("  cà phê  ", service.pageCalls.single().q)
+    }
+
+    @Test
+    fun `listPage blank q never reaches the wire`() = runTest {
+        val (service, _, _, _, repository) = harness()
+
+        repository.listPage(q = "", page = 0)
+        repository.listPage(q = "   ", page = 0)
+        repository.listPage(q = null, page = 0)
+
+        assertEquals(3, service.pageCalls.size)
+        assertTrue(service.pageCalls.all { it.q == null })
+    }
+
     @Test
     fun `listPage merges into the cache — earlier pages stay resolvable`() = runTest {
         val (service, _, _, _, repository) = harness()

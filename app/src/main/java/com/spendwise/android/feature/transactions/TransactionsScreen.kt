@@ -24,6 +24,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -31,6 +32,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -51,6 +54,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.spendwise.android.R
@@ -99,6 +103,9 @@ fun TransactionsScreen(
     onProvenanceFilter: (TransactionProvenance?) -> Unit,
     onFromFilter: (LocalDate?) -> Unit,
     onToFilter: (LocalDate?) -> Unit,
+    searchInput: String,
+    onSearchQueryChange: (String) -> Unit,
+    onClearSearch: () -> Unit,
     onLoadMore: () -> Unit,
     onClearFilters: () -> Unit,
     onRefresh: () -> Unit,
@@ -164,6 +171,11 @@ fun TransactionsScreen(
                 }
             }
         }
+        SearchField(
+            value = searchInput,
+            onValueChange = onSearchQueryChange,
+            onClear = onClearSearch,
+        )
         FilterRow(
             filters = filters,
             options = options,
@@ -236,6 +248,66 @@ fun TransactionsScreen(
             }
         }
     }
+}
+
+/**
+ * M18 search field (REQ-BE-007 residual): server-side note search —
+ * text applies after a short debounce in the ViewModel; the field
+ * itself never lags. Leading search glyph, 48dp clear affordance,
+ * `ImeAction.Search`, TalkBack labels on both controls.
+ */
+@Composable
+private fun SearchField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    onClear: () -> Unit,
+) {
+    val searchLabel = stringResource(R.string.transactions_search_label)
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = SwSpacing.Lg)
+            .padding(bottom = SwSpacing.Sm)
+            .semantics { contentDescription = searchLabel },
+        singleLine = true,
+        placeholder = {
+            Text(
+                text = stringResource(R.string.transactions_search_placeholder),
+                color = SwColors.Muted,
+            )
+        },
+        leadingIcon = {
+            Icon(
+                painter = painterResource(R.drawable.ic_lucide_search),
+                contentDescription = null,
+                tint = SwColors.Muted,
+                modifier = Modifier.size(20.dp),
+            )
+        },
+        trailingIcon = {
+            if (value.isNotEmpty()) {
+                IconButton(
+                    onClick = onClear,
+                    modifier = Modifier.size(SwSpacing.TouchTargetMin),
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_lucide_x),
+                        contentDescription = stringResource(R.string.transactions_search_clear_cd),
+                        tint = SwColors.Muted,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
+        },
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        shape = RoundedCornerShape(SwRadii.Md),
+        colors = OutlinedTextFieldDefaults.colors(
+            unfocusedBorderColor = SwColors.Line,
+            focusedBorderColor = SwColors.BrandDeep,
+        ),
+    )
 }
 
 /** One horizontal non-wrapping row; scrolls when chips overflow (P3A §3). */

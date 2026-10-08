@@ -12,9 +12,10 @@ import java.time.LocalDate
  * including [CategorySelection.Uncategorized] (`uncategorized=true` →
  * null-category rows server-side) and [provenance] (mapped server-side
  * to the same `sourceRef` prefix rule). [from]/[to] bound the economic
- * `occurredOn` date inclusively (ISO `yyyy-MM-dd`). Nothing is filtered
- * client-side anymore: under pagination a local pass would hide matches
- * on not-yet-loaded pages.
+ * `occurredOn` date inclusively (ISO `yyyy-MM-dd`); [query] is the M18
+ * server-side note-search term (`q`). Nothing is filtered client-side
+ * anymore: under pagination a local pass would hide matches on
+ * not-yet-loaded pages.
  */
 data class TransactionFilters(
     val accountId: String? = null,
@@ -25,11 +26,18 @@ data class TransactionFilters(
     val from: LocalDate? = null,
     /** Inclusive `occurredOn <= to` bound (null = unbounded). */
     val to: LocalDate? = null,
+    /**
+     * M18: the applied note-search term — server-side `q` on the paged
+     * endpoint (substring over persisted `description`). Kept on the
+     * filter object so every M15 stale-query/load-more guard compares
+     * it automatically; a query change is a filter change.
+     */
+    val query: String = "",
 ) {
     val isEmpty: Boolean
         get() = accountId == null && type == null &&
             category == CategorySelection.All && provenance == null &&
-            from == null && to == null
+            from == null && to == null && query.isBlank()
 
     /** The category code that goes on the wire, if the selection is one. */
     val serverCategory: String?
@@ -42,6 +50,10 @@ data class TransactionFilters(
     /** True when a real date bound is set (at least one side). */
     val hasDateRange: Boolean
         get() = from != null || to != null
+
+    /** The wire `q` — blank/whitespace-only never leaves the client. */
+    val serverQuery: String?
+        get() = query.trim().takeIf { it.isNotEmpty() }
 }
 
 /**

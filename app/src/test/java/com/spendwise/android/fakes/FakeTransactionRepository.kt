@@ -85,6 +85,7 @@ class FakeTransactionRepository : TransactionRepository {
         val provenance: TransactionProvenance?,
         val from: LocalDate?,
         val to: LocalDate?,
+        val q: String?,
         val page: Int,
         val size: Int,
     )
@@ -120,10 +121,11 @@ class FakeTransactionRepository : TransactionRepository {
         provenance: TransactionProvenance?,
         from: LocalDate?,
         to: LocalDate?,
+        q: String?,
         page: Int,
         size: Int,
     ): TransactionPage {
-        val call = PageCall(accountId, type, category, uncategorized, provenance, from, to, page, size)
+        val call = PageCall(accountId, type, category, uncategorized, provenance, from, to, q, page, size)
         pageCalls += call
         return listPageResult(call)
     }

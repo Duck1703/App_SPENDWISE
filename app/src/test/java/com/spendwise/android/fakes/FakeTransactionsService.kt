@@ -40,6 +40,7 @@ class FakeTransactionsService : TransactionsService {
         val provenance: String?,
         val from: String?,
         val to: String?,
+        val q: String?,
         val page: Int,
         val size: Int,
     )
@@ -68,10 +69,11 @@ class FakeTransactionsService : TransactionsService {
         provenance: String?,
         from: String?,
         to: String?,
+        q: String?,
         page: Int,
         size: Int,
     ): TransactionPageDto {
-        val call = PageCall(accountId, type, category, uncategorized, provenance, from, to, page, size)
+        val call = PageCall(accountId, type, category, uncategorized, provenance, from, to, q, page, size)
         pageCalls += call
         pageResponder?.let { return it(call) }
         pageError?.let { throw it }
