@@ -1,24 +1,29 @@
 # M18 — Transaction Search (server-side `q`)
 
 ```
-STATUS: IN_DELIVERY
+STATUS: TECHNICAL_COMPLETE — delivered, self-reviewed, ready for
+        external audit
 M17_COMPLETE=YES
 M18_DEFINED=YES
 M18_STARTED=YES
-M18_TECHNICAL_COMPLETE=NO
-M18_READY_FOR_EXTERNAL_AUDIT=NO
+M18_TECHNICAL_COMPLETE=YES
+M18_READY_FOR_EXTERNAL_AUDIT=YES
 M18_EXTERNAL_AUDIT=NOT_RUN
 M18_HUMAN_APPROVED=NO
 M18_HUMAN_AUTHORIZATION=EXPLICIT (M18 delivery block)
 CANONICAL_REQUIREMENT=REQ-BE-007 residual scope — the `search` half of
   "pagination + date-range/search" M15 explicitly deferred while BE-010
   (persisted description) was undelivered; M17 delivered BE-010.
-TRANSACTION_SEARCH=IN_DELIVERY
+TRANSACTION_SEARCH=TECHNICAL_COMPLETE
 M19_DEFINED=NO
 M19_STARTED=NO
-SPENDWISE_STATUS=M18_IN_DELIVERY
-NEXT_ACTION=DELIVER_M18_VERTICAL_SLICE
+SPENDWISE_STATUS=M18_READY_FOR_EXTERNAL_AUDIT
+NEXT_ACTION=HUMAN_GATE — authorize M18 external audit or accept
 BASELINE: Android 71a4148 (M17-accepted) · Backend 752eac3 (M17-accepted)
+GATES: backend 407/407 · Android JVM 672/672 · lint 0e/22w · detekt 0
+  · debug+release+R8 green · physical Pixel 4 XL 200/200 ×2 ·
+  install+launch verified · SENTINEL PASS · ARGUS PASS
+  (0 Blocker/0 Major/0 Minor — see reviews/M18-*-REVIEW.md)
 COURSE_SYNC_DEFERRED=YES (backend range recorded at closeout)
 ```
 

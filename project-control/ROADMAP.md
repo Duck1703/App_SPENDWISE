@@ -33,7 +33,7 @@ High-level phase plan. Milestone briefs are created per phase by ATLAS using
 | M15 | Scalable Transaction History (REQ-BE-007 `GET /api/transactions/page` + lazy-paged Transactions tab + From/To date filter) | COMPLETE — external audit **ACCEPTED**, human-approved via conditional authorization; physical Pixel 4 XL gate PASSED (186/186 ×2 final-source + 186/186 ×2 preliminary); audit remediated 1 Major + 3 Minor in-task (ebd966a, backend ef08539); backend 15/15 contract + 365 regression (1 documented baseline flake), JVM 617/617, release R8 verified (see [milestones/M15-TRANSACTION-HISTORY.md](milestones/M15-TRANSACTION-HISTORY.md), [reviews/M15-EXTERNAL-AUDIT.md](reviews/M15-EXTERNAL-AUDIT.md), [reviews/M15-SENTINEL-REVIEW.md](reviews/M15-SENTINEL-REVIEW.md), [reviews/M15-ARGUS-REVIEW.md](reviews/M15-ARGUS-REVIEW.md)) |
 | M16 | Recurring Template Lifecycle (REQ-BE-012 `PATCH /api/recurring-transactions/{id}` + Android edit flow on recurring detail) | COMPLETE — external audit ACCEPTED, Human-approved. Audit remediated 1 Major (recurring `@Version` lost-update vs scheduler) + minors in-task; all gates re-green on final source (backend 383/383, Android JVM 653/653, lint/detekt/release/R8 green, physical 193/193 ×4, installed+launched). M17 is not defined (see [milestones/M16-RECURRING-LIFECYCLE.md](milestones/M16-RECURRING-LIFECYCLE.md), [reviews/M16-EXTERNAL-AUDIT.md](reviews/M16-EXTERNAL-AUDIT.md)) |
 | M17 | Transaction Notes (REQ-BE-010 — persist `description` on `Transaction` + response/export surfaces; Android: note input reframed + detail display) | COMPLETE — external audit ACCEPTED. Delivery: backend `ca5b380..9c123f7` (additive `VARCHAR(255)` `V12`, entity-normalized, returned on all reads + CSV column); Android `445ffb0`+ (wire/domain/UI rename, detail note block). Independent audit remediated 2 Majors in-task (surrogate-safe Unicode cap; CSV formula-injection neutralization) + minors; accepted heads backend `752eac3`, Android `deccaf2`. Final gates: backend 397/397, Android JVM 658/658, lint/detekt/release/R8 green, physical 196/196 ×2, installed+launched (see [milestones/M17-TRANSACTION-NOTES.md](milestones/M17-TRANSACTION-NOTES.md), [reviews/M17-EXTERNAL-AUDIT.md](reviews/M17-EXTERNAL-AUDIT.md)) |
-| M18 | Transaction Search (REQ-BE-007 residual — server-side `q` on `GET /api/transactions/page` over persisted `description` + Android search field) | IN_DELIVERY — Human-authorized block. M15 deferred `q` as near-fake while no searchable text was persisted; M17 delivered BE-010, unblocking it. One additive optional param composing the existing M15 spec (owner-scoped, blank-ignored, ≤255, LIKE-escaped, before pagination) + Transactions-tab search field (debounced apply, clear, results/empty/error/retry) (see [milestones/M18-TRANSACTION-SEARCH.md](milestones/M18-TRANSACTION-SEARCH.md)) |
+| M18 | Transaction Search (REQ-BE-007 residual — server-side `q` on `GET /api/transactions/page` over persisted `description` + Android search field) | TECHNICAL_COMPLETE — delivered and self-reviewed; **ready for external audit** (human gate). M15 deferred `q` as near-fake while no searchable text was persisted; M17 delivered BE-010, unblocking it. One additive optional param composing the existing M15 spec (owner-scoped, blank-ignored, ≤255, LIKE-escaped, before pagination) + Transactions-tab search field (debounced apply, clear, results/empty/error/retry). Gates: backend 407/407, Android JVM 672/672, lint 0e/22w, detekt 0, release R8 green, physical Pixel 4 XL 200/200 ×2, install+launch; SENTINEL + ARGUS PASS 0 Blocker/0 Major/0 Minor (see [milestones/M18-TRANSACTION-SEARCH.md](milestones/M18-TRANSACTION-SEARCH.md), [reviews/M18-SENTINEL-REVIEW.md](reviews/M18-SENTINEL-REVIEW.md), [reviews/M18-ARGUS-REVIEW.md](reviews/M18-ARGUS-REVIEW.md)) |
 
 **Canonical sequence M0–M8 fully delivered and release-accepted.** V1
 was validated on emulator AND physical hardware (135/135 connected ×2
@@ -120,11 +120,14 @@ re-green on final source — backend 397/397, Android JVM 658/658, lint
 Pixel 4 XL 196/196 ×2, installed + launched
 (see [milestones/M17-TRANSACTION-NOTES.md](milestones/M17-TRANSACTION-NOTES.md),
 [reviews/M17-EXTERNAL-AUDIT.md](reviews/M17-EXTERNAL-AUDIT.md)).
-**M18 (Transaction Search — REQ-BE-007 residual `q`) is IN_DELIVERY**
-in the Human-authorized block: server-side `q` on
+**M18 (Transaction Search — REQ-BE-007 residual `q`) is
+TECHNICAL_COMPLETE** — delivered in the Human-authorized block and
+self-reviewed (SENTINEL + ARGUS PASS, 0 Blocker/0 Major/0 Minor);
+**ready for external audit** at the human gate: server-side `q` on
 `GET /api/transactions/page` over the persisted M17 `description`,
 composing all M15 filters before pagination; Transactions-tab search
-field on Android (see
+field on Android. Gates: backend 407/407, Android JVM 672/672, physical
+Pixel 4 XL 200/200 ×2, release R8 green (see
 [milestones/M18-TRANSACTION-SEARCH.md](milestones/M18-TRANSACTION-SEARCH.md)).
 Remaining product-gated capabilities (transaction correction, account
 lifecycle, FX) stay gated.
