@@ -465,14 +465,23 @@ class SessionRefreshContractTest {
     fun `concurrent GETs that all 401 collapse into a single refresh`() = runTest {
         val probe = retrofit.create(ProbeService::class.java)
         sessionManager.onSignedIn("rejected-access", future, "ana", "u1", refreshToken = "rt-1")
-        // FIFO queue matches any interleaving: both initial reads consume
-        // the two 401s, the single-flight refresh consumes the 200 rotation,
-        // the two retries consume the two successes.
-        server.enqueue(MockResponse(code = 401, body = ""))
-        server.enqueue(MockResponse(code = 401, body = ""))
-        server.enqueue(refreshOk())
-        server.enqueue(MockResponse(code = 200, body = ""))
-        server.enqueue(MockResponse(code = 200, body = ""))
+        // Header-keyed dispatch — deterministic under EVERY interleaving. A
+        // FIFO queue is racy here: a retry carrying the fresh token could
+        // consume a queued 401, which legitimately renews again (a 401 on the
+        // current token is a real reason to refresh) and breaks the storm
+        // invariant by accident. Stale bearer always 401s, fresh always 200s.
+        val refreshCalls = java.util.concurrent.atomic.AtomicInteger(0)
+        server.dispatcher = object : mockwebserver3.Dispatcher() {
+            override fun dispatch(request: mockwebserver3.RecordedRequest): MockResponse =
+                if (request.url.encodedPath == "/api/auth/refresh") {
+                    refreshCalls.incrementAndGet()
+                    refreshOk()
+                } else if (request.headers["Authorization"] == "Bearer rejected-access") {
+                    MockResponse(code = 401, body = "")
+                } else {
+                    MockResponse(code = 200, body = "")
+                }
+        }
 
         val (r1, r2) = coroutineScope {
             val first = async { kotlin.runCatching { probe.read() } }
@@ -484,9 +493,6 @@ class SessionRefreshContractTest {
         assertTrue(r2.isSuccess)
         // THE STORM INVARIANT: 5 wire calls total, exactly ONE refresh.
         assertEquals(5, server.requestCount)
-        val refreshCalls = (1..server.requestCount)
-            .map { server.takeRequest() }
-            .count { it.url.encodedPath == "/api/auth/refresh" }
-        assertEquals("401 storm must produce exactly one refresh call", 1, refreshCalls)
+        assertEquals("401 storm must produce exactly one refresh call", 1, refreshCalls.get())
     }
 }

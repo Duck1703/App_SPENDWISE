@@ -127,9 +127,17 @@ class CreateTransactionViewModel @Inject constructor(
 
     fun onDescriptionChange(value: String) {
         _state.value = _state.value.copy(
-            description = value.take(CreateTransactionUiState.MAX_DESCRIPTION_LENGTH),
+            description = value.cappedDescriptionLength(),
             formError = null,
         )
+    }
+
+    // take() counts UTF-16 code units; a cap landing between the halves of a
+    // surrogate pair would leave a dangling high surrogate on the wire, which
+    // the backend cannot store - drop the pair's orphaned half instead.
+    private fun String.cappedDescriptionLength(): String {
+        val capped = take(CreateTransactionUiState.MAX_DESCRIPTION_LENGTH)
+        return if (capped.lastOrNull()?.isHighSurrogate() == true) capped.dropLast(1) else capped
     }
 
     fun submit() {

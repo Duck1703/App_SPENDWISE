@@ -166,6 +166,17 @@ class CreateTransactionViewModelTest {
     }
 
     @Test
+    fun `note cap never leaves a dangling surrogate half`() = runTest {
+        val viewModel = vm(accounts = accountBacked())
+        // 254 ASCII units + one emoji (2 UTF-16 units) = 256; the 255 cap
+        // must drop the whole emoji rather than persist a lone high surrogate
+        viewModel.onDescriptionChange("a".repeat(254) + "😊")
+        val description = viewModel.state.value.description
+        assertEquals(254, description.length)
+        assertFalse(description.last().isHighSurrogate())
+    }
+
+    @Test
     fun `no account picked surfaces the inline required error`() = runTest {
         val accounts = FakeAccountRepository() // zero accounts
         val viewModel = vm(accounts = accounts)
