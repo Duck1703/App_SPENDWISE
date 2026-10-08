@@ -48,6 +48,22 @@ class TransactionDetailViewModelTest {
     }
 
     @Test
+    fun `a persisted note reaches detail content while absent stays null`() = runTest {
+        val txns = FakeTransactionRepository()
+        txns.findByIdResult = { id ->
+            FakeTransactionRepository.transaction(id = id, description = "rent for October")
+        }
+        val viewModel = vm(txns = txns)
+
+        val state = viewModel.state.value as TransactionDetailUiState.Content
+        assertEquals("rent for October", state.transaction.description)
+
+        txns.findByIdResult = { id -> FakeTransactionRepository.transaction(id = id, description = null) }
+        val bare = vm(txns = txns)
+        assertNull((bare.state.value as TransactionDetailUiState.Content).transaction.description)
+    }
+
+    @Test
     fun `account label failure degrades to null — the detail still renders`() = runTest {
         val accounts = FakeAccountRepository()
         accounts.findByIdResult = { _, _ -> throw AppErrorException(AppError.NotFound) }

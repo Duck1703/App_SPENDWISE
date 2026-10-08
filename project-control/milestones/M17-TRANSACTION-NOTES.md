@@ -80,8 +80,14 @@ Semantics (all derived from existing conventions):
   transactions ADD COLUMN description VARCHAR(255)` — additive,
   nullable, zero default, existing rows untouched.
 - Legacy rows: `NULL` → wire `null` → UI hides the note row.
-- Imports: `TransactionCreationCommand` import path carries no
-  description → `NULL` (parser text is not the user's note).
+- Imports: `ImportRowProcessor` already passes the parsed statement
+  description into `TransactionCreationCommand` (it feeds rules +
+  sourceRef identity today) — it now persists too. That is the honest
+  REQ-BE-010 reading: the column is `description`, not `userNote`, and
+  statement text is legitimate descriptive data (owner-scoped, same
+  dual-use as the manual field). Statement text longer than 255 is
+  truncated at the entity so a long line can't fail the row
+  (request-side input is already `@Size(255)`-bounded).
 - Recurring-generated rows: `NULL` (templates have no description
   field — out of scope).
 - Transfer legs: `NULL` (`CreateTransferRequest` has no description).

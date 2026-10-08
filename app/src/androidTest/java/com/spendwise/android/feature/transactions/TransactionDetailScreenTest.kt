@@ -31,6 +31,7 @@ class TransactionDetailScreenTest {
         type: TransactionType = TransactionType.EXPENSE,
         category: String? = "FOOD",
         sourceRef: String? = "MANUAL:t1",
+        description: String? = null,
     ) = Transaction(
         id = "t1",
         accountId = "acc-1",
@@ -39,6 +40,7 @@ class TransactionDetailScreenTest {
         category = category,
         sourceRef = sourceRef,
         occurredOn = java.time.LocalDate.of(2026, 10, 4),
+        description = description,
     )
 
     private data class Harness(var retries: Int = 0, var backs: Int = 0)
@@ -76,6 +78,19 @@ class TransactionDetailScreenTest {
         composeRule.onNodeWithText("USD").assertIsDisplayed()
         composeRule.onNodeWithText("Source").assertIsDisplayed()
         composeRule.onNodeWithText("Manual").assertIsDisplayed()
+    }
+
+    @Test
+    fun content_note_showsWhenPresent_hidesWhenNull() {
+        screen(TransactionDetailUiState.Content(
+            txn(description = "rent for October"),
+            accountName = "Wallet",
+        ))
+        composeRule.onNodeWithText("Note").assertIsDisplayed()
+        composeRule.onNodeWithText("rent for October").assertIsDisplayed()
+
+        screen(TransactionDetailUiState.Content(txn(description = null), accountName = "Wallet"))
+        composeRule.onAllNodesWithText("Note").assertCountEquals(0)
     }
 
     @Test

@@ -114,6 +114,7 @@ class FakeTransactionsService : TransactionsService {
             category: String? = "FOOD",
             sourceRef: String? = "MANUAL:$id",
             occurredOn: String = "2026-10-04",
+            description: String? = null,
         ) = TransactionDto(
             id = id,
             accountId = accountId,
@@ -123,6 +124,7 @@ class FakeTransactionsService : TransactionsService {
             category = category,
             sourceRef = sourceRef,
             occurredOn = occurredOn,
+            description = description,
         )
     }
 }

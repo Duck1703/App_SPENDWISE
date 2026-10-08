@@ -222,6 +222,7 @@
     <string name="txn_detail_field_date">Date</string>
     <string name="txn_detail_field_currency">Currency</string>
     <string name="txn_detail_field_source">Source</string>
+    <string name="txn_detail_field_note">Note</string>
     <string name="txn_detail_readonly">Existing entries can\’t be edited right now.</string>
     <string name="txn_detail_notfound_title">Transaction not found</string>
     <string name="txn_detail_notfound_body">It may not exist in this sign-in\’s history.</string>
@@ -240,9 +241,9 @@
     <string name="txn_create_currency_locked_cd">Currency locked to the account: %1$s</string>
     <string name="txn_create_category_label">Category (optional)</string>
     <string name="txn_create_category_none">No category</string>
-    <string name="txn_create_hint_label">Categorization hint (optional)</string>
-    <string name="txn_create_hint_support">Used once by categorization rules to suggest a category — it isn\’t saved with the transaction.</string>
-    <string name="txn_create_hint_placeholder">e.g. lunch with team</string>
+    <string name="txn_create_note_label">Note (optional)</string>
+    <string name="txn_create_note_support">Saved with the transaction. Also used to auto-categorize when no category is chosen.</string>
+    <string name="txn_create_note_placeholder">e.g. lunch with team</string>
     <string name="txn_create_date_label">Date</string>
     <string name="txn_create_date_hint">The day this entry happened.</string>
     <string name="txn_create_date_cd">%1$s, selected %2$s — double-tap to choose a different day</string>

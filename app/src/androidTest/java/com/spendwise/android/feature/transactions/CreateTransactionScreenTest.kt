@@ -56,7 +56,7 @@ class CreateTransactionScreenTest {
         var amount: String? = null,
         var date: java.time.LocalDate? = null,
         var category: String? = "unset",
-        var hint: String? = null,
+        var description: String? = null,
         var submits: Int = 0,
         var backs: Int = 0,
         var createAccount: Int = 0,
@@ -73,7 +73,7 @@ class CreateTransactionScreenTest {
                     onAmountChange = { harness.amount = it },
                     onDateChange = { harness.date = it },
                     onCategoryChange = { harness.category = it },
-                    onHintChange = { harness.hint = it },
+                    onDescriptionChange = { harness.description = it },
                     onSubmit = { harness.submits++ },
                     onNavigateBack = { harness.backs++ },
                     onCreateAccount = { harness.createAccount++ },
@@ -84,7 +84,7 @@ class CreateTransactionScreenTest {
     }
 
     @Test
-    fun form_showsTypeAccountAmountDateCategoriesAndHint() {
+    fun form_showsTypeAccountAmountDateCategoriesAndNote() {
         screen(loadedState())
 
         composeRule.onNodeWithText("Expense").assertIsDisplayed()
@@ -102,7 +102,7 @@ class CreateTransactionScreenTest {
         ).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Category (optional)").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("No category").assertIsDisplayed()
-        composeRule.onNodeWithText("Categorization hint (optional)").assertIsDisplayed()
+        composeRule.onNodeWithText("Note (optional)").assertIsDisplayed()
     }
 
     @Test

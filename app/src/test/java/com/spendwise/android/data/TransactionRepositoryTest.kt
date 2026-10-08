@@ -88,6 +88,20 @@ class TransactionRepositoryTest {
     }
 
     @Test
+    fun `a persisted note maps to the domain on reads`() = runTest {
+        val (service, _, _, _, repository) = harness()
+        service.listResponse = listOf(
+            FakeTransactionsService.transactionDto(id = "t1", description = "rent for October"),
+            FakeTransactionsService.transactionDto(id = "t2", description = null),
+        )
+
+        val list = repository.list()
+
+        assertEquals("rent for October", list[0].description)
+        assertNull(list[1].description)
+    }
+
+    @Test
     fun `a malformed server date fails loudly — no fabricated date`() = runTest {
         val (service, _, _, _, repository) = harness()
         service.listResponse = listOf(
@@ -168,7 +182,7 @@ class TransactionRepositoryTest {
             amount = money("900.00"),
             occurredOn = testDate,
             category = "SALARY",
-            hint = "october salary",
+            description = "october salary",
         )
 
         assertEquals("new", created.id)
@@ -186,11 +200,11 @@ class TransactionRepositoryTest {
     }
 
     @Test
-    fun `blank hint stays off the wire`() = runTest {
+    fun `blank description stays off the wire`() = runTest {
         val (service, _, _, _, repository) = harness()
         service.createResponse = dto("new")
 
-        repository.create("a1", TransactionType.EXPENSE, money("5"), testDate, hint = "   ")
+        repository.create("a1", TransactionType.EXPENSE, money("5"), testDate, description = "   ")
 
         assertNull(service.createCalls.single().description)
     }

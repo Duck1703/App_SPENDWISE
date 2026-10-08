@@ -24,6 +24,12 @@ data class Transaction(
     val sourceRef: String?,
     /** Server-persisted economic date — date-only, no timezone semantics. */
     val occurredOn: LocalDate,
+    /**
+     * Server-persisted note (M17/REQ-BE-010). Null = no note — every
+     * pre-M17 row, recurring-generated rows, and transfer legs.
+     * User-authored metadata, never used in any financial computation.
+     */
+    val description: String? = null,
 ) {
     /** How this entry reached the ledger — derived from [sourceRef]. */
     val provenance: TransactionProvenance

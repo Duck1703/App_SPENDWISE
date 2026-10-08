@@ -106,7 +106,7 @@ fun TransactionCreateDestination(
             onAmountChange = viewModel::onAmountChange,
             onDateChange = viewModel::onDateChange,
             onCategoryChange = viewModel::onCategoryChange,
-            onHintChange = viewModel::onHintChange,
+            onDescriptionChange = viewModel::onDescriptionChange,
             onSubmit = viewModel::submit,
             onNavigateBack = onNavigateBack,
             onCreateAccount = onCreateAccount,

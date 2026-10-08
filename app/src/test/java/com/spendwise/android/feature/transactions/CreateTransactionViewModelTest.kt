@@ -139,7 +139,7 @@ class CreateTransactionViewModelTest {
         viewModel.onTypeChange(TransactionType.INCOME)
         viewModel.onAmountChange("12,50")
         viewModel.onCategoryChange("SALARY")
-        viewModel.onHintChange("october")
+        viewModel.onDescriptionChange("october")
 
         val events = mutableListOf<CreateTransactionViewModel.Event>()
         val job = launch { viewModel.events.collect { events += it } }
@@ -155,7 +155,14 @@ class CreateTransactionViewModelTest {
         assertEquals(BigDecimal("12.50"), call.amount.amount)
         assertEquals("VND", call.amount.currency.code)
         assertEquals("SALARY", call.category)
-        assertEquals("october", call.hint)
+        assertEquals("october", call.description)
+    }
+
+    @Test
+    fun `note input is bounded at the server's 255`() = runTest {
+        val viewModel = vm(accounts = accountBacked())
+        viewModel.onDescriptionChange("x".repeat(300))
+        assertEquals(CreateTransactionUiState.MAX_DESCRIPTION_LENGTH, viewModel.state.value.description.length)
     }
 
     @Test

@@ -31,7 +31,7 @@ class FakeTransactionRepository : TransactionRepository {
         )
     }
     var findByIdResult: suspend (id: String) -> Transaction = { transaction() }
-    var createResult: suspend (accountId: String, type: TransactionType, amount: Money, occurredOn: LocalDate, category: String?, hint: String?) -> Transaction =
+    var createResult: suspend (accountId: String, type: TransactionType, amount: Money, occurredOn: LocalDate, category: String?, description: String?) -> Transaction =
         { _, _, _, _, _, _ -> transaction() }
     var transferResult: suspend (sourceAccountId: String, destinationAccountId: String, amount: Money) -> TransferOutcome =
         { source, destination, _ ->
@@ -61,7 +61,7 @@ class FakeTransactionRepository : TransactionRepository {
         val amount: Money,
         val occurredOn: LocalDate,
         val category: String?,
-        val hint: String?,
+        val description: String?,
     )
 
     val listCalls = mutableListOf<ListCall>()
@@ -139,10 +139,10 @@ class FakeTransactionRepository : TransactionRepository {
         amount: Money,
         occurredOn: LocalDate,
         category: String?,
-        hint: String?,
+        description: String?,
     ): Transaction {
-        createCalls += CreateCall(accountId, type, amount, occurredOn, category, hint)
-        return createResult(accountId, type, amount, occurredOn, category, hint)
+        createCalls += CreateCall(accountId, type, amount, occurredOn, category, description)
+        return createResult(accountId, type, amount, occurredOn, category, description)
     }
 
     override suspend fun transfer(
@@ -164,6 +164,7 @@ class FakeTransactionRepository : TransactionRepository {
             category: String? = "FOOD",
             sourceRef: String? = "MANUAL:$id",
             occurredOn: LocalDate = LocalDate.of(2026, 10, 4),
+            description: String? = null,
         ) = Transaction(
             id = id,
             accountId = accountId,
@@ -172,6 +173,7 @@ class FakeTransactionRepository : TransactionRepository {
             category = category,
             sourceRef = sourceRef,
             occurredOn = occurredOn,
+            description = description,
         )
     }
 }

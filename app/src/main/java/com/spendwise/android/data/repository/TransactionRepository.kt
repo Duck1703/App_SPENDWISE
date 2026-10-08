@@ -98,10 +98,10 @@ interface TransactionRepository {
     /**
      * `POST /api/transactions`. [type] must be [TransactionType.INCOME]
      * or [TransactionType.EXPENSE] — transfer types are server-rejected
-     * and the client never offers them. [category] and [hint] are
-     * optional; [hint] maps to the wire `description` field, which the
-     * backend uses only for rule matching — it is never persisted as
-     * transaction text. [occurredOn] is the user-selected economic date
+     * and the client never offers them. [category] and [description] are
+     * optional; [description] is the persisted note (M17/REQ-BE-010) —
+     * the server still feeds it to the rules engine when no category is
+     * chosen. [occurredOn] is the user-selected economic date
      * (M11) — sent explicitly as ISO `yyyy-MM-dd`; the server may still
      * apply its sane future-date bound (400 surfaces honestly).
      *
@@ -114,7 +114,7 @@ interface TransactionRepository {
         amount: Money,
         occurredOn: LocalDate,
         category: String? = null,
-        hint: String? = null,
+        description: String? = null,
     ): Transaction
 
     /**
@@ -250,7 +250,7 @@ class RemoteTransactionRepository @Inject constructor(
         amount: Money,
         occurredOn: LocalDate,
         category: String?,
-        hint: String?,
+        description: String?,
     ): Transaction {
         // The backend rejects TRANSFER_* with a plain 400; the client
         // never sends them — this guard keeps a domain defect local
@@ -267,7 +267,7 @@ class RemoteTransactionRepository @Inject constructor(
                     amount = amount.amount,
                     currency = amount.currency.code,
                     category = category,
-                    description = hint?.takeIf { it.isNotBlank() },
+                    description = description?.takeIf { it.isNotBlank() },
                     // ISO yyyy-MM-dd — LocalDate.toString() is exactly the
                     // wire format; no formatter needed.
                     occurredOn = occurredOn.toString(),
@@ -372,6 +372,7 @@ class RemoteTransactionRepository @Inject constructor(
                 // ISO yyyy-MM-dd — strict parse; a malformed server date
                 // fails as Unknown instead of degrading into a fake date.
                 occurredOn = LocalDate.parse(occurredOn),
+                description = description,
             )
         } catch (e: Exception) {
             if (e is CancellationException) throw e

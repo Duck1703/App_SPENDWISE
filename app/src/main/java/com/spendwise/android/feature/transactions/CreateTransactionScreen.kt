@@ -73,7 +73,7 @@ import java.time.LocalDate
  * Create transaction (S11, P3A): type switch, account picker with locked
  * currency, amount, optional category tiles, occurrence date (M11 —
  * real user-selectable `occurredOn` via a Material3 date picker), and
- * optional categorization hint (never persisted).
+ * optional note — persisted with the transaction (M17/REQ-BE-010);
  */
 @Composable
 fun CreateTransactionScreen(
@@ -83,7 +83,7 @@ fun CreateTransactionScreen(
     onAmountChange: (String) -> Unit,
     onCategoryChange: (String?) -> Unit,
     onDateChange: (LocalDate) -> Unit,
-    onHintChange: (String) -> Unit,
+    onDescriptionChange: (String) -> Unit,
     onSubmit: () -> Unit,
     onNavigateBack: () -> Unit,
     onCreateAccount: () -> Unit,
@@ -126,7 +126,7 @@ fun CreateTransactionScreen(
                 onAmountChange = onAmountChange,
                 onCategoryChange = onCategoryChange,
                 onDateChange = onDateChange,
-                onHintChange = onHintChange,
+                onDescriptionChange = onDescriptionChange,
                 onSubmit = onSubmit,
                 onNavigateBack = onNavigateBack,
             )
@@ -142,7 +142,7 @@ private fun CreateForm(
     onAmountChange: (String) -> Unit,
     onCategoryChange: (String?) -> Unit,
     onDateChange: (LocalDate) -> Unit,
-    onHintChange: (String) -> Unit,
+    onDescriptionChange: (String) -> Unit,
     onSubmit: () -> Unit,
     onNavigateBack: () -> Unit,
 ) {
@@ -206,11 +206,11 @@ private fun CreateForm(
         }
 
         SwTextField(
-            label = stringResource(R.string.txn_create_hint_label),
-            value = state.hint,
-            onValueChange = onHintChange,
-            hint = stringResource(R.string.txn_create_hint_support),
-            placeholder = stringResource(R.string.txn_create_hint_placeholder),
+            label = stringResource(R.string.txn_create_note_label),
+            value = state.description,
+            onValueChange = onDescriptionChange,
+            hint = stringResource(R.string.txn_create_note_support),
+            placeholder = stringResource(R.string.txn_create_note_placeholder),
             enabled = !state.isSubmitting,
         )
 

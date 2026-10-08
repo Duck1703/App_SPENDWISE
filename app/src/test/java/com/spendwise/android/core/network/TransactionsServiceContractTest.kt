@@ -208,6 +208,25 @@ class TransactionsServiceContractTest {
     }
 
     @Test
+    fun `list parses the persisted description and tolerates its absence`() = runTest {
+        signIn()
+        server.enqueue(
+            MockResponse(
+                code = 200,
+                body = """[
+                    {"id":"t1","accountId":"a1","type":"EXPENSE","amount":5,"currency":"VND","category":null,"sourceRef":"MANUAL:t1","occurredOn":"2026-10-04","description":"rent for October"},
+                    {"id":"t2","accountId":"a1","type":"EXPENSE","amount":7,"currency":"VND","category":null,"sourceRef":"IMPORT:x","occurredOn":"2026-10-03"}
+                ]""",
+            ),
+        )
+
+        val list = transactions.list()
+
+        assertEquals("rent for October", list[0].description)
+        assertNull(list[1].description)
+    }
+
+    @Test
     fun `list tolerates unknown wire types and missing sourceRef`() = runTest {
         signIn()
         server.enqueue(

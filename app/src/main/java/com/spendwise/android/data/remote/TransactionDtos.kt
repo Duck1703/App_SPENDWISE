@@ -12,10 +12,11 @@ import java.math.BigDecimal
  *
  * `occurredOn` is the server-authoritative economic date, ISO
  * `yyyy-MM-dd`, always present (`transactions.occurred_on` is NOT NULL).
- * `transferRef` and `description` are **not** on the wire — the
- * request-side `description` is a rule-engine hint the server never
- * returns. `category` is the code string (null = uncategorized); `type`
- * arrives as the enum name.
+ * `description` is the persisted note (M17/REQ-BE-010) — null when the
+ * transaction was created without one (all pre-M17 rows, recurring and
+ * transfer rows). `transferRef` is **not** on the wire. `category` is
+ * the code string (null = uncategorized); `type` arrives as the enum
+ * name.
  */
 @Serializable
 data class TransactionDto(
@@ -28,6 +29,7 @@ data class TransactionDto(
     val category: String? = null,
     val sourceRef: String? = null,
     val occurredOn: String,
+    val description: String? = null,
 )
 
 /**
@@ -38,8 +40,9 @@ data class TransactionDto(
  * pre-M11 client contract), but this app never relies on the fallback.
  * `amount` is strictly positive; direction is carried by `type`
  * (`INCOME`/`EXPENSE` — transfer types are server-rejected).
- * `description` is the optional categorization hint; it is NOT persisted
- * as transaction text. Null optionals stay off the wire.
+ * `description` is the optional note: M17/REQ-BE-010 persists it (≤255
+ * chars) and it still feeds the rules engine when no category is
+ * chosen. Null optionals stay off the wire.
  */
 @Serializable
 data class CreateTransactionRequestDto(

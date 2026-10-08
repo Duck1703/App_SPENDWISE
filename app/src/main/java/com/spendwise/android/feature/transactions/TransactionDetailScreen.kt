@@ -170,6 +170,22 @@ private fun DetailContent(transaction: Transaction, accountName: String?) {
                     label = stringResource(R.string.txn_detail_field_source),
                     value = provenanceLabel(transaction.provenance) ?: "—",
                 )
+                transaction.description?.let { note ->
+                    FieldDivider()
+                    Column(modifier = Modifier.padding(vertical = 10.dp)) {
+                        Text(
+                            text = stringResource(R.string.txn_detail_field_note),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = SwColors.Muted,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = note,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = SwColors.Ink,
+                        )
+                    }
+                }
             }
         }
 

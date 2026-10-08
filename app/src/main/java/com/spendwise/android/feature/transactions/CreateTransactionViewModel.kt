@@ -125,9 +125,9 @@ class CreateTransactionViewModel @Inject constructor(
         _state.value = _state.value.copy(occurredOn = value, formError = null)
     }
 
-    fun onHintChange(value: String) {
+    fun onDescriptionChange(value: String) {
         _state.value = _state.value.copy(
-            hint = value.take(CreateTransactionUiState.MAX_HINT_LENGTH),
+            description = value.take(CreateTransactionUiState.MAX_DESCRIPTION_LENGTH),
             formError = null,
         )
     }
@@ -168,7 +168,7 @@ class CreateTransactionViewModel @Inject constructor(
                     amount = Money(amount = checkNotNull(amount), currency = CurrencyCode(account.balance.currency.code)),
                     occurredOn = current.occurredOn,
                     category = current.category,
-                    hint = current.hint,
+                    description = current.description,
                 )
                 _events.send(Event.Created)
             } catch (e: SessionEndedException) {

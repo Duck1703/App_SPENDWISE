@@ -136,8 +136,8 @@ data class CreateTransactionUiState(
      * exact [LocalDate], never device-midnight-derived.
      */
     val occurredOn: LocalDate = LocalDate.now(),
-    /** Optional categorization hint (wire `description` — never persisted). */
-    val hint: String = "",
+    /** Optional note (wire `description`) — persisted by the server (M17). */
+    val description: String = "",
     val amountError: AmountError? = null,
     val accountError: AccountError? = null,
     val formError: CreateTxnFormError? = null,
@@ -172,9 +172,9 @@ data class CreateTransactionUiState(
     }
 
     companion object {
-        // Backend @Digits(integer = 17, fraction = 2) + @Size(255) hint.
+        // Backend @Digits(integer = 17, fraction = 2) + @Size(255) description.
         const val MAX_INTEGER_DIGITS = 17
         const val MAX_FRACTION_DIGITS = 2
-        const val MAX_HINT_LENGTH = 255
+        const val MAX_DESCRIPTION_LENGTH = 255
     }
 }
