@@ -1,31 +1,34 @@
 # M18 — Transaction Search (server-side `q`)
 
 ```
-STATUS: TECHNICAL_COMPLETE — delivered, self-reviewed, ready for
-        external audit
+STATUS: COMPLETE — external audit ACCEPTED, human-approved
 M17_COMPLETE=YES
 M18_DEFINED=YES
 M18_STARTED=YES
 M18_TECHNICAL_COMPLETE=YES
-M18_READY_FOR_EXTERNAL_AUDIT=YES
-M18_EXTERNAL_AUDIT=NOT_RUN
-M18_HUMAN_APPROVED=NO
+M18_EXTERNAL_AUDIT_FINAL=ACCEPTED
+M18_HUMAN_APPROVED=YES
 M18_HUMAN_AUTHORIZATION=EXPLICIT (M18 delivery block)
 CANONICAL_REQUIREMENT=REQ-BE-007 residual scope — the `search` half of
   "pagination + date-range/search" M15 explicitly deferred while BE-010
   (persisted description) was undelivered; M17 delivered BE-010.
-TRANSACTION_SEARCH=TECHNICAL_COMPLETE
+SERVER_SIDE_TRANSACTION_SEARCH=APPROVED
+TRANSACTION_SEARCH=COMPLETE
 M19_DEFINED=NO
 M19_STARTED=NO
-SPENDWISE_STATUS=M18_READY_FOR_EXTERNAL_AUDIT
-NEXT_ACTION=HUMAN_GATE — authorize M18 external audit or accept
+SPENDWISE_STATUS=M18_COMPLETE
+NEXT_ACTION=HUMAN_GATE — human defines M19 (or stops)
 BASELINE: Android 71a4148 (M17-accepted) · Backend 752eac3 (M17-accepted)
-GATES: backend 407/407 · Android JVM 672/672 · lint 0e/22w · detekt 0
-  · debug+release+R8 green · physical Pixel 4 XL 200/200 ×2 ·
+AUDIT: independent external audit remediated 1 Minor in-task
+  (EXT-M18-1 superseded-append flag) + added 12 backend / 2 Android
+  adversarial tests; all gates re-green on final source
+  (see reviews/M18-EXTERNAL-AUDIT.md)
+FINAL_GATES: backend 419/419 · Android JVM 674/674 · lint 0e/22w ·
+  detekt 0 · debug+release+R8 green · physical Pixel 4 XL 200/200 ×2 ·
   install+launch verified · SENTINEL PASS · ARGUS PASS
-  (0 Blocker/0 Major/0 Minor — see reviews/M18-*-REVIEW.md)
-DELIVERY: Android 83a5679 (slice) + 1deeb16 (reviews/status)
-  · Backend 752eac3..0719836 (bounded `q` prerequisite + contract test)
+DELIVERY: Android 83a5679 (slice) + 1deeb16 (reviews) + dfda980
+  (audit remediation) · Backend 752eac3..0719836 (impl) + d8554f0
+  (audit tests)
 COURSE_SYNC_DEFERRED=YES
 ```
 
