@@ -50,8 +50,15 @@ and does not decide Android architecture (P4).
    `TransactionResponse` always returns the persisted `occurredOn`.
    (Pre-M11 snapshot: no `occurredOn` on either DTO — visible only in CSV
    export. — VERIFIED at audit HEAD.)
-7. **`description` is never persisted or returned** — it exists only as
-   rule-engine input on manual create and on imported rows. **VERIFIED**.
+7. **`description` is persisted and returned — M17 / REQ-BE-010 DELIVERED**
+   (backend `9c123f7`). The field the create endpoint always accepted
+   (`@Size(255)`) and formerly consumed only for rule matching is now stored
+   on `transactions.description` (V12, nullable `VARCHAR(255)`), returned on
+   every transaction read surface (create/list/page/export), trimmed at the
+   entity boundary (blank → null), and capped at 255 for unbounded import
+   statement text. Pre-M17 rows read NULL → wire null. Recurring- and
+   transfer-generated rows carry `null` (no statement text exists).
+   (Pre-M17 snapshot: rule-engine input only, never persisted or returned.)
 8. **Import is synchronous**: `POST /api/imports` (multipart `file` +
    `accountId` param) parses CSV or PDF, dedups per row, and returns a full
    row-level report in the 201 body. **VERIFIED**.
@@ -157,8 +164,8 @@ body). Sources: controller files in §42.
 | Account | POST | `/api/accounts` | `CreateAccountRequest` | `AccountResponse` + `Location` | 201 | 400 | JWT | `AccountController.java` |
 | Account | GET | `/api/accounts` | — | `List<AccountResponse>` | 200 | 401 | JWT | `AccountController.java` |
 | Account | GET | `/api/accounts/{id}` | path `UUID id` | `AccountResponse` | 200 | 404 foreign/unknown, 401 | JWT | `AccountController.java` |
-| Transaction | POST | `/api/transactions` | `CreateTransactionRequest` (+ optional `occurredOn` — **M11 / REQ-BE-001 delivered**) | `TransactionResponse` + `Location` | 201 | 400, 404 unknown/foreign `accountId` | JWT | `TransactionController.java` |
-| Transaction | GET | `/api/transactions` | `?accountId?&type?&category?` | `List<TransactionResponse>` (incl. `occurredOn` — **M11 / REQ-BE-001 delivered**) | 200 | 400 bad enum/UUID, 404 foreign `accountId` | JWT | `TransactionController.java` |
+| Transaction | POST | `/api/transactions` | `CreateTransactionRequest` (+ optional `occurredOn` — **M11 / REQ-BE-001 delivered**; `description` persisted — **M17 / REQ-BE-010 delivered**) | `TransactionResponse` + `Location` | 201 | 400, 404 unknown/foreign `accountId` | JWT | `TransactionController.java` |
+| Transaction | GET | `/api/transactions` | `?accountId?&type?&category?` | `List<TransactionResponse>` (incl. `occurredOn` — **M11**; `description` — **M17 / REQ-BE-010 delivered**) | 200 | 400 bad enum/UUID, 404 foreign `accountId` | JWT | `TransactionController.java` |
 | Transaction | GET | `/api/transactions/page` | `?accountId?&type?&category?&uncategorized?&provenance?&from?&to?&page&size` | `TransactionPageResponse{content,page,size,totalElements,totalPages,hasNext}` | 200 | 400 bad enum/date/`from>to`/`page<0`/`size∉1..100`/category+uncategorized conflict, 404 foreign `accountId` | JWT | `TransactionController.java` — **M15 / REQ-BE-007 delivered** (`d3e73c8`) |
 | Transaction | GET | `/api/transactions/export` | `?accountId?` | `text/csv` file | 200 | 404 foreign `accountId` | JWT | `CsvExportController.java` |
 | Category | GET | `/api/categories` | — | `List<CategoryResponse>` | 200 | 401 | JWT | `CategoryController.java` |
@@ -339,13 +346,15 @@ link, not returned).
 | `amount` | number | yes | `@NotNull @DecimalMin(value="0.00", inclusive=false) @Digits(17,2)` | strictly positive |
 | `currency` | string | yes | `@NotBlank`; must equal account currency → 400 | ISO-4217 |
 | `category` | string | no | optional; unknown code → 400 (`categoryRepository.findById` in service) | category code |
-| `description` | string | no | `@Size(max=255)` | **rule-engine input only — never persisted or returned** |
+| `description` | string | no | `@Size(max=255)` | **M17 / REQ-BE-010 delivered** — persisted; also still the rule-engine input |
 | `occurredOn` | string (ISO `yyyy-MM-dd`) | **no — optional** | `LocalDate`; dates beyond tomorrow rejected at the manual-create boundary (`TransactionMapper`) | **M11 / REQ-BE-001 delivered** — omission stamps server `LocalDate.now()` exactly as pre-M11 |
 
 `TransactionResponse` (`account/TransactionResponse.java`):
-`{id, accountId, type, amount, currency, category, sourceRef, occurredOn}` —
+`{id, accountId, type, amount, currency, category, sourceRef, occurredOn, description}` —
 **`occurredOn` returned on every read (M11 / REQ-BE-001 delivered)**;
-`transferRef` and `description` remain not returned.
+**`description` returned on every read (M17 / REQ-BE-010 delivered, backend
+`9c123f7`) — null for rows created without a note and all pre-M17 rows**;
+`transferRef` remains not returned.
 
 Semantics:
 
@@ -579,7 +588,9 @@ Failure matrix (§24 has the error shapes):
     `BigDecimal`-parseable incl. exponent notation; HALF_UP scale-2 via `Money`
   - `currency` — ISO-4217; **must equal the account's currency** or the row
     fails (`CurrencyMismatchException` inside `create()`)
-  - `description` — free text; **never persisted**; feeds `RuleEngine`
+  - `description` — free text; feeds `RuleEngine`; **persisted as the
+    transaction's `description` since M17 / REQ-BE-010** (capped at 255 —
+    overlong statement text truncates, never fails the row)
   - `sourceTxnId` — optional; blank → tier-2 identity (§19)
 - Failure model: **structural** errors (header, column count, quoting) are
   all-or-nothing `IOException` → **500** (no handler — drift §39); **content**
@@ -587,8 +598,10 @@ Failure matrix (§24 has the error shapes):
 - `rowNumber` = physical file line, **2-based** (header = line 1).
 - Header-only file → empty batch → 201 with all-zero counts.
 - **Export ≠ import**: `CsvExportService` header is
-  `occurredOn,type,amount,currency,category,sourceRef` — a different schema
-  that cannot be re-imported — VERIFIED.
+  `occurredOn,type,amount,currency,category,sourceRef,description` — a
+  different schema that cannot be re-imported — VERIFIED. (`description`
+  column added M17 / REQ-BE-010, backend `9c123f7`; values pass through the
+  same RFC4180 `field()` quoting.)
 
 ## 18. PDF / TPBank support boundary
 
@@ -917,8 +930,8 @@ failure) → `CurrentUser.id()` (sub→UUID) → `AccountMapper.toDomain` →
 `TransactionCreationService.create` (`@Transactional`: validate → resolve
 category/RuleEngine → `account.applyIncome/Expense` (currency match or 400)
 → persist+flush (`uq_txn_source_ref` guard) → `accountRepository.save`) →
-`TransactionMapper.toResponse` → **201 + Location**. Response has no
-`occurredOn`/`description` despite them being stored/used.
+`TransactionMapper.toResponse` → **201 + Location**. Response carries both
+`occurredOn` (M11) and `description` (M17) — null when the row has no note.
 
 **TRACE C — TRANSFER (domain only — NOT REACHABLE)**
 *(no HTTP request exists)* `TransferService.transfer(command, ownerId)`
@@ -963,7 +976,7 @@ controller's own comment claiming 400.
 | delete/archive account | **BACKEND_GAP** | no endpoint — BG-002 |
 | account balances | SUPPORTED_NOW | `balance` in `AccountResponse`; server-owned |
 | list transactions | SUPPORTED_WITH_LIMITATIONS | unbounded list, no sort/date filter — BG-005/013 |
-| transaction detail | **BACKEND_GAP** | list-only; `occurredOn` now returned (M11/REQ-BE-001); `description`/`transferRef` still not — BG-004/BG-014 |
+| transaction detail | **BACKEND_GAP** | list-only; `occurredOn` returned (M11/REQ-BE-001); `description` returned (M17/REQ-BE-010); `transferRef` still not — BG-014 |
 | create expense | SUPPORTED_NOW | `type=EXPENSE` |
 | create income | SUPPORTED_NOW | `type=INCOME` |
 | edit transaction | **BACKEND_GAP** | append-only — BG-002 |
@@ -1114,7 +1127,7 @@ not a defect. Decision owner is THE HUMAN for all.
 | BG-001 | transfer | `TransferService` internal | POST/GET transfer resource | transfer UX impossible | M-transfers | **MAJOR** | P3 |
 | BG-002 | edit/delete on txns, accounts, budgets; update on rules | absent | mutation endpoints + semantics | no correction UX; compensating entries only; budgets/rules can't be edited | ledger UX | **MAJOR** | P3 |
 | BG-003 | transaction date | ~~`occurredOn` internal/export-only~~ | ~~request field + response field~~ | ~~no back-dating; date hidden in UI~~ | entry UX | ~~**MAJOR**~~ **RESOLVED — M11/REQ-BE-001 delivered** (backend `bc6e0bb`): optional `occurredOn` on create, always on reads | ~~P3~~ |
-| BG-004 | description/memo | write-only | persisted + returned field | no notes display | detail UX | MINOR | P3 |
+| BG-004 | description/memo | ~~write-only~~ | ~~persisted + returned field~~ | ~~no notes display~~ | detail UX | ~~MINOR~~ **RESOLVED — M17/REQ-BE-010 delivered** (backend `9c123f7`): `description` persisted, returned on all read surfaces + CSV, displayed on detail | ~~P3~~ |
 | BG-005 | pagination | absent (dead Pageable) | page/size or cursor contract | unbounded payloads | scale UX | **MAJOR** | P4 |
 | BG-006 | session | 15-min JWT, no refresh/`/me` | refresh or longer TTL contract | forced re-login UX | session UX | **MAJOR** | P3 |
 | BG-007 | import history | `/{id}` only | batch list endpoint | client must keep IDs | import history UX | MINOR | P3 |

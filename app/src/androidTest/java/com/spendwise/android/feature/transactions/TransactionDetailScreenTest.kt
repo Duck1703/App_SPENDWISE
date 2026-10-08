@@ -81,16 +81,28 @@ class TransactionDetailScreenTest {
     }
 
     @Test
-    fun content_note_showsWhenPresent_hidesWhenNull() {
+    fun content_note_showsThePersistedDescriptionWhenPresent() {
         screen(TransactionDetailUiState.Content(
             txn(description = "rent for October"),
             accountName = "Wallet",
         ))
         composeRule.onNodeWithText("Note").assertIsDisplayed()
         composeRule.onNodeWithText("rent for October").assertIsDisplayed()
+    }
 
+    @Test
+    fun content_note_isHiddenWhenDescriptionIsNull() {
         screen(TransactionDetailUiState.Content(txn(description = null), accountName = "Wallet"))
         composeRule.onAllNodesWithText("Note").assertCountEquals(0)
+    }
+
+    @Test
+    fun content_note_rendersAMaxLengthDescriptionWhole() {
+        // M17: server bound is 255 — the block-style note row must lay the
+        // full text out, not truncate it to the side-by-side DetailField.
+        val long = "rent for October plus utilities ".repeat(8).take(255)
+        screen(TransactionDetailUiState.Content(txn(description = long), accountName = "Wallet"))
+        composeRule.onNodeWithText(long).assertIsDisplayed()
     }
 
     @Test

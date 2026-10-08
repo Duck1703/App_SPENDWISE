@@ -35,7 +35,7 @@ app). **Zero PUT/PATCH** anywhere. No pagination (3 query filters on
 | BE-007 | Pagination + date-range/search | `findAllByUserIdWithReferences` returns whole ledger; no Pageable; 3 filters only | Pageable plumbing + `occurredOn` filter params (depends on BE-001 contract exposure for client date semantics) | BACKEND_GATED (medium, deferred until ledgers grow) |
 | BE-008 | Multipart size config | Spring ~1 MB default; 500 on oversize | Property/config change | BACKEND_GATED (trivial) |
 | BE-009 | Recurring currency defect + mixed-currency stats + typed errors + batch status | Recurring currency validation absent (D14, unreachable via app's currency lock); stats services exist; error payloads generic | Backend hardening cluster | BACKEND_GATED (mixed sizes; low user-visible value now — app already locks currency) |
-| BE-010 | Persisted `description` on transactions | `CreateTransactionRequest` accepts `description` **for rule-matching only**; entity has **no description column**; export omits it | New entity column + request/response fields | BACKEND_GATED (schema change, medium) |
+| BE-010 | Persisted `description` on transactions | **`description` persisted + returned + exported (backend `9c123f7`)** — V12 nullable `VARCHAR(255)`; blank → null; import text capped | Delivered (M17): entity column + response field + Android note entry/display | DELIVERED (M17) |
 | BE-011 | Budget edit/delete | Nothing mutating on `/api/budgets`; unique category+month blocks recreation of a wrong current-month budget | PATCH/DELETE + month-boundary semantics | BACKEND_GATED (small-medium, real user pain) |
 
 ## Non-BE product candidates (Post-V1, no backend gate)

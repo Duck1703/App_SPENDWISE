@@ -1,22 +1,25 @@
 # M17 — Transaction Notes (persisted description)
 
 ```
-STATUS: IN_DELIVERY
+STATUS: READY_FOR_EXTERNAL_AUDIT
 M16_COMPLETE=YES
 M17_DEFINED=YES
 M17_STARTED=YES
-M17_TECHNICAL_COMPLETE=NO
-M17_READY_FOR_EXTERNAL_AUDIT=NO
+M17_TECHNICAL_COMPLETE=YES
+M17_READY_FOR_EXTERNAL_AUDIT=YES
+M17_EXTERNAL_AUDIT=NOT_RUN (out of scope for this delivery block)
 M17_HUMAN_APPROVED=NO
 M17_HUMAN_AUTHORIZATION=EXPLICIT (M17 delivery block)
 CANONICAL_REQUIREMENT=REQ-BE-010 (persisted transaction
   description/notes)
-TRANSACTION_NOTES=IN_DELIVERY
+TRANSACTION_NOTES=DELIVERED_TECHNICAL
 M18_DEFINED=NO
 M18_STARTED=NO
-SPENDWISE_STATUS=M17_IN_DELIVERY
-NEXT_ACTION=M17_GATES_THEN_SENTINEL_ARGUS
+SPENDWISE_STATUS=M17_READY_FOR_EXTERNAL_AUDIT
+NEXT_ACTION=ONE_LARGE_INDEPENDENT_EXTERNAL_M17_AUDIT
 BASELINE: Android 63fef64 (M16-accepted) · Backend ca5b380
+DELIVERY: Backend ca5b380..9c123f7 · Android f304c5b..HEAD
+COURSE_SYNC_DEFERRED=YES (backend range recorded below)
 ```
 
 ## Selection rationale (decision record)
@@ -115,11 +118,13 @@ Semantics (all derived from existing conventions):
 - Domain `Transaction.description` propagated.
 - Create form: existing `hint` field reframed — label "Note",
   supporting text "Saved with the transaction. Also used to
-  auto-categorize." (≤255 char bound already enforced client-side as
-  `MAX_HINT_LENGTH`).
+  auto-categorize." (≤255 char bound enforced client-side as
+  `MAX_DESCRIPTION_LENGTH`).
 - `TransactionRepository.create`: `hint` param renamed `description`
   for honesty (same wire field).
-- `TransactionDetailScreen`: "Note" row shown only when non-null.
+- `TransactionDetailScreen`: "Note" block shown only when non-blank
+  (server emits `null` for absent notes; the blank guard defends the
+  hypothetical `""`).
 - List rows unchanged (detail is the display surface; no redesign).
 - No new screens/routes — additive to existing create + detail flows.
 
@@ -181,6 +186,74 @@ audit is OUT OF SCOPE for this delivery (stops at
 
 ## Course sync
 
-Deferred. Backend production delta will be recorded as
-`ca5b380..<M17 backend head>` + contract summary for a later
-synchronization pass. `COURSE_UPDATE_EXECUTED=NO`.
+Deferred. Backend production delta is `ca5b380..9c123f7` (single commit:
+entity field + V12 + response + mapper + service + CSV + tests) plus the
+contract summary in this file and `BACKEND-CONTRACT.md`.
+`COURSE_UPDATE_EXECUTED=NO`.
+
+## Delivery record (final)
+
+### Backend diff — `ca5b380..9c123f7` (8 files, +307/−9)
+
+- `Transaction.java` — `@Column(length=255) description`; entity
+  `normalizeDescription` (blank→null, strip, cap 255); 9-arg ctor;
+  8-arg delegates null; `description()` accessor.
+- `V12__transaction_description.sql` — additive nullable
+  `ALTER TABLE transactions ADD COLUMN description VARCHAR(255)`.
+- `TransactionCreationService` — passes `command.description()`.
+- `TransactionResponse` / `TransactionMapper` — field added to every
+  read surface (create/list/page/export paths share the record).
+- `CsvExportService` — trailing `description` column via existing
+  RFC4180 `field()` quoting; header now
+  `occurredOn,type,amount,currency,category,sourceRef,description`.
+- Tests — `TransactionDescriptionContractTest` (10, new);
+  `CsvExportTest` header/row updates.
+
+### Android diff — `f304c5b..` (slice commit `445ffb0` + review fixes)
+
+- `TransactionDtos.kt` / `Transaction.kt` — nullable `description`.
+- `TransactionRepository.create(hint→description)`; blank → omitted.
+- `TransactionsUiState` / `CreateTransactionViewModel` — rename;
+  `MAX_DESCRIPTION_LENGTH=255` input bound (server parity).
+- `CreateTransactionScreen` + `TransactionDestinations` + `strings.xml`
+  — "Note (optional)", support text declares both uses.
+- `TransactionDetailScreen` — full-width Note block when non-blank.
+- Tests — service wire (body + parse + absence), repository, create-VM
+  (+255 bound), detail-VM (note reaches content), detail screen
+  (shown/hidden/255-whole), fakes.
+- Docs — `BACKEND-CONTRACT.md` (6 sites), `PRODUCT.md` (§6, matrix,
+  BE-010), `POST-V1-BACKEND-REQUIREMENTS.md`, capability matrix.
+
+### Gate evidence (final source)
+
+| Gate | Result |
+|---|---|
+| Backend regression (`mvn test`) | **393/393**, 0 f/e/s (383 + 10) |
+| Android JVM (`testDebugUnitTest`) | **657/657**, 0 f/e/s (653 + 4) |
+| lint | 0 Error/Fatal, 22 warnings (pre-existing) |
+| detekt | 0 smells (227 files) |
+| assembleDebug / assembleRelease+R8 | PASS; `TransactionDto$$serializer`+Companion kept in mapping.txt |
+| Merged manifest / backup | unchanged from accepted baseline |
+| Pixel 4 XL `connectedDebugAndroidTest` ×2 | **196/196** both runs (193 + 3) |
+| Install + launch (physical) | `MainActivity` top-resumed |
+| SENTINEL | PASS — 0B/0M open; 1 minor fixed, 1 note |
+| ARGUS | PASS — 0B/0M open; 1 major + 1 minor remediated, 3 notes |
+
+### Findings remediated in this block
+
+1. `TransactionDescriptionContractTest` same-date ordering assumption —
+   matched rows by id (ordering is `occurredOn DESC, id DESC`).
+2. `CsvExportTest` pre-existing header literal — updated to the new
+   additive schema.
+3. Import-path >255 statement text would have hit `VARCHAR(255)` —
+   capped at the entity before any row could fail.
+4. Compose harness `setContent` twice — split into two tests.
+5. Detail note blank-string defense (`takeIf { it.isNotBlank() }`).
+6. `BACKEND-CONTRACT.md` + `PRODUCT.md` + register/matrix drift —
+   reconciled (ARGUS A-1/A-2).
+
+### Non-events verified
+
+- No M18 work. No course sync. No push, no tag. Backend human-owned
+  paths (`README.md`, `HUONG-DAN-SU-DUNG.md`, `docs/SPENDWISE-REQ.md`)
+  untouched. Reference repo untouched.

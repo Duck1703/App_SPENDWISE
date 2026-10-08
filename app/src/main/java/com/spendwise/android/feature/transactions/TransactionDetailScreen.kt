@@ -170,7 +170,7 @@ private fun DetailContent(transaction: Transaction, accountName: String?) {
                     label = stringResource(R.string.txn_detail_field_source),
                     value = provenanceLabel(transaction.provenance) ?: "—",
                 )
-                transaction.description?.let { note ->
+                transaction.description?.takeIf { it.isNotBlank() }?.let { note ->
                     FieldDivider()
                     Column(modifier = Modifier.padding(vertical = 10.dp)) {
                         Text(

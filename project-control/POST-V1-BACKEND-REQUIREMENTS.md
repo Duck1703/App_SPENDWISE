@@ -115,7 +115,7 @@ Ordered by unlock value.
   currency statistics policy; batch status field if async import ever
   lands.
 
-## REQ-BE-010 — Persisted description/notes — **IN_DELIVERY (M17)**
+## REQ-BE-010 — Persisted description/notes — **DELIVERED (M17, pending external audit)**
 
 - Contract: `description` column on `Transaction` + request/response
   fields (currently accepted but dropped after rule-matching).

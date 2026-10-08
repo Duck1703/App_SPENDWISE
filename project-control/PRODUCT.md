@@ -90,8 +90,9 @@ Where backend capability allows (§6):
   ISO-4217 currency fixed at creation; **no edit/delete**.
 - **Transactions**: create (`INCOME`/`EXPENSE`) + filtered list
   (`accountId`/`type`/`category`); **no detail endpoint, no edit, no
-  delete**; **`occurredOn` is neither settable nor returned**;
-  **`description` is never persisted**; no pagination/search/date filter.
+  delete**; `occurredOn` settable on create + returned on reads (M11);
+  `description` persisted + returned + displayed (M17); paged read with
+  date/provenance filters exists (M15 — `GET /api/transactions/page`).
 - **Transfers**: atomic two-legged domain — **no public endpoint**.
 - **Import**: synchronous `POST /api/imports` (multipart part `file` +
   `accountId` **query param**); strict CSV schema; **TPBank + one synthetic
@@ -152,7 +153,7 @@ entering the primary path.
 | transaction search | POST_V1 | no server search; local text search rejected (too few displayed fields) |
 | transaction date selection | BACKEND_GATED | `occurredOn` unsettable → read-only "Today" + BE-001 |
 | transaction date display | BACKEND_GATED | `occurredOn` not returned → rows carry no date + BE-001 |
-| transaction description/history | BACKEND_GATED | never persisted → honest "categorization hint" only + BE-010 |
+| transaction description/history | DELIVERED_M17 | BE-010 — persisted note on create + detail display |
 | categories | V1_CORE | fixed 5 — picker on entry forms; no CRUD |
 | category assignment | V1_CORE | `category` on create + rule engine |
 | categorization rules | V1_SUPPORTING | create/list/get/disable; runs on manual + imports |
@@ -824,7 +825,7 @@ here; each requires a separate Human-authorized backend task.)
 | BE-007 | pagination + date-range/search | dead Pageable; 3 filters only | large-ledger UX | scalable browse |
 | BE-008 | multipart size config | ~1 MB default | large statements | fewer 500s |
 | BE-009 | recurring currency validation (defect D14) + mixed-currency stats + typed error codes + batch status | correctness gaps | hardening | safer recurring/dashboard/errors |
-| BE-010 | persisted `description`/notes on transactions | never stored today | notes feature | user-visible entry notes |
+| BE-010 | persisted `description`/notes on transactions | **DELIVERED M17** (backend `9c123f7` + Android `445ffb0`) | notes feature | user-visible entry notes |
 | BE-011 | budget edit/delete | unique category+month blocks same-month fixes | post-V1 budget management | wrong current-month budgets fixable |
 
 ## 42. Inputs for P4
