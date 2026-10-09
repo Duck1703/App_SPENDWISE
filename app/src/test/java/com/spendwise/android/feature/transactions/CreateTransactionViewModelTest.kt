@@ -629,6 +629,55 @@ class CreateTransactionViewModelTest {
     }
 
     @Test
+    fun `a loadOptions re-run refreshes options without clobbering edits`() = runTest {
+        // The account-404 picker refresh calls loadOptions() again —
+        // edits made after the offset prefill must survive the re-run
+        // (the prefill applies exactly once).
+        val txns = offsetSource(type = TransactionType.EXPENSE, amount = "25.50", category = "FOOD")
+        val viewModel = vm(
+            offsetTransactionId = "txn-src",
+            txns = txns,
+            accounts = accountBacked(),
+        )
+        viewModel.onAmountChange("10.00")
+        viewModel.onTypeChange(TransactionType.EXPENSE) // user flipped the inverse back
+
+        viewModel.loadOptions()
+
+        val state = viewModel.state.value
+        assertEquals("10.00", state.amount)
+        assertEquals(TransactionType.EXPENSE, state.type)
+        assertEquals("txn-src", state.offsetSourceId)
+        assertEquals(1, txns.findByIdCalls.size) // the source is not re-fetched
+    }
+
+    @Test
+    fun `a re-run still drops a vanished offset account honestly`() = runTest {
+        // If the source account left the picker between loads, the form
+        // must not keep pointing at it — the account falls back, the
+        // draft fields stay.
+        val accounts = FakeAccountRepository()
+        var live = true
+        accounts.listResult = {
+            if (live) {
+                listOf(FakeAccountRepository.account(id = "acc-1"))
+            } else {
+                listOf(FakeAccountRepository.account(id = "acc-9"))
+            }
+        }
+        val txns = offsetSource(accountId = "acc-1")
+        val viewModel = vm(offsetTransactionId = "txn-src", txns = txns, accounts = accounts)
+        viewModel.onAmountChange("10.00")
+
+        live = false
+        viewModel.loadOptions()
+
+        val state = viewModel.state.value
+        assertEquals("acc-9", state.accountId) // picker truth wins
+        assertEquals("10.00", state.amount) // draft untouched
+    }
+
+    @Test
     fun `offset mode still locks double-taps and never auto-replays`() = runTest {
         val txns = offsetSource()
         val gate = CompletableDeferred<com.spendwise.android.core.model.Transaction>()

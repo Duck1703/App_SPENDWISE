@@ -267,6 +267,7 @@
     <string name="txn_create_submit">Save transaction</string>
     <string name="txn_create_submitting">Saving…</string>
     <string name="txn_create_cancel">Cancel</string>
+    <string name="txn_create_offset_title">Offsetting entry</string>
     <string name="txn_create_offset_banner">This adds an opposite entry. The original stays in history — income and expense totals for the period will both be higher than the true position.</string>
     <string name="txn_create_error_ambiguous">We couldn\’t confirm whether this transaction was recorded — check your transactions before trying again.</string>
     <string name="txn_create_error_account_gone">That account is no longer available — pick another one.</string>

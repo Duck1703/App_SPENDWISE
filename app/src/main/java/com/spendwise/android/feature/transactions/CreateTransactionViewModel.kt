@@ -82,7 +82,15 @@ class CreateTransactionViewModel @Inject constructor(
                 // pickers; ledger/history surfaces still see them.
                 val accounts = accountRepository.list().filterNot { it.archived }
                 val categories = runCatching { categoryRepository.list() }.getOrDefault(emptyList())
-                val offsetSource = offsetTransactionId?.let { transactionRepository.findById(it) }
+                // The §21 prefill applies ONCE — a later loadOptions
+                // re-run (account-404 picker refresh, retry) refreshes
+                // options but must never clobber the user's edits.
+                val alreadyPrefilled = _state.value.offsetSourceId != null
+                val offsetSource = if (offsetTransactionId != null && !alreadyPrefilled) {
+                    transactionRepository.findById(offsetTransactionId)
+                } else {
+                    null
+                }
                 if (offsetSource != null && !offsetSource.isOffsettableOn(accounts)) {
                     // The source turned TRANSFER_* / UNKNOWN, or its
                     // account is gone/archived — refuse the prefill
@@ -102,6 +110,9 @@ class CreateTransactionViewModel @Inject constructor(
                 )
                 _state.value = if (offsetSource == null) {
                     base.copy(
+                        // A stale accountId (picker refresh, archived
+                        // offset source) drops out honestly — never a
+                        // silent substitute.
                         accountId = _state.value.accountId
                             ?.takeIf { id -> accounts.any { it.id == id } }
                             ?: accounts.firstOrNull()?.id,

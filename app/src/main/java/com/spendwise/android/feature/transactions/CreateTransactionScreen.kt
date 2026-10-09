@@ -169,7 +169,7 @@ private fun CreateForm(
         // consequence copy, presented before the prefilled form.
         if (state.offsetSourceId != null) {
             SwBanner(
-                title = stringResource(R.string.txn_detail_offset_action),
+                title = stringResource(R.string.txn_create_offset_title),
                 text = stringResource(R.string.txn_create_offset_banner),
                 kind = SwBannerKind.Info,
             )
