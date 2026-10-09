@@ -62,11 +62,14 @@ Ordered by unlock value.
   product decision which; must be owner-scoped and audit-preserving.
 - Unlock: true correction UX replacing the offset-entry stopgap.
 
-## REQ-BE-006 — Account edit/archive
+## REQ-BE-006 — Account edit/archive — **DELIVERED (M19, technically complete; external audit pending)**
 
 - Contract: `PATCH /api/accounts/{id}` (rename; optional `archived`
-  flag). Define archived-account semantics: hidden from pickers, still
+  flag). Archived-account semantics: hidden from pickers, still
   in ledger/balances.
+- Shipped: backend `342e85d` (sparse PATCH + V13 `archived` column +
+  owner-scoped 404 + optimistic 409); Android edit screen, archived
+  badges, entry-picker exclusion, mutation-repaint fixes.
 
 ## REQ-BE-011 — Budget edit/delete — **DELIVERED (M14)** — external audit code-complete; physical-runtime closeout gate pending
 

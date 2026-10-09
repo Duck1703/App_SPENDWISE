@@ -27,6 +27,11 @@ class AccountsViewModel @Inject constructor(
 
     init {
         refresh(initial = true)
+        // M19: rename/archive writes repaint the badge+name on pop-back
+        // (detail collects the same signal — Home already did).
+        viewModelScope.launch {
+            accountRepository.mutations.collect { refresh() }
+        }
     }
 
     fun refresh(initial: Boolean = false) {

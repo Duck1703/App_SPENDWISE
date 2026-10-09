@@ -297,4 +297,22 @@ class AccountDetailViewModelTest {
         assertEquals(listOf("acc-1" to false, "acc-1" to true), repo.findByIdCalls)
         assertEquals(2, txns.listCalls.size)
     }
+
+    @Test
+    fun `an account mutation reloads the detail`() = runTest {
+        // M19: after Edit → Saved → pop-back, the rename/archive must
+        // repaint — the account mutation signal drives the reload.
+        val repo = FakeAccountRepository()
+        val vm = viewModel(repo = repo)
+        repo.findByIdResult = { id, _ ->
+            FakeAccountRepository.account(id = id, name = "Renamed", archived = true)
+        }
+
+        repo.emitMutation()
+
+        val state = vm.state.value as AccountDetailUiState.Content
+        assertEquals("Renamed", state.account.name)
+        assertTrue(state.account.archived)
+        assertEquals(listOf("acc-1" to false, "acc-1" to true), repo.findByIdCalls)
+    }
 }

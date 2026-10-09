@@ -46,6 +46,12 @@ class AccountDetailViewModel @Inject constructor(
         viewModelScope.launch {
             transactionRepository.mutations.collect { load(initial = false) }
         }
+        // M19: rename/archive writes must repaint this screen on
+        // pop-back — the account cache already carries the server
+        // entity; load() refreshes it truthfully anyway.
+        viewModelScope.launch {
+            accountRepository.mutations.collect { load(initial = false) }
+        }
     }
 
     fun refresh() = load(initial = false)

@@ -164,6 +164,7 @@ body). Sources: controller files in §42.
 | Account | POST | `/api/accounts` | `CreateAccountRequest` | `AccountResponse` + `Location` | 201 | 400 | JWT | `AccountController.java` |
 | Account | GET | `/api/accounts` | — | `List<AccountResponse>` | 200 | 401 | JWT | `AccountController.java` |
 | Account | GET | `/api/accounts/{id}` | path `UUID id` | `AccountResponse` | 200 | 404 foreign/unknown, 401 | JWT | `AccountController.java` |
+| Account | PATCH | `/api/accounts/{id}` | `UpdateAccountRequest{name?, archived?}` — sparse, ≥1 field required | `AccountResponse` | 200 | 400 empty patch/blank name/>255, 404 foreign/unknown, 409 optimistic conflict, 401 | JWT | `AccountController.java` — **M19 / REQ-BE-006 delivered** (`342e85d`) |
 | Transaction | POST | `/api/transactions` | `CreateTransactionRequest` (+ optional `occurredOn` — **M11 / REQ-BE-001 delivered**; `description` persisted — **M17 / REQ-BE-010 delivered**) | `TransactionResponse` + `Location` | 201 | 400, 404 unknown/foreign `accountId` | JWT | `TransactionController.java` |
 | Transaction | GET | `/api/transactions` | `?accountId?&type?&category?` | `List<TransactionResponse>` (incl. `occurredOn` — **M11**; `description` — **M17 / REQ-BE-010 delivered**) | 200 | 400 bad enum/UUID, 404 foreign `accountId` | JWT | `TransactionController.java` |
 | Transaction | GET | `/api/transactions/page` | `?accountId?&type?&category?&uncategorized?&provenance?&from?&to?&page&size` | `TransactionPageResponse{content,page,size,totalElements,totalPages,hasNext}` | 200 | 400 bad enum/date/`from>to`/`page<0`/`size∉1..100`/category+uncategorized conflict, 404 foreign `accountId` | JWT | `TransactionController.java` — **M15 / REQ-BE-007 delivered** (`d3e73c8`) |
@@ -260,9 +261,11 @@ archive endpoints exist.** — VERIFIED.
 | `currency` | string | yes | `@NotBlank`; ISO-4217 checked at domain layer | fixed account currency |
 
 `AccountResponse` (`account/AccountResponse.java`):
-`{id, name, type, openingBalance, currency, balance}` — `currency` is the
-opening currency; `balance` is the current stored balance. **VERIFIED** —
-`AccountMapper.toResponse`.
+`{id, name, type, openingBalance, currency, balance, archived}` —
+`currency` is the opening currency; `balance` is the current stored
+balance; `archived` (**M19 / REQ-BE-006**, V13 `NOT NULL DEFAULT FALSE`)
+is the operational flag — hidden from entry pickers, still in
+ledger/balances. **VERIFIED** — `AccountMapper.toResponse`.
 
 Semantics:
 
@@ -272,7 +275,11 @@ Semantics:
   to opening values, mutated per transaction (§12). `NUMERIC(19,2)` — V1/V2.
 - **Concurrency**: `@Version` optimistic lock → 409 on lost update.
 - **No duplicate-name or per-user uniqueness** — duplicate names legal.
-- **No active/archived flag, no enabled state.**
+- **`archived` flag** (M19): mutable only via `PATCH /{id}` sparse body;
+  archive is not delete — ledger, balances, history, and search keep the
+  account; entry pickers exclude it. Server-side writes on archived ids
+  are NOT blocked (flag is entry semantics, not a freeze).
+- **No enabled state.**
 - **Negative balances are legal** — no floor check anywhere (grep: no
   "insufficient"/"overdraft") — VERIFIED.
 - **Ordering**: `findAllByUserId` with no `Sort` → unspecified DB order —

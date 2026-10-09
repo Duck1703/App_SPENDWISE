@@ -129,8 +129,8 @@ Semantics (each derived from an existing convention — M16's
   account the Add-transaction/Transfer actions hide — recording into
   an archived account contradicts the flag's meaning.
 - `EditAccountScreen/ViewModel`: name field (prefilled, trimmed,
-  ≤255, non-blank → inline error) + archive/unarchive action
-  (confirmation copy explaining ledger preservation); sparse PATCH;
+  ≤255, non-blank → inline error) + archive switch with honest inline
+  copy explaining ledger preservation; sparse PATCH;
   409 → honest "changed elsewhere — reload" state; 404 → reload;
   submit lock; no auto-retry; ambiguous-outcome copy; stale guards
   mirroring `EditRecurringViewModel`.

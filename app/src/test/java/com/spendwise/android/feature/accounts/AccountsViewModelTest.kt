@@ -5,6 +5,8 @@ import com.spendwise.android.core.network.AppErrorException
 import com.spendwise.android.data.repository.SessionEndedException
 import com.spendwise.android.fakes.FakeAccountRepository
 import com.spendwise.android.fakes.MainDispatcherRule
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -12,6 +14,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class AccountsViewModelTest {
 
     @get:Rule
@@ -237,6 +240,26 @@ class AccountsViewModelTest {
         val state = vm.state.value as AccountsUiState.Content
         assertEquals(2, state.accounts.size)
         assertEquals(null, state.refreshError)
+    }
+
+    @Test
+    fun `an account mutation reloads the list`() = runTest {
+        // M19: after a rename/archive the pop-back repaint must come
+        // from a fresh list — the mutation signal drives it.
+        val repo = FakeAccountRepository()
+        repo.listResult = { listOf(FakeAccountRepository.account("a1")) }
+        val vm = AccountsViewModel(repo)
+        repo.listResult = {
+            listOf(FakeAccountRepository.account("a1", name = "Renamed", archived = true))
+        }
+
+        repo.emitMutation()
+        runCurrent()
+
+        val state = vm.state.value as AccountsUiState.Content
+        assertEquals("Renamed", state.accounts.single().name)
+        assertTrue(state.accounts.single().archived)
+        assertEquals(listOf(false, true), repo.listCalls)
     }
 
     @Test
