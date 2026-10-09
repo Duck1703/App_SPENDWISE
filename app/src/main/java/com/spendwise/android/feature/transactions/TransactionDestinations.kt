@@ -58,10 +58,11 @@ fun TransactionsDestination(
     }
 }
 
-/** Pushed destination — transaction detail (S10), read-only. */
+/** Pushed destination — transaction detail (S10), append-only. */
 @Composable
 fun TransactionDetailDestination(
     onNavigateBack: () -> Unit,
+    onOffset: (transactionId: String) -> Unit,
     viewModel: TransactionDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -76,6 +77,7 @@ fun TransactionDetailDestination(
             state = state,
             onRetry = viewModel::refresh,
             onNavigateBack = onNavigateBack,
+            onOffset = onOffset,
         )
     }
 }

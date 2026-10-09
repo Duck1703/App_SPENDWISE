@@ -73,7 +73,10 @@ import java.time.LocalDate
  * Create transaction (S11, P3A): type switch, account picker with locked
  * currency, amount, optional category tiles, occurrence date (M11 —
  * real user-selectable `occurredOn` via a Material3 date picker), and
- * optional note — persisted with the transaction (M17/REQ-BE-010);
+ * optional note — persisted with the transaction (M17/REQ-BE-010).
+ * M20 (PRODUCT §21): when opened as an offsetting entry the form is
+ * prefilled (inverse type, same account/amount/category) and carries
+ * the honest consequence banner — the post is an ordinary create.
  */
 @Composable
 fun CreateTransactionScreen(
@@ -159,6 +162,16 @@ private fun CreateForm(
                 title = stringResource(R.string.auth_error_banner_cd),
                 text = error.displayText(),
                 kind = SwBannerKind.Error,
+            )
+        }
+
+        // M20 (PRODUCT §21): offsetting-entry mode — the verbatim honest
+        // consequence copy, presented before the prefilled form.
+        if (state.offsetSourceId != null) {
+            SwBanner(
+                title = stringResource(R.string.txn_detail_offset_action),
+                text = stringResource(R.string.txn_create_offset_banner),
+                kind = SwBannerKind.Info,
             )
         }
 

@@ -78,9 +78,17 @@ data class AccountEditRoute(val accountId: String) : AppRoute
  *
  * @param accountId optional prefill when launched from an account's
  *   detail screen — the user may still change it.
+ * @param offsetTransactionId M20 (PRODUCT §21): when set, the form
+ *   opens as an "offsetting entry" — the source row is re-fetched from
+ *   the ledger cache (never trusted from route args) and the form
+ *   prefills the inverse type plus the same account/amount/currency/
+ *   category. Wins over [accountId]; the original stays untouched.
  */
 @Serializable
-data class TransactionCreateRoute(val accountId: String? = null) : AppRoute
+data class TransactionCreateRoute(
+    val accountId: String? = null,
+    val offsetTransactionId: String? = null,
+) : AppRoute
 
 /**
  * Read-only detail derived from already-fetched list data — the backend

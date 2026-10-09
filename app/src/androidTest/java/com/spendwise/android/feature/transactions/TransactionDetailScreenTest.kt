@@ -6,6 +6,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.spendwise.android.R
 import com.spendwise.android.TestFormats
@@ -20,7 +21,10 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.math.BigDecimal
 
-/** Stateless-screen tests for transaction detail (S10 — strictly read-only). */
+/**
+ * Stateless-screen tests for transaction detail (S10 — append-only;
+ * M20 adds the §21 "offsetting entry" action when the row is eligible).
+ */
 @RunWith(AndroidJUnit4::class)
 class TransactionDetailScreenTest {
 
@@ -43,7 +47,11 @@ class TransactionDetailScreenTest {
         description = description,
     )
 
-    private data class Harness(var retries: Int = 0, var backs: Int = 0)
+    private data class Harness(
+        var retries: Int = 0,
+        var backs: Int = 0,
+        var offsets: MutableList<String> = mutableListOf(),
+    )
 
     private fun screen(state: TransactionDetailUiState, harness: Harness = Harness()) {
         composeRule.setContent {
@@ -52,6 +60,7 @@ class TransactionDetailScreenTest {
                     state = state,
                     onRetry = { harness.retries++ },
                     onNavigateBack = { harness.backs++ },
+                    onOffset = { harness.offsets += it },
                 )
             }
         }
@@ -141,6 +150,74 @@ class TransactionDetailScreenTest {
         composeRule.onNodeWithText("Transaction not found").assertIsDisplayed()
         composeRule.onNodeWithText("Back to transactions").performClick()
         assertEquals(1, harness.backs)
+    }
+
+    // ── M20: offsetting entry (PRODUCT §21) ─────────────────────────
+
+    @Test
+    fun offsetEligible_showsTheActionWithHonestCopy_andClickCarriesTheId() {
+        val harness = Harness()
+        screen(
+            TransactionDetailUiState.Content(
+                txn(type = TransactionType.EXPENSE),
+                accountName = "Wallet",
+                offsetEligible = true,
+            ),
+            harness,
+        )
+
+        composeRule.onNodeWithText("Create offsetting entry")
+            .performScrollTo().assertIsDisplayed().performClick()
+        assertEquals(listOf("t1"), harness.offsets)
+
+        // §21 verbatim honest consequence copy rides along.
+        composeRule.onNodeWithText(
+            "opposite entry",
+            substring = true,
+        ).assertIsDisplayed()
+        composeRule.onNodeWithText(
+            "original stays in history",
+            substring = true,
+        ).assertIsDisplayed()
+    }
+
+    @Test
+    fun offsetEligible_neverReadsAsUndoDeleteOrEdit() {
+        // §21: the action is a compensating entry — the copy must never
+        // masquerade as undo/delete/edit of the original row.
+        screen(
+            TransactionDetailUiState.Content(
+                txn(),
+                accountName = "Wallet",
+                offsetEligible = true,
+            ),
+        )
+
+        composeRule.onAllNodesWithText("Undo", substring = true).assertCountEquals(0)
+        composeRule.onAllNodesWithText("Delete", substring = true).assertCountEquals(0)
+        composeRule.onAllNodesWithText("Edit", substring = true).assertCountEquals(0)
+    }
+
+    @Test
+    fun offsetIneligible_hidesTheAction_entirely() {
+        // TRANSFER_* legs and archived-account rows arrive with
+        // offsetEligible = false — no affordance, no dead hint.
+        screen(
+            TransactionDetailUiState.Content(
+                txn(type = TransactionType.TRANSFER_OUT, sourceRef = "TRANSFER:r1:OUT"),
+                accountName = "Wallet",
+                offsetEligible = false,
+            ),
+        )
+
+        composeRule.onAllNodesWithText(
+            "Create offsetting entry",
+            substring = true,
+        ).assertCountEquals(0)
+        composeRule.onAllNodesWithText(
+            "opposite entry",
+            substring = true,
+        ).assertCountEquals(0)
     }
 
     @Test

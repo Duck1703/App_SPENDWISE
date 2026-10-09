@@ -283,6 +283,37 @@ class CreateTransactionScreenTest {
     }
 
     @Test
+    fun offsetMode_showsTheHonestConsequenceBanner() {
+        // M20 (PRODUCT §21): the prefilled form announces itself — the
+        // original stays in history and totals inflate on both sides.
+        screen(
+            loadedState().copy(
+                type = TransactionType.INCOME,
+                offsetSourceId = "txn-src",
+            ),
+        )
+
+        composeRule.onNodeWithText(
+            "opposite entry",
+            substring = true,
+        ).assertIsDisplayed()
+        composeRule.onNodeWithText(
+            "income and expense totals for the period will both be higher",
+            substring = true,
+        ).assertIsDisplayed()
+    }
+
+    @Test
+    fun normalCreate_hasNoOffsetBanner() {
+        screen(loadedState())
+
+        composeRule.onAllNodesWithText(
+            "opposite entry",
+            substring = true,
+        ).assertCountEquals(0)
+    }
+
+    @Test
     fun categoryTiles_select() {
         val harness = Harness()
         screen(loadedState(), harness)

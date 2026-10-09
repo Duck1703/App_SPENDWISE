@@ -29,12 +29,16 @@ class CreateTransactionViewModelTest {
 
     private fun vm(
         prefillAccountId: String? = null,
+        offsetTransactionId: String? = null,
         txns: FakeTransactionRepository = FakeTransactionRepository(),
         accounts: FakeAccountRepository = FakeAccountRepository(),
         cats: FakeCategoryRepository = FakeCategoryRepository(),
     ) = CreateTransactionViewModel(
         savedStateHandle = SavedStateHandle(
-            prefillAccountId?.let { mapOf("accountId" to it) } ?: emptyMap(),
+            buildMap {
+                prefillAccountId?.let { put("accountId", it) }
+                offsetTransactionId?.let { put("offsetTransactionId", it) }
+            },
         ),
         transactionRepository = txns,
         accountRepository = accounts,
@@ -428,5 +432,219 @@ class CreateTransactionViewModelTest {
         val state = viewModel.state.value
         assertEquals(CreateTransactionUiState.CreateTxnFormError.Ambiguous, state.formError)
         assertEquals(LocalDate.of(2024, 12, 31), state.occurredOn)
+    }
+
+    // ── M20: offsetting entry (PRODUCT §21) ──────────────────────────
+
+    private fun offsetSource(
+        id: String = "txn-src",
+        accountId: String = "acc-1",
+        type: TransactionType = TransactionType.EXPENSE,
+        amount: String = "25.50",
+        currency: String = "VND",
+        category: String? = "FOOD",
+    ) = FakeTransactionRepository().apply {
+        findByIdResult = { requested ->
+            FakeTransactionRepository.transaction(
+                id = requested,
+                accountId = accountId,
+                type = type,
+                amount = amount,
+                currency = currency,
+                category = category,
+            )
+        }
+    }
+
+    @Test
+    fun `offset prefills the inverse type and mirrors account amount category`() = runTest {
+        // §21: EXPENSE source → prefilled INCOME, same account/amount/
+        // currency(category) — the offset row is a real new transaction.
+        val txns = offsetSource(type = TransactionType.EXPENSE, amount = "25.50", category = "FOOD")
+        val viewModel = vm(
+            offsetTransactionId = "txn-src",
+            txns = txns,
+            accounts = accountBacked(id = "acc-1"),
+        )
+
+        val state = viewModel.state.value
+        assertFalse(state.optionsLoading)
+        assertEquals(TransactionType.INCOME, state.type) // inverse
+        assertEquals("acc-1", state.accountId)
+        assertEquals("25.50", state.amount)
+        assertEquals("FOOD", state.category)
+        assertEquals("txn-src", state.offsetSourceId)
+        assertEquals(listOf("txn-src"), txns.findByIdCalls)
+    }
+
+    @Test
+    fun `an income source prefills expense — the arithmetic inverse both ways`() = runTest {
+        val txns = offsetSource(type = TransactionType.INCOME)
+        val viewModel = vm(
+            offsetTransactionId = "txn-src",
+            txns = txns,
+            accounts = accountBacked(),
+        )
+
+        assertEquals(TransactionType.EXPENSE, viewModel.state.value.type)
+    }
+
+    @Test
+    fun `an uncategorized source prefills no category`() = runTest {
+        val txns = offsetSource(category = null)
+        val viewModel = vm(
+            offsetTransactionId = "txn-src",
+            txns = txns,
+            accounts = accountBacked(),
+        )
+
+        assertNull(viewModel.state.value.category)
+        assertEquals("txn-src", viewModel.state.value.offsetSourceId)
+    }
+
+    @Test
+    fun `offset wins over a stale accountId route arg`() = runTest {
+        val accounts = FakeAccountRepository()
+        accounts.listResult = {
+            listOf(
+                FakeAccountRepository.account(id = "acc-1"),
+                FakeAccountRepository.account(id = "acc-2"),
+            )
+        }
+        val txns = offsetSource(accountId = "acc-2")
+        val viewModel = vm(
+            prefillAccountId = "acc-1",
+            offsetTransactionId = "txn-src",
+            txns = txns,
+            accounts = accounts,
+        )
+
+        assertEquals("acc-2", viewModel.state.value.accountId)
+    }
+
+    @Test
+    fun `a transfer or unknown source refuses the prefill honestly`() = runTest {
+        listOf(
+            TransactionType.TRANSFER_IN,
+            TransactionType.TRANSFER_OUT,
+            TransactionType.UNKNOWN,
+        ).forEach { type ->
+            val txns = offsetSource(type = type)
+            val viewModel = vm(
+                offsetTransactionId = "txn-src",
+                txns = txns,
+                accounts = accountBacked(),
+            )
+
+            val state = viewModel.state.value
+            assertTrue("$type must fail options, not prefill", state.optionsError)
+            assertFalse(state.optionsLoading)
+            assertNull(state.offsetSourceId)
+        }
+    }
+
+    @Test
+    fun `an archived source account refuses the prefill`() = runTest {
+        // The source's account is archived → it never enters the picker,
+        // so there is no live account to post the offset against.
+        val accounts = FakeAccountRepository()
+        accounts.listResult = {
+            listOf(
+                FakeAccountRepository.account(id = "acc-dead", archived = true),
+                FakeAccountRepository.account(id = "acc-live"),
+            )
+        }
+        val txns = offsetSource(accountId = "acc-dead")
+        val viewModel = vm(offsetTransactionId = "txn-src", txns = txns, accounts = accounts)
+
+        assertTrue(viewModel.state.value.optionsError)
+        assertNull(viewModel.state.value.offsetSourceId)
+    }
+
+    @Test
+    fun `a missing source row fails options honestly`() = runTest {
+        val txns = FakeTransactionRepository()
+        txns.findByIdResult = { throw AppErrorException(AppError.NotFound) }
+        val viewModel = vm(
+            offsetTransactionId = "txn-gone",
+            txns = txns,
+            accounts = accountBacked(),
+        )
+
+        assertTrue(viewModel.state.value.optionsError)
+        assertFalse(viewModel.state.value.optionsLoading)
+    }
+
+    @Test
+    fun `dead-generation on the source lookup arms resume and prefills after`() = runTest {
+        // EXT-MAJOR-1: the offset source fetch is generation-guarded like
+        // every load — a stale response never publishes, and the same
+        // resume contract re-runs the whole load.
+        var dead = true
+        val txns = FakeTransactionRepository()
+        txns.findByIdResult = { id ->
+            if (dead) {
+                throw SessionEndedException()
+            } else {
+                FakeTransactionRepository.transaction(id = id, type = TransactionType.EXPENSE)
+            }
+        }
+        val viewModel = vm(
+            offsetTransactionId = "txn-src",
+            txns = txns,
+            accounts = accountBacked(),
+        )
+
+        assertFalse(viewModel.state.value.optionsLoading)
+        assertNull(viewModel.state.value.offsetSourceId)
+
+        dead = false
+        viewModel.onVisible()
+
+        val state = viewModel.state.value
+        assertEquals("txn-src", state.offsetSourceId)
+        assertEquals(TransactionType.INCOME, state.type)
+    }
+
+    @Test
+    fun `offset submit posts the inverse entry through the canonical create`() = runTest {
+        // The whole slice is an ordinary POST /api/transactions — the
+        // repository call carries the prefilled inverse verbatim.
+        val txns = offsetSource(type = TransactionType.EXPENSE, amount = "25.50", category = "FOOD")
+        val viewModel = vm(
+            offsetTransactionId = "txn-src",
+            txns = txns,
+            accounts = accountBacked(id = "acc-1", currency = "VND"),
+        )
+
+        viewModel.submit()
+        runCurrent()
+
+        val call = txns.createCalls.single()
+        assertEquals("acc-1", call.accountId)
+        assertEquals(TransactionType.INCOME, call.type)
+        assertEquals(BigDecimal("25.50"), call.amount.amount)
+        assertEquals("VND", call.amount.currency.code)
+        assertEquals("FOOD", call.category)
+    }
+
+    @Test
+    fun `offset mode still locks double-taps and never auto-replays`() = runTest {
+        val txns = offsetSource()
+        val gate = CompletableDeferred<com.spendwise.android.core.model.Transaction>()
+        var createCalls = 0
+        txns.createResult = { _, _, _, _, _, _ -> createCalls++; gate.await() }
+        val viewModel = vm(
+            offsetTransactionId = "txn-src",
+            txns = txns,
+            accounts = accountBacked(),
+        )
+
+        viewModel.submit()
+        viewModel.submit() // locked while the offset post is in flight
+
+        gate.complete(FakeTransactionRepository.transaction())
+        runCurrent()
+        assertEquals(1, createCalls)
     }
 }

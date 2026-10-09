@@ -65,6 +65,33 @@ class AppRoutesTest {
         )
     }
 
+    @Test
+    fun `transaction create route round-trips an offset source id`() {
+        // M20 (PRODUCT §21): the offsetting-entry mode rides the same
+        // typed route — the arg survives the NavController string form.
+        val offset = TransactionCreateRoute(offsetTransactionId = "txn-42")
+
+        val restored = Json.decodeFromString(
+            TransactionCreateRoute.serializer(),
+            Json.encodeToString(TransactionCreateRoute.serializer(), offset),
+        )
+
+        assertEquals(offset, restored)
+        assertEquals("txn-42", restored.offsetTransactionId)
+        assertNull(restored.accountId)
+
+        // no offset arg → the field stays null (normal create)
+        assertNull(
+            Json.decodeFromString(
+                TransactionCreateRoute.serializer(),
+                Json.encodeToString(
+                    TransactionCreateRoute.serializer(),
+                    TransactionCreateRoute(accountId = "acc-1"),
+                ),
+            ).offsetTransactionId,
+        )
+    }
+
     // ── M10 import-history routes ───────────────────────────────────
 
     @Test

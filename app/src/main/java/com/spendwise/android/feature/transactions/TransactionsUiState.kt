@@ -114,7 +114,7 @@ sealed interface TransactionsUiState {
 
 enum class TransactionsError { Network, Server, Generic }
 
-/** Transaction detail state (S10 — read-only, derived from list data). */
+/** Transaction detail state (S10 — derived from list data, append-only). */
 sealed interface TransactionDetailUiState {
 
     data object Loading : TransactionDetailUiState
@@ -122,6 +122,14 @@ sealed interface TransactionDetailUiState {
     data class Content(
         val transaction: Transaction,
         val accountName: String?,
+        /**
+         * M20 (PRODUCT §21): "Create offsetting entry" is offered only
+         * when the row is INCOME/EXPENSE AND its account resolves to a
+         * non-archived account (archive keeps it out of entry pickers).
+         * TRANSFER_* and UNKNOWN rows and unresolved accounts hide it —
+         * a single-side offset would un-pair an atomic transfer.
+         */
+        val offsetEligible: Boolean = false,
         val isRefreshing: Boolean = false,
     ) : TransactionDetailUiState
 
@@ -154,6 +162,12 @@ data class CreateTransactionUiState(
     val accountError: AccountError? = null,
     val formError: CreateTxnFormError? = null,
     val isSubmitting: Boolean = false,
+    /**
+     * M20 (PRODUCT §21): the source row id when this form opened as an
+     * offsetting entry. Non-null drives the honest "opposite entry"
+     * banner — the post itself is an ordinary `POST /api/transactions`.
+     */
+    val offsetSourceId: String? = null,
 ) {
     val selectedAccount: Account? get() = accounts.firstOrNull { it.id == accountId }
 

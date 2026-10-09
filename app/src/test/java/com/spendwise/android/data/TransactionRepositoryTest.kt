@@ -552,4 +552,76 @@ class TransactionRepositoryTest {
             assertEquals(AppError.BadRequest, e.error)
         }
     }
+
+    // ── M20: offsetting entry (PRODUCT §21) ──────────────────────────
+
+    @Test
+    fun `offset source resolves from the warmed detail cache — no extra request`() = runTest {
+        // Detail → "Create offsetting entry" hands the row id to the
+        // create form, which re-resolves it via findById. The row the
+        // user just looked at must come from the cache — zero extra
+        // network — and be byte-identical to the listed row.
+        val (service, _, _, _, repository) = harness()
+        service.listResponse = listOf(
+            dto("t1", type = "EXPENSE", category = "FOOD"),
+            dto("t2", type = "INCOME", category = null),
+        )
+        repository.list()
+
+        val source = repository.findById("t1")
+
+        assertEquals("t1", source.id)
+        assertEquals(TransactionType.EXPENSE, source.type)
+        assertEquals(BigDecimal("25.50"), source.amount.amount)
+        assertEquals("FOOD", source.category)
+        assertEquals(1, service.listCalls.size) // cache hit — no refetch
+    }
+
+    @Test
+    fun `the offset write is an ordinary create — caches drop and one mutation emits`() = runTest {
+        // §21: the compensating row goes through create() verbatim —
+        // the transaction + account caches invalidate (balance moved
+        // server-side), list surfaces reload via mutations, and the
+        // original row is untouched.
+        val (service, _, accounts, _, repository) = harness()
+        service.listResponse = listOf(dto("t1", type = "EXPENSE"))
+        repository.list()
+        val source = repository.findById("t1")
+
+        val emissions = mutableListOf<Unit>()
+        val job = launch { repository.mutations.collect { emissions += Unit } }
+        runCurrent()
+
+        service.createResponse = dto("t-off", type = "INCOME", category = "FOOD")
+        val created = repository.create(
+            accountId = source.accountId,
+            type = TransactionType.INCOME, // the inverse
+            amount = source.amount,
+            occurredOn = testDate,
+            category = source.category,
+        )
+        runCurrent()
+        job.cancel()
+
+        assertEquals("t-off", created.id)
+        val call = service.createCalls.single()
+        assertEquals("INCOME", call.type)
+        assertEquals(BigDecimal("25.50"), call.amount)
+        assertEquals("VND", call.currency)
+        assertEquals("FOOD", call.category)
+        assertNull(call.description)
+        assertEquals(1, emissions.size)
+        assertEquals(1, accounts.invalidateCalls)
+
+        // Append-only: the original row still resolves — the offset
+        // invalidated the detail cache, so the next lookup refetches
+        // and BOTH rows come back in history.
+        service.listResponse = listOf(
+            dto("t-off", type = "INCOME", category = "FOOD"),
+            dto("t1", type = "EXPENSE", category = "FOOD"),
+        )
+        assertEquals("t1", repository.findById("t1").id)
+        assertEquals(TransactionType.EXPENSE, repository.findById("t1").type)
+        assertEquals(2, service.listCalls.size)
+    }
 }

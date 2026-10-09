@@ -18,6 +18,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -49,16 +50,20 @@ import com.spendwise.android.core.model.Transaction
 import com.spendwise.android.core.ui.format.DateFormat
 
 /**
- * Transaction detail (S10): read-only — every field comes from the
- * already-fetched list row (no `GET /{id}` exists). The ledger is
- * append-only: no edit / delete / correct / reverse / offset affordance
- * exists anywhere (Human P3A override — PRODUCT §21 dropped for V1).
+ * Transaction detail (S10): every field comes from the already-fetched
+ * list row (no `GET /{id}` exists). The ledger is append-only — no
+ * edit/delete exists — but M20 (PRODUCT §21) adds the sanctioned
+ * correction: "Create offsetting entry" on INCOME/EXPENSE rows whose
+ * account is still picker-live, presented as a compensating entry
+ * (never undo/delete/edit). TRANSFER_* legs and archived-account rows
+ * hide the action.
  */
 @Composable
 fun TransactionDetailScreen(
     state: TransactionDetailUiState,
     onRetry: () -> Unit,
     onNavigateBack: () -> Unit,
+    onOffset: (transactionId: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize()) {
@@ -102,13 +107,20 @@ fun TransactionDetailScreen(
             is TransactionDetailUiState.Content -> DetailContent(
                 transaction = state.transaction,
                 accountName = state.accountName,
+                offsetEligible = state.offsetEligible,
+                onOffset = onOffset,
             )
         }
     }
 }
 
 @Composable
-private fun DetailContent(transaction: Transaction, accountName: String?) {
+private fun DetailContent(
+    transaction: Transaction,
+    accountName: String?,
+    offsetEligible: Boolean,
+    onOffset: (transactionId: String) -> Unit,
+) {
     val categoryText = transaction.category?.let { categoryLabel(it) }
         ?: stringResource(R.string.txn_category_uncategorized)
     val typeLabel = transactionTypeLabel(transaction.type)
@@ -187,6 +199,31 @@ private fun DetailContent(transaction: Transaction, accountName: String?) {
                     }
                 }
             }
+        }
+
+        // M20 (PRODUCT §21): the append-only correction path — a new
+        // compensating row, presented with the honest consequence copy.
+        // Hidden for TRANSFER_* legs and archived-account rows.
+        if (offsetEligible) {
+            OutlinedButton(
+                onClick = { onOffset(transaction.id) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(SwSpacing.TouchTargetMin),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_lucide_arrow_right_left),
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.txn_detail_offset_action))
+            }
+            Text(
+                text = stringResource(R.string.txn_detail_offset_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = SwColors.Muted,
+            )
         }
 
         SwBanner(

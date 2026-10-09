@@ -314,6 +314,40 @@ class TransactionsServiceContractTest {
         assertEquals("Bearer live-token", request.headers["Authorization"])
     }
 
+    @Test
+    fun `an offsetting entry posts the canonical body — no offset fields on the wire`() = runTest {
+        // M20 (PRODUCT §21): the compensating row is an ordinary
+        // POST /api/transactions — inverse type, same account/amount/
+        // currency/category. No link field exists; the server never
+        // needs to know the row is an offset.
+        signIn()
+        server.enqueue(
+            MockResponse(
+                code = 201,
+                body = """{"id":"t-off","accountId":"a1","type":"INCOME","amount":25.50,"currency":"VND","category":"FOOD","sourceRef":"MANUAL:t-off","occurredOn":"2026-10-09"}""",
+            ),
+        )
+
+        transactions.create(
+            CreateTransactionRequestDto(
+                accountId = "a1",
+                type = "INCOME", // the source was EXPENSE
+                amount = BigDecimal("25.50"),
+                currency = "VND",
+                category = "FOOD",
+                occurredOn = "2026-10-09",
+            ),
+        )
+
+        val request = server.takeRequest()
+        assertEquals("POST", request.method)
+        assertEquals("/api/transactions", request.url.encodedPath)
+        val body = request.body?.utf8().orEmpty()
+        assertTrue("no offset linkage on the wire: $body", !body.contains("offset"))
+        assertTrue("no source link on the wire: $body", !body.contains("originalId"))
+        assertTrue("no link field on the wire: $body", !body.contains("link"))
+    }
+
     // ── M9: GET /api/transactions/export ────────────────────────────
 
     private fun csvResponse(

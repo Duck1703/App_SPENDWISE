@@ -238,7 +238,9 @@
     <string name="txn_detail_field_currency">Currency</string>
     <string name="txn_detail_field_source">Source</string>
     <string name="txn_detail_field_note">Note</string>
-    <string name="txn_detail_readonly">Existing entries can\’t be edited right now.</string>
+    <string name="txn_detail_readonly">Existing entries can\’t be edited.</string>
+    <string name="txn_detail_offset_action">Create offsetting entry</string>
+    <string name="txn_detail_offset_hint">This adds an opposite entry. The original stays in history — income and expense totals for the period will both be higher than the true position.</string>
     <string name="txn_detail_notfound_title">Transaction not found</string>
     <string name="txn_detail_notfound_body">It may not exist in this sign-in\’s history.</string>
     <string name="txn_detail_back_to_list">Back to transactions</string>
@@ -265,6 +267,7 @@
     <string name="txn_create_submit">Save transaction</string>
     <string name="txn_create_submitting">Saving…</string>
     <string name="txn_create_cancel">Cancel</string>
+    <string name="txn_create_offset_banner">This adds an opposite entry. The original stays in history — income and expense totals for the period will both be higher than the true position.</string>
     <string name="txn_create_error_ambiguous">We couldn\’t confirm whether this transaction was recorded — check your transactions before trying again.</string>
     <string name="txn_create_error_account_gone">That account is no longer available — pick another one.</string>
     <string name="txn_error_amount_required">Enter an amount.</string>

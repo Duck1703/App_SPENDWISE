@@ -3,8 +3,10 @@ package com.spendwise.android.feature.transactions
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.spendwise.android.core.model.Account
 import com.spendwise.android.core.model.CurrencyCode
 import com.spendwise.android.core.model.Money
+import com.spendwise.android.core.model.Transaction
 import com.spendwise.android.core.model.TransactionType
 import com.spendwise.android.core.network.AppError
 import com.spendwise.android.core.network.AppErrorException
@@ -33,6 +35,16 @@ import javax.inject.Inject
  * any layer, and the ambiguous copy says "couldn't confirm" rather than
  * claiming nothing happened. A session expiry mid-submit releases the
  * lock — the preserved draft is resubmitted only by the user.
+ *
+ * M20 (PRODUCT §21) — offsetting entry: when the route carries
+ * `offsetTransactionId`, options loading also resolves that source row
+ * and prefills the INVERSE type plus the same account/amount/category
+ * (currency follows the locked account). The source must still be an
+ * INCOME/EXPENSE row on a non-archived account — the detail screen
+ * already hides the action otherwise, and this guard stays honest if
+ * the row or account changed between screens. The post is an ordinary
+ * create: the original is untouched (append-only) and every draft /
+ * submit-lock / ambiguous-failure guarantee above applies unchanged.
  */
 @dagger.hilt.android.lifecycle.HiltViewModel
 class CreateTransactionViewModel @Inject constructor(
@@ -44,6 +56,9 @@ class CreateTransactionViewModel @Inject constructor(
 
     /** Optional account prefill (account-detail "Add transaction"). */
     private val prefillAccountId: String? = savedStateHandle["accountId"]
+
+    /** M20: source row id when this form is an offsetting entry. */
+    private val offsetTransactionId: String? = savedStateHandle["offsetTransactionId"]
 
     private val _state = MutableStateFlow(CreateTransactionUiState(accountId = prefillAccountId))
     val state: StateFlow<CreateTransactionUiState> = _state.asStateFlow()
@@ -67,14 +82,42 @@ class CreateTransactionViewModel @Inject constructor(
                 // pickers; ledger/history surfaces still see them.
                 val accounts = accountRepository.list().filterNot { it.archived }
                 val categories = runCatching { categoryRepository.list() }.getOrDefault(emptyList())
-                _state.value = _state.value.copy(
+                val offsetSource = offsetTransactionId?.let { transactionRepository.findById(it) }
+                if (offsetSource != null && !offsetSource.isOffsettableOn(accounts)) {
+                    // The source turned TRANSFER_* / UNKNOWN, or its
+                    // account is gone/archived — refuse the prefill
+                    // honestly rather than minting a wrong entry.
+                    _state.value = _state.value.copy(
+                        accounts = accounts,
+                        categories = categories,
+                        optionsLoading = false,
+                        optionsError = true,
+                    )
+                    return@launch
+                }
+                val base = _state.value.copy(
                     accounts = accounts,
                     categories = categories,
-                    accountId = _state.value.accountId
-                        ?.takeIf { id -> accounts.any { it.id == id } }
-                        ?: accounts.firstOrNull()?.id,
                     optionsLoading = false,
                 )
+                _state.value = if (offsetSource == null) {
+                    base.copy(
+                        accountId = _state.value.accountId
+                            ?.takeIf { id -> accounts.any { it.id == id } }
+                            ?: accounts.firstOrNull()?.id,
+                    )
+                } else {
+                    // §21 prefill: inverse type, same account/amount/
+                    // category — currency follows the locked account.
+                    // A null source category prefills "No category".
+                    base.copy(
+                        accountId = offsetSource.accountId,
+                        type = offsetSource.inverseType,
+                        amount = offsetSource.amount.amount.toPlainString(),
+                        category = offsetSource.category,
+                        offsetSourceId = offsetSource.id,
+                    )
+                }
             } catch (e: SessionEndedException) {
                 // Dead-generation write — the session ended between
                 // dispatch and response. Same resume contract as the
@@ -258,4 +301,21 @@ class CreateTransactionViewModel @Inject constructor(
 
     private fun AppError.fieldMessage(field: String): String? =
         (this as? AppError.Validation)?.fields?.get(field)
+
+    /** §21: the offset is the arithmetic inverse — INCOME ↔ EXPENSE. */
+    private val Transaction.inverseType: TransactionType
+        get() = if (type == TransactionType.INCOME) {
+            TransactionType.EXPENSE
+        } else {
+            TransactionType.INCOME
+        }
+
+    /**
+     * §21 eligibility re-checked at prefill time: only INCOME/EXPENSE
+     * rows offset (TRANSFER_* would un-pair an atomic transfer) and the
+     * account must still be a live picker entry (non-archived).
+     */
+    private fun Transaction.isOffsettableOn(accounts: List<Account>): Boolean =
+        (type == TransactionType.INCOME || type == TransactionType.EXPENSE) &&
+            accounts.any { it.id == accountId }
 }

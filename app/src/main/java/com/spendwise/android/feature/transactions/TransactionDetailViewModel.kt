@@ -3,6 +3,7 @@ package com.spendwise.android.feature.transactions
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.spendwise.android.core.model.TransactionType
 import com.spendwise.android.core.network.AppError
 import com.spendwise.android.core.network.AppErrorException
 import com.spendwise.android.data.repository.AccountRepository
@@ -15,9 +16,12 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * Transaction detail (S10): read-only, derived from already-loaded list
- * data (no `GET /api/transactions/{id}` exists — BACKEND-CONTRACT §11).
- * A session boundary mid-load re-runs on same-user resume via [onVisible].
+ * Transaction detail (S10): derived from already-loaded list data (no
+ * `GET /api/transactions/{id}` exists — BACKEND-CONTRACT §11). The
+ * ledger is append-only — the row itself never changes; M20 adds the
+ * §21 "offsetting entry" affordance (a new compensating row, not an
+ * edit). A session boundary mid-load re-runs on same-user resume via
+ * [onVisible].
  */
 @dagger.hilt.android.lifecycle.HiltViewModel
 class TransactionDetailViewModel @Inject constructor(
@@ -49,12 +53,24 @@ class TransactionDetailViewModel @Inject constructor(
             }
             try {
                 val transaction = transactionRepository.findById(transactionId)
-                // The account label is display-only context — a lookup
-                // failure degrades to a dash, never sinks the detail.
-                val accountName = runCatching {
-                    accountRepository.findById(transaction.accountId).name
+                // Account context serves the name label AND the M20
+                // offset gate — a lookup failure degrades to a dash and
+                // hides the action, never sinks the detail.
+                val account = runCatching {
+                    accountRepository.findById(transaction.accountId)
                 }.getOrNull()
-                _state.value = TransactionDetailUiState.Content(transaction, accountName)
+                _state.value = TransactionDetailUiState.Content(
+                    transaction = transaction,
+                    accountName = account?.name,
+                    // PRODUCT §21: offset is INCOME/EXPENSE only — a
+                    // TRANSFER_* leg offset would un-pair the atomic
+                    // transfer — and never for an archived account, which
+                    // M19 keeps out of entry pickers.
+                    offsetEligible =
+                        (transaction.type == TransactionType.INCOME ||
+                            transaction.type == TransactionType.EXPENSE) &&
+                            account?.archived == false,
+                )
             } catch (e: SessionEndedException) {
                 // Dead-generation publish — the session ended between
                 // dispatch and response. Same resume contract as the 401

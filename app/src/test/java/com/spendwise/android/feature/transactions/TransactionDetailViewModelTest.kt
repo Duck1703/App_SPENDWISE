@@ -142,4 +142,78 @@ class TransactionDetailViewModelTest {
         val state = viewModel.state.value as TransactionDetailUiState.Content
         assertEquals(TransactionType.INCOME, state.transaction.type)
     }
+
+    // ── M20: offsetting-entry eligibility (PRODUCT §21) ─────────────
+
+    @Test
+    fun `income and expense on a live account are offset-eligible`() = runTest {
+        val txns = FakeTransactionRepository()
+        listOf(TransactionType.EXPENSE, TransactionType.INCOME).forEach { type ->
+            txns.findByIdResult = { id ->
+                FakeTransactionRepository.transaction(id = id, type = type)
+            }
+            val accounts = FakeAccountRepository()
+            accounts.findByIdResult = { id, _ ->
+                FakeAccountRepository.account(id = id, archived = false)
+            }
+
+            val viewModel = vm(txns = txns, accounts = accounts)
+
+            val state = viewModel.state.value as TransactionDetailUiState.Content
+            assertTrue("$type should be offset-eligible", state.offsetEligible)
+        }
+    }
+
+    @Test
+    fun `transfer legs and unknown rows are never offset-eligible`() = runTest {
+        // §21: a single-side offset would un-pair the atomic transfer.
+        val txns = FakeTransactionRepository()
+        listOf(
+            TransactionType.TRANSFER_IN,
+            TransactionType.TRANSFER_OUT,
+            TransactionType.UNKNOWN,
+        ).forEach { type ->
+            txns.findByIdResult = { id ->
+                FakeTransactionRepository.transaction(id = id, type = type)
+            }
+            val accounts = FakeAccountRepository()
+            accounts.findByIdResult = { id, _ -> FakeAccountRepository.account(id = id) }
+
+            val viewModel = vm(txns = txns, accounts = accounts)
+
+            val state = viewModel.state.value as TransactionDetailUiState.Content
+            assertTrue("$type must hide the offset action", !state.offsetEligible)
+        }
+    }
+
+    @Test
+    fun `an archived account hides the offset action`() = runTest {
+        // M19 keeps archived accounts out of entry pickers — the offset
+        // prefill could not resolve it, so the action stays hidden.
+        val txns = FakeTransactionRepository()
+        txns.findByIdResult = { id ->
+            FakeTransactionRepository.transaction(id = id, type = TransactionType.EXPENSE)
+        }
+        val accounts = FakeAccountRepository()
+        accounts.findByIdResult = { id, _ ->
+            FakeAccountRepository.account(id = id, archived = true)
+        }
+
+        val viewModel = vm(txns = txns, accounts = accounts)
+
+        val state = viewModel.state.value as TransactionDetailUiState.Content
+        assertTrue(!state.offsetEligible)
+    }
+
+    @Test
+    fun `an unresolved account hides the offset action but keeps the detail`() = runTest {
+        val accounts = FakeAccountRepository()
+        accounts.findByIdResult = { _, _ -> throw AppErrorException(AppError.NotFound) }
+
+        val viewModel = vm(accounts = accounts)
+
+        val state = viewModel.state.value as TransactionDetailUiState.Content
+        assertNull(state.accountName)
+        assertTrue(!state.offsetEligible)
+    }
 }

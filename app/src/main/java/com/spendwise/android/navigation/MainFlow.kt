@@ -153,6 +153,13 @@ fun MainFlow(
         composable<TransactionDetailRoute> {
             TransactionDetailDestination(
                 onNavigateBack = { navController.popBackStack() },
+                // M20 (PRODUCT §21): the create form re-fetches the
+                // source row and prefills the compensating entry.
+                onOffset = { id ->
+                    navController.navigate(
+                        TransactionCreateRoute(offsetTransactionId = id),
+                    )
+                },
             )
         }
         composable<ImportRoute> {
