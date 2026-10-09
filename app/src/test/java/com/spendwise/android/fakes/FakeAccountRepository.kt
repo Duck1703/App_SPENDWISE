@@ -18,10 +18,20 @@ class FakeAccountRepository : AccountRepository {
         { _, _ -> account() }
     var createResult: suspend (name: String, type: AccountType, openingBalance: Money) -> Account =
         { _, _, _ -> account() }
+    var updateResult: suspend (id: String, name: String?, archived: Boolean?) -> Account =
+        { id, name, archived ->
+            account(id = id).let {
+                it.copy(
+                    name = name ?: it.name,
+                    archived = archived ?: it.archived,
+                )
+            }
+        }
 
     val listCalls = mutableListOf<Boolean>()
     val findByIdCalls = mutableListOf<Pair<String, Boolean>>()
     val createCalls = mutableListOf<Triple<String, AccountType, Money>>()
+    val updateCalls = mutableListOf<Triple<String, String?, Boolean?>>()
     var invalidateCalls = 0
 
     private val _mutations = MutableSharedFlow<Unit>(extraBufferCapacity = 8)
@@ -45,6 +55,11 @@ class FakeAccountRepository : AccountRepository {
         return createResult(name, type, openingBalance)
     }
 
+    override suspend fun update(id: String, name: String?, archived: Boolean?): Account {
+        updateCalls += Triple(id, name, archived)
+        return updateResult(id, name, archived)
+    }
+
     override suspend fun invalidate() {
         invalidateCalls++
     }
@@ -57,12 +72,14 @@ class FakeAccountRepository : AccountRepository {
             currency: String = "VND",
             opening: String = "1000.00",
             balance: String = "1250.50",
+            archived: Boolean = false,
         ) = Account(
             id = id,
             name = name,
             type = type,
             openingBalance = Money(BigDecimal(opening), CurrencyCode(currency)),
             balance = Money(BigDecimal(balance), CurrencyCode(currency)),
+            archived = archived,
         )
     }
 }

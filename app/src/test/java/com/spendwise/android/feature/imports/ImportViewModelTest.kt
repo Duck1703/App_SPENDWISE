@@ -65,6 +65,37 @@ class ImportViewModelTest {
     }
 
     @Test
+    fun `archived accounts are excluded from the import target picker`() = runTest {
+        // M19 (REQ-BE-006): an archived account cannot be an import
+        // target; when all accounts are archived the empty state stands.
+        val accounts = FakeAccountRepository()
+        accounts.listResult = { _ ->
+            listOf(
+                FakeAccountRepository.account(id = "acc-dead", archived = true),
+                FakeAccountRepository.account(id = "acc-live"),
+            )
+        }
+
+        val viewModel = vm(accounts)
+
+        val form = form(viewModel)
+        assertEquals(listOf("acc-live"), form.accounts.map { it.id })
+        assertEquals("acc-live", form.selectedAccountId)
+    }
+
+    @Test
+    fun `all-archived accounts produce the create-first state`() = runTest {
+        val accounts = FakeAccountRepository()
+        accounts.listResult = { _ ->
+            listOf(FakeAccountRepository.account(id = "acc-dead", archived = true))
+        }
+
+        val viewModel = vm(accounts)
+
+        assertTrue(viewModel.state.value is ImportUiState.Empty)
+    }
+
+    @Test
     fun `empty accounts produce the create-first state`() = runTest {
         val accounts = FakeAccountRepository()
         accounts.listResult = { _ -> emptyList() }

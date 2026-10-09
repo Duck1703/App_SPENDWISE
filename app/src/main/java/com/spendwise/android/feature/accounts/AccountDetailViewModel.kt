@@ -68,7 +68,8 @@ class AccountDetailViewModel @Inject constructor(
                     // only a mapped service failure degrades to "hidden"
                     // rather than sinking the whole detail for a gate.
                     hasTransferPeer = try {
-                        accountRepository.list().size >= 2
+                        // M19: only active accounts can be transfer peers.
+                        accountRepository.list().count { !it.archived } >= 2
                     } catch (e: AppErrorException) {
                         if (e.error is AppError.SessionExpired) throw e
                         false

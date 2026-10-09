@@ -35,6 +35,7 @@ class AccountDetailScreenTest {
         var openedTxn: String? = null,
         var addFor: String? = null,
         var transferFor: String? = null,
+        var editFor: String? = null,
         var historyRetries: Int = 0,
     )
 
@@ -48,18 +49,20 @@ class AccountDetailScreenTest {
                     onOpenTransaction = { harness.openedTxn = it },
                     onAddTransaction = { harness.addFor = it },
                     onTransfer = { harness.transferFor = it },
+                    onEdit = { harness.editFor = it },
                     onRetryHistory = { harness.historyRetries++ },
                 )
             }
         }
     }
 
-    private fun account() = Account(
+    private fun account(archived: Boolean = false) = Account(
         id = "a1",
         name = "Everyday cash",
         type = AccountType.CASH,
         openingBalance = Money(BigDecimal("1000.00"), CurrencyCode("VND")),
         balance = Money(BigDecimal("1250.50"), CurrencyCode("VND")),
+        archived = archived,
     )
 
     @Test
@@ -178,6 +181,43 @@ class AccountDetailScreenTest {
         composeRule.onNodeWithText("Add transaction")
             .performScrollTo()
             .assertIsDisplayed()
+        composeRule.onNodeWithText("Transfer").assertDoesNotExist()
+    }
+
+    // ── M19: edit entry + archived presentation ─────────────────────
+
+    @Test
+    fun editAction_opensTheEditorForThisAccount() {
+        val harness = Harness()
+        screen(
+            AccountDetailUiState.Content(
+                account(),
+                history = AccountDetailUiState.AccountHistory.Items(emptyList()),
+            ),
+            harness,
+        )
+
+        composeRule.onNodeWithText("Edit account").performScrollTo().performClick()
+        assertEquals("a1", harness.editFor)
+    }
+
+    @Test
+    fun archived_showsStatusAndHidesEntryActions() {
+        // M19 (REQ-BE-006): archived accounts keep ledger/history
+        // visible but accept no new entries.
+        screen(
+            AccountDetailUiState.Content(
+                account(archived = true),
+                hasTransferPeer = true,
+                history = AccountDetailUiState.AccountHistory.Items(listOf(txn("t1"))),
+            ),
+        )
+
+        composeRule.onNodeWithText("Status").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Archived").performScrollTo().assertIsDisplayed()
+        // Entry points are gone; the ledger rows remain readable.
+        composeRule.onNodeWithText("Transactions").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Add transaction").assertDoesNotExist()
         composeRule.onNodeWithText("Transfer").assertDoesNotExist()
     }
 

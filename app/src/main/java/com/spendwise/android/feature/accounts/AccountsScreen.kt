@@ -251,9 +251,14 @@ private fun AccountsHero(accounts: List<Account>) {
 @Composable
 private fun AccountRow(account: Account, onClick: () -> Unit) {
     val typeLabel = accountTypeLabel(account.type)
+    val statusSuffix = if (account.archived) {
+        ", " + stringResource(R.string.account_status_archived)
+    } else {
+        ""
+    }
     val cd = stringResource(
         R.string.account_row_cd,
-        account.name,
+        account.name + statusSuffix,
         typeLabel,
         MoneyFormat.format(account.balance),
         account.balance.currency.code,
@@ -282,6 +287,13 @@ private fun AccountRow(account: Account, onClick: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
                 color = SwColors.Muted,
             )
+            if (account.archived) {
+                Text(
+                    text = stringResource(R.string.account_status_archived),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = SwColors.Muted,
+                )
+            }
         }
         Spacer(Modifier.width(12.dp))
         Column(horizontalAlignment = Alignment.End) {

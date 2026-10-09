@@ -22,6 +22,20 @@ data class AccountDto(
     val currency: String,
     @Serializable(with = BigDecimalSerializer::class)
     val balance: BigDecimal,
+    /** REQ-BE-006 (M19): server-added; default keeps pre-M19 payloads decodable. */
+    val archived: Boolean = false,
+)
+
+/**
+ * `UpdateAccountRequest` for `PATCH /api/accounts/{id}` (REQ-BE-006).
+ * Sparse patch: absent fields stay off the wire (`explicitNulls = false`
+ * drops nulls) — `null` here means "not part of the patch". An empty
+ * patch is a server 400; foreign id 404; lost-update race 409.
+ */
+@Serializable
+data class UpdateAccountRequestDto(
+    val name: String? = null,
+    val archived: Boolean? = null,
 )
 
 /**

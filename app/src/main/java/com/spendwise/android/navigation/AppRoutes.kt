@@ -65,6 +65,10 @@ data object AccountCreateRoute : AppRoute
 @Serializable
 data class AccountDetailRoute(val accountId: String) : AppRoute
 
+/** M19: rename + archive/unarchive (REQ-BE-006). */
+@Serializable
+data class AccountEditRoute(val accountId: String) : AppRoute
+
 /**
  * Full-screen transaction flows pushed over the preserved shell — same
  * contract as the account routes: the shell stays beneath, the expiry

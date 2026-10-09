@@ -122,6 +122,27 @@ class RecurringViewModelsTest {
     }
 
     @Test
+    fun `archived accounts are excluded from the template account picker`() = runTest {
+        // M19 (REQ-BE-006): a recurring template generates future ledger
+        // entries — an archived account cannot be its target.
+        val accounts = FakeAccountRepository().apply {
+            listResult = { _ ->
+                listOf(
+                    FakeAccountRepository.account(id = "acc-dead", archived = true),
+                    FakeAccountRepository.account(id = "acc-live", currency = "USD"),
+                )
+            }
+        }
+        val vm = createVm(accounts = accounts)
+        vm.loadOptions()
+        runCurrent()
+
+        val state = vm.state.value
+        assertEquals(listOf("acc-live"), state.accounts.map { it.id })
+        assertEquals("acc-live", state.accountId)
+    }
+
+    @Test
     fun `create locks the currency to the selected account`() = runTest {
         val recurring = FakeRecurringRepository()
         val vm = createVm(recurring)

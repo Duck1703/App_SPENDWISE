@@ -63,7 +63,9 @@ class CreateTransactionViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(optionsLoading = true, optionsError = false)
             try {
-                val accounts = accountRepository.list()
+                // M19 (REQ-BE-006): archived accounts leave entry
+                // pickers; ledger/history surfaces still see them.
+                val accounts = accountRepository.list().filterNot { it.archived }
                 val categories = runCatching { categoryRepository.list() }.getOrDefault(emptyList())
                 _state.value = _state.value.copy(
                     accounts = accounts,

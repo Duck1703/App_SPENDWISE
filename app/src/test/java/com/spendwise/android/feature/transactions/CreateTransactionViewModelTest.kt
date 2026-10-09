@@ -88,6 +88,24 @@ class CreateTransactionViewModelTest {
     }
 
     @Test
+    fun `archived accounts are excluded from the picker`() = runTest {
+        // M19 (REQ-BE-006): archived stays in ledger/balances but cannot
+        // receive new entries.
+        val accounts = FakeAccountRepository()
+        accounts.listResult = {
+            listOf(
+                FakeAccountRepository.account(id = "acc-dead", archived = true),
+                FakeAccountRepository.account(id = "acc-live"),
+            )
+        }
+        val viewModel = vm(prefillAccountId = "acc-dead", accounts = accounts)
+
+        val state = viewModel.state.value
+        assertEquals(listOf("acc-live"), state.accounts.map { it.id })
+        assertEquals("acc-live", state.accountId)
+    }
+
+    @Test
     fun `transfer types are ignored — the public form only offers income and expense`() = runTest {
         val viewModel = vm(accounts = accountBacked())
 

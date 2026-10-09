@@ -77,6 +77,7 @@ fun AccountDetailDestination(
     onOpenTransaction: (String) -> Unit,
     onAddTransaction: (String) -> Unit,
     onTransfer: (String) -> Unit,
+    onEdit: (String) -> Unit,
     viewModel: AccountDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -94,7 +95,45 @@ fun AccountDetailDestination(
             onOpenTransaction = onOpenTransaction,
             onAddTransaction = onAddTransaction,
             onTransfer = onTransfer,
+            onEdit = onEdit,
             onRetryHistory = viewModel::retryHistory,
+        )
+    }
+}
+
+/**
+ * Pushed destination — edit account (M19, REQ-BE-006): rename +
+ * archive/unarchive as one sparse PATCH. Pops back on save so detail
+ * reloads server truth.
+ */
+@Composable
+fun EditAccountDestination(
+    onSaved: () -> Unit,
+    onBack: () -> Unit,
+    viewModel: EditAccountViewModel = hiltViewModel(),
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) { viewModel.onVisible() }
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is EditAccountViewModel.Event.Saved -> onSaved()
+            }
+        }
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(SwColors.Ground)
+            .systemBarsPadding(),
+    ) {
+        EditAccountScreen(
+            state = state,
+            onNameChange = viewModel::onNameChange,
+            onArchivedChange = viewModel::onArchivedChange,
+            onSave = viewModel::save,
+            onRetry = viewModel::refresh,
+            onBack = onBack,
         )
     }
 }

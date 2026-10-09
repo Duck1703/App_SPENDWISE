@@ -412,9 +412,14 @@ private fun AccountCarousel(accounts: List<Account>, onOpenAccount: (String) -> 
 @Composable
 private fun AccountCard(account: Account, onClick: () -> Unit) {
     val typeLabel = homeAccountTypeLabel(account.type)
+    val nameForCd = if (account.archived) {
+        account.name + ", " + stringResource(R.string.account_status_archived)
+    } else {
+        account.name
+    }
     val cd = stringResource(
         R.string.account_row_cd,
-        account.name,
+        nameForCd,
         typeLabel,
         MoneyFormat.format(account.balance),
         account.balance.currency.code,
@@ -445,7 +450,11 @@ private fun AccountCard(account: Account, onClick: () -> Unit) {
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = typeLabel,
+                text = typeLabel + if (account.archived) {
+                    " · " + stringResource(R.string.account_status_archived)
+                } else {
+                    ""
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = SwColors.Muted,
             )

@@ -239,6 +239,24 @@ class AccountDetailViewModelTest {
     }
 
     @Test
+    fun `hasTransferPeer is false when the only peer is archived`() = runTest {
+        // M19 (REQ-BE-006): an archived peer cannot receive a transfer —
+        // the affordance must not appear for it.
+        val repo = FakeAccountRepository()
+        repo.listResult = {
+            listOf(
+                FakeAccountRepository.account(id = "acc-1"),
+                FakeAccountRepository.account(id = "acc-2", archived = true),
+            )
+        }
+
+        val vm = viewModel(repo = repo)
+
+        val state = vm.state.value as AccountDetailUiState.Content
+        assertEquals(false, state.hasTransferPeer)
+    }
+
+    @Test
     fun `a peer-list failure hides the affordance without sinking the detail`() = runTest {
         val repo = FakeAccountRepository()
         repo.listResult = { throw AppErrorException(AppError.Server(503)) }

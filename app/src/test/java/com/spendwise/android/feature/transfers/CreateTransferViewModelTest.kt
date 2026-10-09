@@ -89,6 +89,28 @@ class CreateTransferViewModelTest {
     }
 
     @Test
+    fun `archived accounts are excluded from both pickers`() = runTest {
+        // M19 (REQ-BE-006): an archived account can neither send nor
+        // receive a new transfer.
+        val accounts = FakeAccountRepository().apply {
+            listResult = {
+                listOf(
+                    FakeAccountRepository.account(id = "acc-live1"),
+                    FakeAccountRepository.account(id = "acc-dead", archived = true),
+                    FakeAccountRepository.account(id = "acc-live2"),
+                )
+            }
+        }
+        val viewModel = vm(prefillSourceId = "acc-dead", accounts = accounts)
+        runCurrent()
+
+        val state = viewModel.state.value
+        assertEquals(listOf("acc-live1", "acc-live2"), state.accounts.map { it.id })
+        assertEquals("acc-live1", state.sourceAccountId)
+        assertEquals(listOf("acc-live2"), state.destinationOptions.map { it.id })
+    }
+
+    @Test
     fun `changing the source clears a destination equal to it`() = runTest {
         val viewModel = vm(accounts = twoAccounts())
         runCurrent()

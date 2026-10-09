@@ -139,6 +139,18 @@
     <string name="account_detail_history_error">Couldn\’t load this account\’s transactions.</string>
     <string name="account_detail_add_transaction">Add transaction</string>
 
+    <!-- Edit account (M19 / REQ-BE-006) -->
+    <string name="account_edit_title">Edit account</string>
+    <string name="account_edit_action">Edit account</string>
+    <string name="account_edit_archive_title">Archive account</string>
+    <string name="account_edit_archive_body">Hidden when picking an account for new entries. Its history and balance stay — nothing is deleted.</string>
+    <string name="account_edit_error_ambiguous_title">Did it save?</string>
+    <string name="account_edit_error_ambiguous_body">We couldn’t confirm whether the change was saved — reopen the account to check before trying again.</string>
+    <string name="account_edit_error_conflict_title">Changed elsewhere</string>
+    <string name="account_edit_error_conflict_body">This account was updated in another session. Reopen it and try again.</string>
+    <string name="account_detail_field_status">Status</string>
+    <string name="account_status_archived">Archived</string>
+
     <!-- Home -->
     <string name="home_title">Home</string>
     <string name="home_add_transaction">Add transaction</string>

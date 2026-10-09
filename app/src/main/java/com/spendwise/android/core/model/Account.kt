@@ -11,6 +11,13 @@ data class Account(
     val type: AccountType,
     val openingBalance: Money,
     val balance: Money,
+    /**
+     * REQ-BE-006 (M19): archived accounts are hidden from entry pickers
+     * (new transaction/transfer/recurring/import target) but remain in
+     * the ledger, balances, and history — the flag is operational
+     * metadata, never a ledger event.
+     */
+    val archived: Boolean = false,
 )
 
 /**

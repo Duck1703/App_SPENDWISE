@@ -63,7 +63,8 @@ class CreateTransferViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(optionsLoading = true, optionsError = false)
             try {
-                val accounts = accountRepository.list()
+                // M19 (REQ-BE-006): archived accounts leave pickers.
+                val accounts = accountRepository.list().filterNot { it.archived }
                 val sourceId = _state.value.sourceAccountId
                     ?.takeIf { id -> accounts.any { it.id == id } }
                     ?: accounts.firstOrNull()?.id

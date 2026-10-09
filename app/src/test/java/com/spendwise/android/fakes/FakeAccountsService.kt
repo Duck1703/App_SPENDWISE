@@ -3,6 +3,7 @@ package com.spendwise.android.fakes
 import com.spendwise.android.data.remote.AccountDto
 import com.spendwise.android.data.remote.AccountsService
 import com.spendwise.android.data.remote.CreateAccountRequestDto
+import com.spendwise.android.data.remote.UpdateAccountRequestDto
 import java.math.BigDecimal
 
 /** Scripted [AccountsService] — throws the configured error or returns canned DTOs, records calls. */
@@ -14,6 +15,8 @@ class FakeAccountsService : AccountsService {
     var getByIdError: Throwable? = null
     var createResponse: AccountDto = accountDto()
     var createError: Throwable? = null
+    var updateResponse: AccountDto = accountDto()
+    var updateError: Throwable? = null
 
     /**
      * Optional suspending responders for deterministic concurrency tests —
@@ -23,10 +26,12 @@ class FakeAccountsService : AccountsService {
     var listResponder: (suspend () -> List<AccountDto>)? = null
     var getByIdResponder: (suspend (id: String) -> AccountDto)? = null
     var createResponder: (suspend (CreateAccountRequestDto) -> AccountDto)? = null
+    var updateResponder: (suspend (id: String, UpdateAccountRequestDto) -> AccountDto)? = null
 
     var listCalls = 0
     val getByIdCalls = mutableListOf<String>()
     val createCalls = mutableListOf<CreateAccountRequestDto>()
+    val updateCalls = mutableListOf<Pair<String, UpdateAccountRequestDto>>()
 
     override suspend fun list(): List<AccountDto> {
         listCalls++
@@ -49,6 +54,13 @@ class FakeAccountsService : AccountsService {
         return createResponse
     }
 
+    override suspend fun update(id: String, body: UpdateAccountRequestDto): AccountDto {
+        updateCalls += id to body
+        updateResponder?.let { return it(id, body) }
+        updateError?.let { throw it }
+        return updateResponse
+    }
+
     companion object {
         fun accountDto(
             id: String = "acc-1",
@@ -57,6 +69,7 @@ class FakeAccountsService : AccountsService {
             openingBalance: BigDecimal = BigDecimal("1000.00"),
             currency: String = "VND",
             balance: BigDecimal = BigDecimal("1250.50"),
+            archived: Boolean = false,
         ) = AccountDto(
             id = id,
             name = name,
@@ -64,6 +77,7 @@ class FakeAccountsService : AccountsService {
             openingBalance = openingBalance,
             currency = currency,
             balance = balance,
+            archived = archived,
         )
     }
 }

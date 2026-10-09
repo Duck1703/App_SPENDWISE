@@ -4,6 +4,7 @@ import com.spendwise.android.core.session.Session
 import com.spendwise.android.core.session.SessionManager
 import com.spendwise.android.data.remote.AccountsService
 import com.spendwise.android.data.remote.CreateAccountRequestDto
+import com.spendwise.android.data.remote.UpdateAccountRequestDto
 import com.spendwise.android.fakes.FakeTokenStore
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -13,7 +14,9 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import retrofit2.Retrofit
@@ -24,9 +27,10 @@ import java.time.Instant
 import java.time.ZoneOffset
 
 /**
- * Wire-level contract for `GET/POST /api/accounts` + `GET /{id}` (M2):
- * paths, request/response DTO shapes, bearer propagation, and the
- * authenticated-401 → `Session.Expired` path through the REAL interceptors.
+ * Wire-level contract for `GET/POST /api/accounts` + `GET /{id}` (M2) +
+ * `PATCH /{id}` (M19, REQ-BE-006): paths, request/response DTO shapes,
+ * bearer propagation, sparse-patch encoding, and the authenticated-401 →
+ * `Session.Expired` path through the REAL interceptors.
  */
 class AccountsServiceContractTest {
 
@@ -206,5 +210,107 @@ class AccountsServiceContractTest {
         val accounts = service.list()
 
         assertEquals(1, accounts.size)
+    }
+
+    // ── PATCH /api/accounts/{id} (M19, REQ-BE-006) ──────────────────
+
+    private fun accountJson(id: String, name: String = "Wallet", archived: Boolean = false) =
+        """{"id":"$id","name":"$name","type":"CASH","openingBalance":1000.00,""" +
+            """"currency":"VND","balance":1250.50,"archived":$archived}"""
+
+    @Test
+    fun `update sends only the name when archiving is untouched`() = runTest {
+        signIn()
+        server.enqueue(MockResponse(code = 200, body = accountJson("a1", name = "Renamed")))
+
+        val updated = service.update("a1", UpdateAccountRequestDto(name = "Renamed"))
+
+        val request = server.takeRequest()
+        assertEquals("PATCH", request.method)
+        assertEquals("/api/accounts/a1", request.url.encodedPath)
+        assertEquals("Bearer live-token", request.headers["Authorization"])
+        val body = request.body?.utf8().orEmpty()
+        assertTrue(body.contains("\"name\":\"Renamed\""))
+        assertFalse("untouched archived must stay off the wire", body.contains("archived"))
+        assertFalse("immutable identity never leaves the client", body.contains("balance"))
+        assertFalse(body.contains("currency"))
+        assertFalse(body.contains("type"))
+        assertEquals("Renamed", updated.name)
+        assertFalse(updated.archived)
+    }
+
+    @Test
+    fun `update sends only the flag when archiving alone`() = runTest {
+        signIn()
+        server.enqueue(MockResponse(code = 200, body = accountJson("a1", archived = true)))
+
+        val updated = service.update("a1", UpdateAccountRequestDto(archived = true))
+
+        val body = server.takeRequest().body?.utf8().orEmpty()
+        assertTrue(body.contains("\"archived\":true"))
+        assertFalse("untouched name must stay off the wire", body.contains("name"))
+        assertTrue(updated.archived)
+    }
+
+    @Test
+    fun `update carries both fields when both changed`() = runTest {
+        signIn()
+        server.enqueue(
+            MockResponse(code = 200, body = accountJson("a1", name = "Renamed", archived = true)),
+        )
+
+        service.update("a1", UpdateAccountRequestDto(name = "Renamed", archived = true))
+
+        val body = server.takeRequest().body?.utf8().orEmpty()
+        assertTrue(body.contains("\"name\":\"Renamed\""))
+        assertTrue(body.contains("\"archived\":true"))
+    }
+
+    @Test
+    fun `update on a foreign id surfaces as 404`() = runTest {
+        signIn()
+        server.enqueue(MockResponse(code = 404, body = """{"title":"Not found","status":404}"""))
+
+        try {
+            service.update("foreign", UpdateAccountRequestDto(name = "X"))
+            fail("expected ApiException")
+        } catch (e: ApiException) {
+            assertEquals(404, e.status)
+        }
+    }
+
+    @Test
+    fun `a lost update race surfaces as 409`() = runTest {
+        signIn()
+        server.enqueue(
+            MockResponse(
+                code = 409,
+                body = """{"title":"Conflict","status":409,"detail":"The request conflicts with an existing record."}""",
+            ),
+        )
+
+        try {
+            service.update("a1", UpdateAccountRequestDto(name = "Renamed"))
+            fail("expected ApiException")
+        } catch (e: ApiException) {
+            assertEquals(409, e.status)
+        }
+    }
+
+    @Test
+    fun `list decodes the archived flag`() = runTest {
+        signIn()
+        server.enqueue(
+            MockResponse(
+                code = 200,
+                body = "[" + accountJson("a1") + "," +
+                    accountJson("a2", name = "Retired", archived = true) + "]",
+            ),
+        )
+
+        val list = service.list()
+
+        assertFalse(list[0].archived)
+        assertTrue(list[1].archived)
     }
 }

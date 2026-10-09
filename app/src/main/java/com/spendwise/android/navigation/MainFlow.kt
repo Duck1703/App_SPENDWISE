@@ -12,6 +12,7 @@ import androidx.navigation.compose.rememberNavController
 import com.spendwise.android.core.session.Session
 import com.spendwise.android.feature.accounts.AccountCreateDestination
 import com.spendwise.android.feature.accounts.AccountDetailDestination
+import com.spendwise.android.feature.accounts.EditAccountDestination
 import com.spendwise.android.feature.auth.LoginDestination
 import com.spendwise.android.feature.auth.SessionExpiredScreen
 import com.spendwise.android.feature.export.ExportLedgerDestination
@@ -138,6 +139,15 @@ fun MainFlow(
                 onTransfer = { accountId ->
                     navController.navigate(TransferCreateRoute(accountId))
                 },
+                onEdit = { accountId ->
+                    navController.navigate(AccountEditRoute(accountId))
+                },
+            )
+        }
+        composable<AccountEditRoute> {
+            EditAccountDestination(
+                onSaved = { navController.popBackStack() },
+                onBack = { navController.popBackStack() },
             )
         }
         composable<TransactionDetailRoute> {

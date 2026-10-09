@@ -50,7 +50,8 @@ class ImportViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = ImportUiState.Loading
             try {
-                val accounts = accountRepository.list()
+                // M19 (REQ-BE-006): archived accounts leave pickers.
+                val accounts = accountRepository.list().filterNot { it.archived }
                 _state.value = if (accounts.isEmpty()) {
                     ImportUiState.Empty
                 } else {

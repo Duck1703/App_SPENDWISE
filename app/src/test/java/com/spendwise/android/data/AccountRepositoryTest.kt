@@ -240,4 +240,79 @@ class AccountRepositoryTest {
             assertTrue(e.error is AppError.Unknown)
         }
     }
+
+    // ── PATCH /api/accounts/{id} (M19, REQ-BE-006) ──────────────────
+
+    @Test
+    fun `update sends the sparse body to PATCH and returns the server entity`() = runTest {
+        val (service, _, repository) = harness()
+        service.updateResponse = cash("a1").copy(name = "Renamed", archived = true)
+
+        val updated = repository.update("a1", name = "Renamed", archived = true)
+
+        val call = service.updateCalls.single()
+        assertEquals("a1", call.first)
+        assertEquals("Renamed", call.second.name)
+        assertEquals(true, call.second.archived)
+        assertEquals("Renamed", updated.name)
+        assertTrue(updated.archived)
+    }
+
+    @Test
+    fun `update replaces the cached row with the server response`() = runTest {
+        val (service, _, repository) = harness()
+        service.listResponse = listOf(cash("a1"), cash("a2"))
+        repository.list()
+        service.updateResponse = cash("a1").copy(name = "Renamed", archived = true)
+
+        repository.update("a1", archived = true)
+
+        val cached = repository.list()
+        assertEquals("Renamed", cached.first { it.id == "a1" }.name)
+        assertTrue(cached.first { it.id == "a1" }.archived)
+        assertEquals(1, service.listCalls)
+    }
+
+    @Test
+    fun `update emits one mutation signal`() = runTest {
+        val (service, _, repository) = harness()
+        service.updateResponse = cash("a1").copy(archived = true)
+        val emissions = mutableListOf<Unit>()
+        val job = backgroundScope.launch {
+            repository.mutations.collect { emissions += it }
+        }
+        testScheduler.runCurrent()
+
+        repository.update("a1", archived = true)
+
+        testScheduler.runCurrent()
+        assertEquals(1, emissions.size)
+        job.cancel()
+    }
+
+    @Test
+    fun `update 409 maps to Conflict`() = runTest {
+        val (service, _, repository) = harness()
+        service.updateError = ApiException(status = 409)
+
+        try {
+            repository.update("a1", name = "Renamed")
+            fail("Expected AppErrorException")
+        } catch (e: AppErrorException) {
+            assertTrue(e.error is AppError.Conflict)
+        }
+    }
+
+    @Test
+    fun `update on a foreign id maps to NotFound`() = runTest {
+        val (service, _, repository) = harness()
+        service.updateError = ApiException(status = 404)
+
+        try {
+            repository.update("ghost", archived = true)
+            fail("Expected AppErrorException")
+        } catch (e: AppErrorException) {
+            assertTrue(e.error is AppError.NotFound)
+        }
+    }
 }

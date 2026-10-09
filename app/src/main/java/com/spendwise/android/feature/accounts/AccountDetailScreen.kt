@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -52,6 +53,7 @@ fun AccountDetailScreen(
     onOpenTransaction: (String) -> Unit,
     onAddTransaction: (String) -> Unit,
     onTransfer: (String) -> Unit,
+    onEdit: (String) -> Unit,
     onRetryHistory: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -98,6 +100,7 @@ fun AccountDetailScreen(
                 onOpenTransaction = onOpenTransaction,
                 onAddTransaction = onAddTransaction,
                 onTransfer = onTransfer,
+                onEdit = onEdit,
                 onRetryHistory = onRetryHistory,
             )
         }
@@ -110,6 +113,7 @@ private fun AccountDetailContent(
     onOpenTransaction: (String) -> Unit,
     onAddTransaction: (String) -> Unit,
     onTransfer: (String) -> Unit,
+    onEdit: (String) -> Unit,
     onRetryHistory: () -> Unit,
 ) {
     val account = state.account
@@ -172,16 +176,41 @@ private fun AccountDetailContent(
                     value = MoneyFormat.format(account.openingBalance) +
                         " " + account.openingBalance.currency.code,
                 )
+                if (account.archived) {
+                    FieldDivider()
+                    DetailField(
+                        label = stringResource(R.string.account_detail_field_status),
+                        value = stringResource(R.string.account_status_archived),
+                    )
+                }
             }
         }
+        }
+
+        // Edit (M19, REQ-BE-006): rename + archive/unarchive.
+        item(key = "edit") {
+            OutlinedButton(
+                onClick = { onEdit(account.id) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+            ) {
+                Text(stringResource(R.string.account_edit_action))
+            }
         }
 
         // Account-scoped history (P3A §11): section owns its own failure
         // — the header above is never sunk by it.
         item(key = "history-header") {
+            // Archived accounts stay readable (ledger is preserved) but
+            // accept no new entries — entry points honor picker exclusion.
             HistoryHeader(
-                onAddTransaction = { onAddTransaction(account.id) },
-                onTransfer = if (state.hasTransferPeer) {
+                onAddTransaction = if (account.archived) {
+                    null
+                } else {
+                    { onAddTransaction(account.id) }
+                },
+                onTransfer = if (state.hasTransferPeer && !account.archived) {
                     { onTransfer(account.id) }
                 } else {
                     null
@@ -227,7 +256,7 @@ private fun AccountDetailContent(
 
 @Composable
 private fun HistoryHeader(
-    onAddTransaction: () -> Unit,
+    onAddTransaction: (() -> Unit)?,
     onTransfer: (() -> Unit)?,
 ) {
     Row(
@@ -261,22 +290,24 @@ private fun HistoryHeader(
                 )
             }
         }
-        TextButton(
-            onClick = onAddTransaction,
-            modifier = Modifier.heightIn(min = SwSpacing.TouchTargetMin),
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_lucide_plus),
-                contentDescription = null,
-                tint = SwColors.Brand,
-                modifier = Modifier.size(16.dp),
-            )
-            Spacer(Modifier.width(4.dp))
-            Text(
-                text = stringResource(R.string.account_detail_add_transaction),
-                color = SwColors.Brand,
-                fontWeight = FontWeight.SemiBold,
-            )
+        if (onAddTransaction != null) {
+            TextButton(
+                onClick = onAddTransaction,
+                modifier = Modifier.heightIn(min = SwSpacing.TouchTargetMin),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_lucide_plus),
+                    contentDescription = null,
+                    tint = SwColors.Brand,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = stringResource(R.string.account_detail_add_transaction),
+                    color = SwColors.Brand,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
         }
     }
 }

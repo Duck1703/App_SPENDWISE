@@ -14,6 +14,7 @@ import com.spendwise.android.core.session.SessionManager
 import com.spendwise.android.data.remote.AccountDto
 import com.spendwise.android.data.remote.AccountsService
 import com.spendwise.android.data.remote.CreateAccountRequestDto
+import com.spendwise.android.data.remote.UpdateAccountRequestDto
 import java.io.IOException
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -49,6 +50,14 @@ interface AccountRepository {
     suspend fun findById(id: String, refresh: Boolean = false): Account
 
     suspend fun create(name: String, type: AccountType, openingBalance: Money): Account
+
+    /**
+     * `PATCH /api/accounts/{id}` (REQ-BE-006, M19): sparse update — pass
+     * only the fields that changed; both null → caller bug (server 400s
+     * an empty patch). The mutation is a single transmission: never
+     * auto-replayed. The returned server entity replaces the cache row.
+     */
+    suspend fun update(id: String, name: String? = null, archived: Boolean? = null): Account
 
     /**
      * Drop the in-memory account list so the next [list]/[findById]
@@ -139,6 +148,27 @@ class RemoteAccountRepository @Inject constructor(
         return account
     }
 
+    override suspend fun update(id: String, name: String?, archived: Boolean?): Account {
+        val generation = cache.generation()
+        val account = try {
+            service.update(id, UpdateAccountRequestDto(name = name, archived = archived))
+        } catch (e: ApiException) {
+            throw AppErrorException(e.toAppError(), e)
+        } catch (e: IOException) {
+            throw AppErrorException(AppError.NetworkUnavailable, e)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            throw AppErrorException(AppError.Unknown(e), e)
+        }.toDomain()
+        cache.update(generation) { current ->
+            current?.map { if (it.id == account.id) account else it }
+        }
+        if (cache.generation() != generation) throw SessionEndedException()
+        _mutations.tryEmit(Unit)
+        return account
+    }
+
     override suspend fun invalidate() = cache.invalidate()
 
     private suspend fun fetchAccounts(): List<Account> =
@@ -175,6 +205,7 @@ class RemoteAccountRepository @Inject constructor(
                 type = AccountType.fromWire(type),
                 openingBalance = Money(openingBalance, CurrencyCode(currency)),
                 balance = Money(balance, CurrencyCode(currency)),
+                archived = archived,
             )
         } catch (e: Exception) {
             if (e is CancellationException) throw e
