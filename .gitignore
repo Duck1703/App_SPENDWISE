@@ -14,3 +14,12 @@ Thumbs.db
 
 # Kotlin daemon session metadata
 .kotlin/
+
+# M21: local secret material — env files with real passwords, generated
+# keystores, TLS private keys. Templates (*.env.example) stay committed.
+*.env
+!*.env.example
+*.keystore
+*.jks
+*.p12
+*-key.pem

@@ -1,6 +1,7 @@
 package com.spendwise.android.core.session
 
 import android.content.Context
+import com.spendwise.android.BuildConfig
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
@@ -50,5 +51,5 @@ object SessionModule {
 
     @Provides
     @ApiBaseUrl
-    fun provideApiBaseUrl(): String = com.spendwise.android.BuildConfig.SPENDWISE_API_BASE_URL
+    fun provideApiBaseUrl(): String = BuildConfig.SPENDWISE_API_BASE_URL
 }

@@ -1,5 +1,6 @@
 package com.spendwise.android.core.session
 
+import com.spendwise.android.BuildConfig
 import com.spendwise.android.data.remote.LoginResponseDto
 import com.spendwise.android.data.remote.RefreshRequestDto
 import java.io.IOException
@@ -110,6 +111,22 @@ class SessionRefresher @Inject constructor(
         }
     }
 
+    // Validated lazily at first real use — a misconfigured URL must fail
+    // before a byte goes on the wire, but must not crash app launch or the
+    // (fake-backed) instrumented suite. The build-time release gate is the
+    // authoritative fail-closed layer for shippable artifacts.
+    private val validatedBaseUrl: String by lazy {
+        com.spendwise.android.core.network.ApiBaseUrl.validate(apiBaseUrl, BuildConfig.DEBUG)
+    }
+
+    private fun refreshUrl(): String = try {
+        validatedBaseUrl.trimEnd('/') + "/api/auth/refresh"
+    } catch (e: IllegalArgumentException) {
+        // Misconfiguration fails like a transport error — Transient, never
+        // a crash inside the refresh path.
+        throw IOException("API base URL rejected: ${e.message}", e)
+    }
+
     private fun renew(refreshToken: String, expectedGeneration: Long): Outcome {
         val body = json.encodeToString(
             RefreshRequestDto.serializer(),
@@ -118,7 +135,7 @@ class SessionRefresher @Inject constructor(
         val response = try {
             client.newCall(
                 Request.Builder()
-                    .url(apiBaseUrl + "api/auth/refresh")
+                    .url(refreshUrl())
                     .post(body)
                     .build(),
             ).execute()

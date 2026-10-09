@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!--
+      M21 Level A (debug only): generated Network Security Config allows
+      cleartext ONLY to the host configured via spendwise.api.base.url —
+      the private-LAN dev backend. Every other destination remains refused
+      by the main manifest's usesCleartextTraffic="false".
+    -->
+    <application android:networkSecurityConfig="@xml/network_security_config" />
+</manifest>
