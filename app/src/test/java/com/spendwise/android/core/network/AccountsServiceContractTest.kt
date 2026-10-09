@@ -313,4 +313,20 @@ class AccountsServiceContractTest {
         assertFalse(list[0].archived)
         assertTrue(list[1].archived)
     }
+
+    @Test
+    fun `update transmits archived false on unarchive`() = runTest {
+        // EXT-M19-3: `false` is a real value, not absent — unarchive must
+        // put a literal false on the wire (default-omission only skips
+        // the field when it stays at the null default).
+        signIn()
+        server.enqueue(MockResponse(code = 200, body = accountJson("a1", archived = false)))
+
+        val updated = service.update("a1", UpdateAccountRequestDto(archived = false))
+
+        val body = server.takeRequest().body?.utf8().orEmpty()
+        assertTrue("unarchive must transmit a literal false", body.contains("\"archived\":false"))
+        assertFalse("untouched name must stay off the wire", body.contains("name"))
+        assertFalse(updated.archived)
+    }
 }

@@ -315,4 +315,62 @@ class AccountRepositoryTest {
             assertTrue(e.error is AppError.NotFound)
         }
     }
+
+    @Test
+    fun `a failed update emits no mutation signal`() = runTest {
+        // EXT-M19-3: a rejection must not repaint surfaces as though a
+        // write landed - no mutation event on failure.
+        val (service, _, repository) = harness()
+        service.updateError = ApiException(status = 500)
+        val emissions = mutableListOf<Unit>()
+        val job = backgroundScope.launch {
+            repository.mutations.collect { emissions += it }
+        }
+        testScheduler.runCurrent()
+
+        try {
+            repository.update("a1", archived = true)
+            fail("Expected AppErrorException")
+        } catch (e: AppErrorException) {
+            // expected
+        }
+
+        testScheduler.runCurrent()
+        assertEquals(0, emissions.size)
+        job.cancel()
+    }
+
+    @Test
+    fun `an update whose session generation died mid-flight is discarded`() = runTest {
+        // EXT-M19-3: the PATCH may have landed server-side, but its
+        // response must never enter the next session's cache and the
+        // caller sees the dead-generation end, not success.
+        val (service, sessionManager, repository) = harness()
+        sessionManager.onSignedIn("t1", now.plusSeconds(900), "ana", "u1")
+        service.listResponse = listOf(cash("a1"))
+        repository.list()
+        service.updateResponder = { _, _ ->
+            sessionManager.onAuthenticationExpired() // generation flips mid-flight
+            cash("a1").copy(name = "Too Late")
+        }
+        val emissions = mutableListOf<Unit>()
+        val job = backgroundScope.launch {
+            repository.mutations.collect { emissions += it }
+        }
+        testScheduler.runCurrent()
+
+        try {
+            repository.update("a1", name = "Too Late")
+            fail("Expected SessionEndedException")
+        } catch (e: com.spendwise.android.data.repository.SessionEndedException) {
+            // expected - the operation's context ended mid-flight
+        }
+
+        testScheduler.runCurrent()
+        assertEquals(0, emissions.size)
+        service.listResponse = listOf(cash("live"))
+        // The next generation's cache never contains the stale write.
+        assertTrue(repository.list().none { it.name == "Too Late" })
+        job.cancel()
+    }
 }

@@ -28,9 +28,11 @@ data class AccountDto(
 
 /**
  * `UpdateAccountRequest` for `PATCH /api/accounts/{id}` (REQ-BE-006).
- * Sparse patch: absent fields stay off the wire (`explicitNulls = false`
- * drops nulls) — `null` here means "not part of the patch". An empty
- * patch is a server 400; foreign id 404; lost-update race 409.
+ * Sparse patch: absent fields stay off the wire — both properties
+ * default to `null`, and `encodeDefaults = false` (the Json default)
+ * omits a property equal to its default, so `null` means "not part of
+ * the patch". `archived = false` still serializes (false != null).
+ * An empty patch is a server 400; foreign id 404; lost-update race 409.
  */
 @Serializable
 data class UpdateAccountRequestDto(

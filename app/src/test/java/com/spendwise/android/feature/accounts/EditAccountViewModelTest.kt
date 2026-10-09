@@ -424,6 +424,26 @@ class EditAccountViewModelTest {
     }
 
     @Test
+    fun `a session-expired save releases the lock and keeps the draft`() = runTest {
+        // EXT-M19-3: expiry mid-save must not strand isSubmitting=true or
+        // show a fake outcome - the session overlay owns the expiry and
+        // the preserved draft is resubmitted only by the user.
+        val accounts = FakeAccountRepository().apply {
+            updateResult = { _, _, _ -> throw AppErrorException(AppError.SessionExpired) }
+        }
+        val viewModel = vm(accounts)
+        runCurrent()
+        viewModel.onNameChange("Renamed")
+        viewModel.save()
+        runCurrent()
+        val form = form(viewModel)
+        assertFalse(form.isSubmitting)
+        assertNull(form.formError)
+        assertTrue(form.hasChanges)
+        assertEquals("Renamed", form.name)
+    }
+
+    @Test
     fun `save during Loading is a no-op`() = runTest {
         val accounts = FakeAccountRepository()
         val gate = CompletableDeferred<com.spendwise.android.core.model.Account>()
