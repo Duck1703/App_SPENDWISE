@@ -67,3 +67,19 @@ VERDICT=CHANGES_REQUIRED→PARTIAL (one delivered defect found & fixed in
     keystore. No debug-key release was substituted.
 - No secrets in repo; private CA key/keystore/env remain under
   `~/.spendwise-lan-tls/` (outside Git). Backend working tree untouched.
+
+## FOLLOW-UP 2 2026-10-09 — Postgres republish + signing prep
+
+- `POSTGRES_LAN_EXPOSED` → **NO**: container recreated with
+  `127.0.0.1:55432:5432` (same image sha256:cf78e766, same named volume
+  e2058c38, same env); `netstat` shows only loopback listener; Pixel
+  TCP to 55432 times out; backend health db=UP over loopback.
+- Data preservation proven: pre/post row counts identical on
+  `spendwise_m21` (7/10/30/6/13) + fresh TOC-verified backups for both
+  `spendwise_m21` and `spendwise` before the change.
+- Post-change live matrix: 21/21 pass on real Pixel→backend→Postgres.
+- Remaining open item: **SIGNED_WITH_HUMAN_KEY** — no permanent keystore
+  exists; `scripts/lan/create-release-keystore.ps1` prepared
+  (interactive keytool, no CLI passwords, out-of-repo enforcement).
+  Ephemeral key was used only for release-wiring verification and is
+  explicitly NOT counted as the release identity.

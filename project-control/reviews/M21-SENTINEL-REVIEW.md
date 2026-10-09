@@ -111,3 +111,10 @@ FKs; expense/income sums exact (44.75 / 200.00); Unicode description
 - Fresh regressions: backend 458/458; Android JVM 755/755; lint/detekt/
   R8/lintVital green; final connected runs #1 and #2 both PASS.
 - M21-S7 watch item: did not re-flake across two full suite runs.
+
+## FOLLOW-UP 2 2026-10-09 — Postgres republish + signing prep
+
+| ID | Sev | Finding | Disposition |
+| --- | --- | --- | --- |
+| M21-A7 | MINOR→FIXED | `spendwise-m10-db` published `0.0.0.0:55432` — DB reachable from any LAN client. | **FIXED** (Human-authorized): recreated same image+named volume+env with `127.0.0.1:55432`; Pixel→55432 times out; host-local clients unaffected; row parity identical (7 users/10 accts/30 txns/6 legs/flyway 13). |
+| M21-S9 | NOTE | Live journey matrix re-executed post-Docker-change: 21/21, 0 fail, 0 skip on real backend over HTTP:8081 debug mode. | VERIFIED |

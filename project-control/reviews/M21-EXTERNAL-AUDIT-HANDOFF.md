@@ -197,6 +197,60 @@ The Human moved the Pixel onto the PC's SSID. Re-verified topology:
    Private-profile 8081/8443 rules were not required for evidence but
    remain recommended for a stable Private-profile policy.
 
+---
+
+# FOLLOW-UP 2 — Postgres loopback republish (2026-10-09)
+
+Human granted conditional authorization for exactly one change:
+`0.0.0.0:55432:5432` → `127.0.0.1:55432:5432`.
+
+## Pre-change safety gates — all PASS
+
+- Container `spendwise-m10-db` (id `f4c94a5e…`), image
+  `postgres:16-alpine` sha256:`cf78e766`, **manual** (no Compose labels),
+  restart policy `no`, bridge network, no healthcheck, stock entrypoint.
+- Data volume: named `e2058c3801f8…7682` (local driver) →
+  `/var/lib/postgresql/data`, RW — **persistent, identified, same after**.
+- Workloads: only Spendwise-family DBs (`postgres`, `spendwise`,
+  `spendwise_m21`, `spendwise_m21_restore`) — no unrelated services.
+- Backend DB clients all dialed `127.0.0.1:55432` — loopback republish
+  cannot break them.
+- Fresh backups pre-change, both TOC-verified via `pg_restore -l`:
+  - `spendwise_m21-20261009-172730.dump` (26.7 KB, 67 entries)
+  - `spendwise-20261009-172737.dump` (727.9 KB, 66 entries)
+  - under `D:\app_spendwise\backups\m21\`, outside all Git repos.
+- Pre-change baseline `spendwise_m21`: users=7, accounts=10,
+  transactions=30, transfer_ref legs=6, flyway=13.
+
+## Change applied
+
+`docker stop` → `docker rm` (no -v) → `docker run` same name, same
+image digest, **same named volume**, same POSTGRES_* env — only the
+publish address changed. New container id `47df6f7f…`.
+
+## Post-change verification — all PASS
+
+- `PortBindings = {"5432/tcp":[{"HostIp":"127.0.0.1","HostPort":"55432"}]}`
+  — actual running config, not Compose source.
+- Host listeners: `127.0.0.1:55432 LISTENING`; `0.0.0.0`/`[::]` entries
+  **gone**.
+- Pixel→`192.168.1.236:55432` → **connection times out (BLOCKED)**.
+- Pixel→`192.168.1.236:8443` → connects; backend health 200, db UP.
+- Data parity after recreation: users=7, accounts=10, transactions=30,
+  transfer legs=6, flyway=13 — **identical**, `DATA_PRESERVED=YES`.
+- Post-change live matrix rerun over HTTP:8081: **21/21 executed**
+  (3 smoke + 18 journeys), 0 fail, 0 skip — real Pixel→backend→
+  republished Postgres E2E intact.
+- `POSTGRES_LAN_EXPOSED` → **NO**. `M21_POSTGRES_LOOPBACK_BIND=PASS`.
+
+## Signing identity — still the only open gate
+
+`SIGNED_WITH_HUMAN_KEY=NO` remains. No permanent Human keystore exists
+on this machine; `SPENDWISE_RELEASE_*` env vars are unset. Prepared for
+the Human: `scripts/lan/create-release-keystore.ps1` — interactive
+keytool prompts (no passwords on CLI/in files), refuses in-repo paths,
+prints only public cert metadata + the env-var names to set.
+
 ## Updated status
 
 - `M21_LAN_L2=PASS` · `M21_PIXEL_DIRECT_WIFI=PASS` ·
@@ -205,8 +259,10 @@ The Human moved the Pixel onto the PC's SSID. Re-verified topology:
   `M21_SIGNED_RELEASE_INSTALL=PASS` · `M21_RELEASE_REAL_BACKEND_SMOKE=PASS`
 - `M21_BACKUP_RESTORE=PASS` (preserved) · `BACKEND 458/458` ·
   `ANDROID_JVM 755/755` · `LINT/DETEKT/R8=PASS` · `PIXEL ×2=PASS`
-- `M21_POSTGRES_LAN_EXPOSURE=NO` — **FAILING** (still `0.0.0.0:55432`)
-- `SIGNED_WITH_HUMAN_KEY=YES` — **FAILING** (ephemeral key used)
-- `M21_READY_FOR_EXTERNAL_AUDIT=NO` — two Human prerequisites remain:
-  Postgres bind + Human signing identity. All engineering-side gates
-  are green; the milestone is otherwise audit-ready.
+- `M21_POSTGRES_LAN_EXPOSURE=NO` — **PASS** (Follow-up 2: loopback-only
+  `127.0.0.1:55432`, Pixel→55432 blocked, data identical)
+- `SIGNED_WITH_HUMAN_KEY=YES` — **FAILING** (ephemeral key used;
+  Human keystore setup script prepared, awaiting Human action)
+- `M21_READY_FOR_EXTERNAL_AUDIT=NO` — ONE Human prerequisite remains:
+  the permanent signing identity. All engineering-side gates are green;
+  the milestone is otherwise audit-ready.
