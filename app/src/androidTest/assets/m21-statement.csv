@@ -1,0 +1,4 @@
+occurredOn,amount,currency,description,sourceTxnId
+2026-10-01,-45.00,USD,M21 grocery run,m21-csv-001
+2026-10-02,-12.75,USD,M21 coffee,m21-csv-002
+2026-10-03,500.00,USD,M21 freelance work,m21-csv-003
