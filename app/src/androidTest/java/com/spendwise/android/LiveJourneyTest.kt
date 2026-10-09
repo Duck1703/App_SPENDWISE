@@ -112,7 +112,11 @@ class LiveJourneyTest {
         @JvmStatic
         @BeforeClass
         fun setup() {
-            assumeTrue("live backend smoke disabled", enabled())
+            // Per-test assumeTrue gates every journey individually — a
+            // class-level assumption collapses the whole class into one
+            // synthetic "null" result and breaks the suite test-count
+            // contract (UTP expects each @Test reported on its own).
+            if (!enabled()) return
             val reg = post(
                 "/api/auth/register",
                 """{"username":"$username","password":"$password"}""", token = null)
@@ -157,6 +161,7 @@ class LiveJourneyTest {
     // + login 200 + JWT pair issued). Assert the artifacts exist.
     @Test
     fun j01_registerLoginIssuedTokenPair() {
+        assumeTrue("live backend smoke disabled", enabled())
         assertTrue(access.isNotBlank())
         assertTrue(refresh.isNotBlank())
     }
@@ -165,6 +170,7 @@ class LiveJourneyTest {
     // Re-login at the end so the shared pair is always the freshest session.
     @Test
     fun j02_returningLogin() {
+        assumeTrue("live backend smoke disabled", enabled())
         val (at2, rt2) = login(username, password)
         assertTrue(at2.isNotBlank() && rt2.isNotBlank())
         val pair = login(username, password)
@@ -175,6 +181,7 @@ class LiveJourneyTest {
     // refresh endpoint rotates the pair and the new token works.
     @Test
     fun j03_expiredThenRenewedSession() = runBlocking {
+        assumeTrue("live backend smoke disabled", enabled())
         val dead = get("/api/accounts", token = "m21-dead-token")
         assertEquals(401, dead.code)
         val renew = post(
@@ -190,6 +197,7 @@ class LiveJourneyTest {
     // server-held balance.
     @Test
     fun j04_accountCreateAndReadBack() = runBlocking {
+        assumeTrue("live backend smoke disabled", enabled())
         val r = get("/api/accounts")
         assertEquals(200, r.code)
         val body = r.body.string()
@@ -200,6 +208,7 @@ class LiveJourneyTest {
     // J5 - record expense: POST EXPENSE 25.50 -> server balance 1000-25.50.
     @Test
     fun j05_recordExpense() = runBlocking {
+        assumeTrue("live backend smoke disabled", enabled())
         val r = post(
             "/api/transactions",
             """{"accountId":"$accountId","type":"EXPENSE","amount":"25.50","currency":"USD","category":"FOOD","description":"m21 j5"}""")
@@ -212,6 +221,7 @@ class LiveJourneyTest {
     // J6 - record income: POST INCOME 300 -> 974.50+300=1274.50.
     @Test
     fun j06_recordIncome() = runBlocking {
+        assumeTrue("live backend smoke disabled", enabled())
         val r = post(
             "/api/transactions",
             """{"accountId":"$accountId","type":"INCOME","amount":"300.00","currency":"USD","category":"SALARY","description":"m21 j6"}""")
@@ -223,6 +233,7 @@ class LiveJourneyTest {
     // search endpoint (the backend has no /{id} detail route by design).
     @Test
     fun j07_inspectTransactions() = runBlocking {
+        assumeTrue("live backend smoke disabled", enabled())
         val list = get("/api/transactions?accountId=$accountId")
         assertEquals(200, list.code)
         val body = list.body.string()
@@ -238,6 +249,7 @@ class LiveJourneyTest {
     // J8 - CSV import: multipart upload -> batch summary shows 3 imported.
     @Test
     fun j08_importCsv() = runBlocking {
+        assumeTrue("live backend smoke disabled", enabled())
         val r = multipart(
             "/api/imports?accountId=$accountId", "file", "m21-statement.csv",
             asset("m21-statement.csv"), "text/csv")
@@ -253,6 +265,7 @@ class LiveJourneyTest {
     // J9 - TPBank PDF import: the backend-generated synthetic statement.
     @Test
     fun j09_importTpbankPdf() = runBlocking {
+        assumeTrue("live backend smoke disabled", enabled())
         val r = multipart(
             "/api/imports?accountId=$vndAccountId", "file", "m21-tpbank.pdf",
             asset("m21-tpbank.pdf"), "application/pdf")
@@ -270,6 +283,7 @@ class LiveJourneyTest {
     // produce duplicates, not new transactions.
     @Test
     fun j10_reimportShowsDuplicates() = runBlocking {
+        assumeTrue("live backend smoke disabled", enabled())
         val r = multipart(
             "/api/imports?accountId=$accountId", "file", "m21-statement.csv",
             asset("m21-statement.csv"), "text/csv")
@@ -285,6 +299,7 @@ class LiveJourneyTest {
     // from the TPBank import - two currencies, each internally consistent.
     @Test
     fun j11_monthReviewDashboard() = runBlocking {
+        assumeTrue("live backend smoke disabled", enabled())
         val oct = get("/api/dashboard?month=2026-10")
         assertEquals(200, oct.code)
         val o = json.parseToJsonElement(oct.body.string()).jsonObject
@@ -304,6 +319,7 @@ class LiveJourneyTest {
     // J12 - recurring lifecycle: create -> list -> deactivate.
     @Test
     fun j12_recurringLifecycle() = runBlocking {
+        assumeTrue("live backend smoke disabled", enabled())
         val r = post(
             "/api/recurring-transactions",
             """{"accountId":"$accountId","direction":"EXPENSE","amount":"9.99","currency":"USD","category":"ENTERTAINMENT","frequency":"MONTHLY","nextDueDate":"2026-11-01"}""")
@@ -320,6 +336,7 @@ class LiveJourneyTest {
     // J13 - budget lifecycle: create -> calculation reflects real spend.
     @Test
     fun j13_budgetLifecycle() = runBlocking {
+        assumeTrue("live backend smoke disabled", enabled())
         val r = post(
             "/api/budgets",
             """{"category":"FOOD","period":"2026-10","limit":"200.00","currency":"USD"}""")
@@ -339,6 +356,7 @@ class LiveJourneyTest {
     // original row still visible (append-only).
     @Test
     fun j14_offsettingCorrection() = runBlocking {
+        assumeTrue("live backend smoke disabled", enabled())
         val offset = post(
             "/api/transactions",
             """{"accountId":"$accountId","type":"INCOME","amount":"25.50","currency":"USD","category":"FOOD","description":"Offset for m21 j5"}""")
@@ -351,6 +369,7 @@ class LiveJourneyTest {
     // Extra - transfer pair: linked legs on both accounts via transferRef.
     @Test
     fun x01_transferLinkedLegs() = runBlocking {
+        assumeTrue("live backend smoke disabled", enabled())
         val r = post(
             "/api/transfers",
             """{"sourceAccountId":"$accountId","destinationAccountId":"$cashAccountId","amount":"100.00"}""")
@@ -366,6 +385,7 @@ class LiveJourneyTest {
     // access surface - a foreign accountId must read as 404, not data.
     @Test
     fun x02_ownershipIsolation() = runBlocking {
+        assumeTrue("live backend smoke disabled", enabled())
         assertEquals(404, get("/api/accounts/$accountId", token = userBAccess).code)
         assertEquals(
             404,
@@ -380,6 +400,7 @@ class LiveJourneyTest {
     // Extra - Unicode description round-trips byte-exact.
     @Test
     fun x03_unicodeDescription() = runBlocking {
+        assumeTrue("live backend smoke disabled", enabled())
         val r = post(
             "/api/transactions",
             """{"accountId":"$accountId","type":"EXPENSE","amount":"5.00","currency":"USD","category":"FOOD","description":"Cà phê sáng - ăn uống"}""")
@@ -391,6 +412,7 @@ class LiveJourneyTest {
     // Extra - ledger export endpoint serves real CSV for the account.
     @Test
     fun x04_ledgerExport() = runBlocking {
+        assumeTrue("live backend smoke disabled", enabled())
         val r = get("/api/transactions/export?accountId=$accountId")
         assertEquals(200, r.code)
         val b = r.body.string()
