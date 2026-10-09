@@ -100,8 +100,9 @@ permitted ONLY for the configured API host, debug variant only, via a
 - New tests: URL validator JVM suite; live-smoke instrumentation test
   (Assume-gated on `spendwise.liveBackend=1`, never runs in the default
   suite — suite stays hermetic).
-- Physical Pixel: full connected suite on final source + live smoke
-  (live smoke BLOCKED on L2 connectivity — see table).
+- Physical Pixel: `connectedDebugAndroidTest` on Pixel 4 XL (API 33) —
+  **224 tests, 0 failures** (3 live-smoke cases correctly assume-skipped).
+  Live smoke itself BLOCKED on L2 connectivity — see table.
 - Backup/restore: **VERIFIED** — `pg_dump -Fc` → outside-repo archive
   (23.2 KB, 67 TOC entries, `pg_restore -l` readable) → restore into
   isolated `spendwise_m21_restore` (fresh DB, `--no-owner
