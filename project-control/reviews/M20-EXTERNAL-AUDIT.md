@@ -237,7 +237,9 @@ M21_DEFINED=NO · M21_STARTED=NO
 ## 14. Final git state
 
 ```
-ANDROID_HEAD_AFTER=<see closeout commit>
+ANDROID_HEAD_AFTER=1f2e5ad50df2e056ca933d4ce4b7bff40bffa232
+  (delivery 06a10bf + remediation b0a359b + this closeout;
+   M19 base e1f149d proven ancestor)
 BACKEND_HEAD_AFTER=4ced814c3e45068b1c7dfc115c3ddcf59ecb7a34
   (M19 base 9970c3e + 1768a72 test file + 4ced814 test strengthening;
    production tree identical to M19-accepted baseline)
