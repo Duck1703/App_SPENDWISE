@@ -1,26 +1,30 @@
 # M19 — Account Lifecycle (rename + archive/unarchive)
 
 ```
-STATUS: TECHNICALLY COMPLETE — ready for external audit
+STATUS: COMPLETE — external audit ACCEPTED, human-approved
 M18_COMPLETE=YES
 M19_DEFINED=YES
 M19_STARTED=YES
 M19_TECHNICAL_COMPLETE=YES
 M19_READY_FOR_EXTERNAL_AUDIT=YES
-M19_EXTERNAL_AUDIT=NOT_RUN
-M19_HUMAN_APPROVED=NO
+M19_EXTERNAL_AUDIT=ACCEPTED (project-control/reviews/M19-EXTERNAL-AUDIT.md)
+M19_EXTERNAL_AUDIT_FINAL=ACCEPTED
+M19_HUMAN_APPROVED=YES   (audit-commission conditional closeout: all gates green)
 M19_HUMAN_AUTHORIZATION=EXPLICIT (M19 delivery block)
 CANONICAL_REQUIREMENT=REQ-BE-006 — `PATCH /api/accounts/{id}`
   (rename; optional `archived` flag); archived semantics:
   hidden from pickers, still in ledger/balances.
 ACCOUNT_LIFECYCLE=DELIVERED
+ACCOUNT_EDIT_ARCHIVE=APPROVED
 M20_DEFINED=NO
 M20_STARTED=NO
-SPENDWISE_STATUS=M19_READY_FOR_EXTERNAL_AUDIT
-NEXT_ACTION=ONE_LARGE_INDEPENDENT_EXTERNAL_M19_AUDIT
+SPENDWISE_STATUS=M19_COMPLETE
+NEXT_ACTION=HUMAN_M20_DECISION
 BASELINE: Android e58dbbd (M18-accepted) · Backend d8554f0 (M18-accepted)
 DELIVERY: Backend 342e85d · Android eb88888(governance) +
   08a39ec(impl) + c349edb(remediation+reviews)
+AUDIT_REMEDIATION: Backend 9970c3e (EXT-M19-1 (?s) name-parity fix +
+  19 audit tests) · Android c50ebd4 (4 edge pins + comment fix)
 COURSE_SYNC_DEFERRED=YES
 ```
 
