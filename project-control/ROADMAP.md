@@ -36,6 +36,7 @@ High-level phase plan. Milestone briefs are created per phase by ATLAS using
 | M18 | Transaction Search (REQ-BE-007 residual — server-side `q` on `GET /api/transactions/page` over persisted `description` + Android search field) | COMPLETE — external audit ACCEPTED, Human-approved. M15 deferred `q` as near-fake while no searchable text was persisted; M17 delivered BE-010, unblocking it. One additive optional param composing the existing M15 spec (owner-scoped, blank-ignored, ≤255, LIKE-escaped, before pagination) + Transactions-tab search field (debounced apply, clear, results/empty/error/retry). Independent audit remediated 1 Minor in-task (superseded-append `loadingMore` flag — EXT-M18-1) and added 12 backend + 2 Android adversarial tests (real-HTTP decode proof, full-history reach, lone-metachar literals, shared-term owner counts). Accepted heads: Android `dfda980`, backend `d8554f0`. Final gates: backend 419/419, Android JVM 674/674, lint 0e/22w, detekt 0, release R8 green, physical Pixel 4 XL 200/200 ×2, install+launch (see [milestones/M18-TRANSACTION-SEARCH.md](milestones/M18-TRANSACTION-SEARCH.md), [reviews/M18-EXTERNAL-AUDIT.md](reviews/M18-EXTERNAL-AUDIT.md)) |
 | M19 | Account Lifecycle (REQ-BE-006 — `PATCH /api/accounts/{id}` rename + `archived` flag; archived hidden from entry pickers, still in ledger/balances; Android edit screen + archived badge + picker exclusion) | COMPLETE — external audit ACCEPTED, Human-approved. Backend `342e85d` (sparse PATCH, V13 `archived`, owner 404, `@Version` 409); Android edit screen (`AccountEditRoute`), archived badges on list/detail/dashboard, picker exclusion in all four entry surfaces, mutation-repaint fix. SENTINEL PASS (1 Minor remediated), ARGUS PASS. Independent audit remediated 1 Minor in-task (name-validation divergence vs create — EXT-M19-1 `(?s)` fix at backend `9970c3e`) + pinned 4 Android edges (`c50ebd4`); Jackson scalar coercion pinned as observed contract. Final gates on accepted source: backend 452/452, Android JVM 722/722, lint 0e, detekt 0, release R8 green, physical Pixel 4 XL 213/213 ×2, install+launch (see [milestones/M19-ACCOUNT-LIFECYCLE.md](milestones/M19-ACCOUNT-LIFECYCLE.md), [reviews/M19-EXTERNAL-AUDIT.md](reviews/M19-EXTERNAL-AUDIT.md)) |
 | M20 | Offsetting Entry (PRODUCT §21 / S10 / J14 — guided compensating-entry correction: "Create offsetting entry" on INCOME/EXPENSE detail → prefilled inverse-type create form → canonical `POST /api/transactions`; TRANSFER_* excluded; archived-source hidden) | COMPLETE — independent external audit ACCEPTED, Human-approved. Zero backend production change (contract tests at `1768a72`, strengthened `4ced814`); Android offset mode on create (`offsetTransactionId` route arg, re-fetched source, prefill-once, authoritative archived re-check) + detail action + eligibility guards; verbatim §21 honest copy. Audit remediated EXT-M20-1 Major (silent account substitution on options re-run → honest drop) + EXT-M20-2 Minor (stale archived flag → fresh resolve) at `b0a359b`. Final gates on accepted source: backend 458/458, Android JVM 745/745, lint 0e, detekt 0, release R8 + lintVital green, physical Pixel 4 XL 218/218 ×2, install+launch (see [milestones/M20-OFFSETTING-ENTRY.md](milestones/M20-OFFSETTING-ENTRY.md), [reviews/M20-EXTERNAL-AUDIT.md](reviews/M20-EXTERNAL-AUDIT.md)) |
+| M21 | Personal V1 LAN Release & Deployment Hardening (Post-M20 audit P0-1 connectivity, P1-1 signing, P1-2 backup/restore, P1-3 live E2E, P1-4 runbook — LAN-only deployment, debug-scoped HTTP + release HTTPS, Human-owned signing) | IN_DELIVERY — Human-authorized M21 delivery block (see [milestones/M21-PERSONAL-RELEASE-AND-DEPLOYMENT.md](milestones/M21-PERSONAL-RELEASE-AND-DEPLOYMENT.md)) |
 
 **Canonical sequence M0–M8 fully delivered and release-accepted.** V1
 was validated on emulator AND physical hardware (135/135 connected ×2
@@ -164,9 +165,17 @@ accepted source: backend 458/458, Android JVM 745/745, lint 0e, detekt 0,
 release R8 + lintVital green, physical Pixel 4 XL 218/218 ×2, install +
 launch (see [milestones/M20-OFFSETTING-ENTRY.md](milestones/M20-OFFSETTING-ENTRY.md),
 [reviews/M20-EXTERNAL-AUDIT.md](reviews/M20-EXTERNAL-AUDIT.md)).
-**Next action is the Human's M21 decision.** Remaining product-gated
-capabilities (true transaction edit/void — BE-005's PATCH-vs-void
-decision, FX) stay gated.
+**M21 (Personal V1 LAN Release & Deployment Hardening) is IN_DELIVERY**
+— the Human authorized it explicitly with the LOCAL-PC/PRIVATE-LAN
+deployment decision (no VPS, no public exposure). Scope is the Post-M20
+gap audit's P0/P1 set only: LAN connectivity (debug-scoped HTTP for
+synthetic verification + release HTTPS), Human-owned release signing,
+Postgres backup/verified-restore, live J1–J14 smoke on the physical
+Pixel, and the deployment runbook
+(see [milestones/M21-PERSONAL-RELEASE-AND-DEPLOYMENT.md](milestones/M21-PERSONAL-RELEASE-AND-DEPLOYMENT.md)).
+External audit mandatory afterward; M22 is not defined. Remaining
+product-gated capabilities (true transaction edit/void — BE-005's
+PATCH-vs-void decision, FX) stay gated.
 
 ## Important
 
