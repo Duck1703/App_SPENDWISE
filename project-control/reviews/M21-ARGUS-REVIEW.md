@@ -42,3 +42,28 @@ VERDICT=CHANGES_REQUIRED→PARTIAL (one delivered defect found & fixed in
   never auto-replayed.
 - Refresh path remains bare-client, no interceptors/logging — tokens
   cannot reach log lines; `LiveBackendSmokeTest` never prints tokens.
+
+---
+
+## FOLLOW-UP 2026-10-09 (independent re-check post-unblock)
+
+- **Level A re-verified on wire**: Pixel `192.168.1.30` → PC
+  `192.168.1.236:8081` real HTTP 200; smoke 3/3; journeys 18/18 — no
+  mock, no adb reverse, synthetic identities only.
+- **Level B verified on-device**: release APK (v2 signature) trusted
+  the LAN CA via generated release NSC; login + account-create +
+  authoritative server read-back over `https://192.168.1.236:8443/`.
+  OpenSSL matrix: valid chain+IP SAN accepted; absent CA and wrong
+  hostname both rejected. Swagger surface disabled via env.
+- **New finding → fixed in-session**: LiveJourneyTest class-assumption
+  suite-integrity defect (M21-S8) — corrected and proven by two
+  consecutive full connected runs, 0 failures each.
+- **Still open (Human-owned, honestly reported)**:
+  - `POSTGRES_LAN_EXPOSED` — container still publishes `0.0.0.0:55432`;
+    confirmed reachable from the Pixel. Loopback republish or a firewall
+    deny needs Human authorization; documented in handoff.
+  - Production signing is env-wired and proven with an ephemeral key —
+    `SIGNED_WITH_HUMAN_KEY` remains NO until the Human supplies their
+    keystore. No debug-key release was substituted.
+- No secrets in repo; private CA key/keystore/env remain under
+  `~/.spendwise-lan-tls/` (outside Git). Backend working tree untouched.

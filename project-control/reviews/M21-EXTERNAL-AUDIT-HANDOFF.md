@@ -111,3 +111,102 @@ connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.spendwise
   as done.
 - `M21_READY_FOR_EXTERNAL_AUDIT=YES` is NOT declared. The milestone stays
   `IN_DELIVERY` until Level A + Level B evidence exist post-unblock.
+
+---
+
+# FOLLOW-UP — LAN recovery & Level B evidence (2026-10-09)
+
+## L2 recovery — RESOLVED
+
+The Human moved the Pixel onto the PC's SSID. Re-verified topology:
+
+- PC `FPT Telecom-7A47` (BSSID `02:fb:c2:e4:7a:47`) — `192.168.1.236`
+- Pixel 4 XL `FPT Telecom-7A47` (same BSSID) — `192.168.1.30`
+- Pixel ARP for `192.168.1.236` → **REACHABLE** (was INCOMPLETE)
+- Pixel→PC real HTTP `GET /actuator/health` → **200 UP** (direct Wi-Fi,
+  no adb reverse, no mock)
+- `REAL_DEVICE_TO_HOST_TCP=PASS`; L2 isolation resolved by the SSID
+  change alone — no firewall rule was required for port 8081 inbound
+  (existing Java allow covered it); runbook firewall steps remain the
+  documented fallback.
+
+## Level A — PASS (debug HTTP, synthetic only)
+
+- `LiveBackendSmokeTest` **3/3 executed, 0 skipped** over
+  `http://192.168.1.236:8081/`: health, unauth 401, full register→login→
+  account→transaction→server-balance→logout path.
+- `LiveJourneyTest` **18/18 executed, 0 skipped**: J1–J14 canonical
+  journeys + transfer-linked legs, foreign-user 404 isolation, Unicode
+  byte-exact round-trip, ledger CSV export — all against real backend +
+  PostgreSQL (`spendwise_m21`). J3 proves real token refresh; J10 proves
+  re-import dedup (`duplicateCount:3`); J11 proves server-side month math
+  in two single-currency scopes (USD Oct, VND Sep); x02 proves foreign
+  account/transaction reads return 404.
+- Found+fixed during finalization (`6a5081d`): a `@BeforeClass`
+  assumption collapsed the journey class into one synthetic "null"
+  result and broke UTP's expected/received count (suite reported
+  "expected 239, received 222" with 0 real failures). Each test now
+  gates individually, matching `LiveBackendSmokeTest`.
+
+## Level B — PASS (HTTPS, ephemeral verification key)
+
+- Backend on `https://192.168.1.236:8443/` (LAN TLS from
+  `~/.spendwise-lan-tls/`, PKCS12 keystore env-driven, no secrets in
+  repo). SANs: IP `192.168.1.236`, IP `127.0.0.1`, DNS `localhost`,
+  DNS `DESKTOP-HT4HNOC`.
+- TLS matrix (openssl `s_client -verify_ip`): correct CA + IP SAN →
+  verify 0; no CA → rejected (19); wrong host → rejected (62).
+- Swagger UI / api-docs disabled via env (`500` where spec would serve).
+- Release APK built `-Pspendwise.api.base.url=https://192.168.1.236:8443/`,
+  v2-signed with an **ephemeral dev-verification key** stored outside
+  the repo (`~/.spendwise-lan-tls/m21-dev-release.jks`) — explicitly
+  NOT the Human-owned production identity.
+- `apksigner verify`: v2 scheme = true; installed to Pixel; UI-driven
+  E2E: Welcome → Sign-in → Home → create account `rellan` → server
+  read-back `GET /api/accounts` shows `rellan` (CASH, VND, 0.0).
+  Release NSC trusted the pinned LAN CA — **RELEASE_REAL_BACKEND_E2E=PASS**.
+- Release debuggable=false (release manifest); cleartext disabled;
+  placeholder/`http` URLs rejected at build gate + wire boundary.
+
+## Fresh regression totals (final source `6a5081d`)
+
+- Backend `mvn test` (with `.env.local` env): **458 run, 0 fail, 0 err**
+  — earlier `310 errors` run was an env-only failure (missing
+  `SPENDWISE_DB_PASSWORD`/`SPENDWISE_JWT_SECRET` in a bare shell), not
+  a code regression.
+- Android `testDebugUnitTest --rerun-tasks`: **755 run, 0 fail, 0 err**.
+- `lintDebug` PASS; `detekt` PASS (233 files, 0 smells).
+- `assembleRelease` + `lintVitalRelease` + R8 PASS (signed build above).
+- Final connected runs on final source: **run#1 PASS** (239 expected,
+  21 assume-skips, 0 failed), **run#2 PASS** (identical).
+
+## Still open — Human-controlled prerequisites
+
+1. **PostgreSQL `0.0.0.0:55432` LAN publish** — confirmed reachable
+   from the Pixel. `POSTGRES_LAN_EXPOSED=YES` currently. Two safe
+   options (either is sufficient; both need Human authorization):
+   - Republish loopback-only: recreate container with
+     `-p 127.0.0.1:55432:5432` (named volume preserves data —
+     `e2058c38…` → `/var/lib/postgresql/data`); or
+   - Elevated deny rule: `New-NetFirewallRule -Direction Inbound
+     -Action Block -Protocol TCP -LocalPort 55432 -Profile Any`.
+2. **Human-owned release signing identity** — env-driven wiring is
+   proven with an ephemeral key; production Personal V1 needs the
+   Human's keystore via `SPENDWISE_RELEASE_*` env vars.
+3. **Elevated firewall rules** (optional hardening): the runbook's
+   Private-profile 8081/8443 rules were not required for evidence but
+   remain recommended for a stable Private-profile policy.
+
+## Updated status
+
+- `M21_LAN_L2=PASS` · `M21_PIXEL_DIRECT_WIFI=PASS` ·
+  `M21_REAL_BACKEND_SMOKE=PASS` · `M21_J1_J14_LIVE=PASS`
+- `M21_HTTPS_RELEASE=PASS` · `M21_SIGNED_RELEASE=PASS` (ephemeral) ·
+  `M21_SIGNED_RELEASE_INSTALL=PASS` · `M21_RELEASE_REAL_BACKEND_SMOKE=PASS`
+- `M21_BACKUP_RESTORE=PASS` (preserved) · `BACKEND 458/458` ·
+  `ANDROID_JVM 755/755` · `LINT/DETEKT/R8=PASS` · `PIXEL ×2=PASS`
+- `M21_POSTGRES_LAN_EXPOSURE=NO` — **FAILING** (still `0.0.0.0:55432`)
+- `SIGNED_WITH_HUMAN_KEY=YES` — **FAILING** (ephemeral key used)
+- `M21_READY_FOR_EXTERNAL_AUDIT=NO` — two Human prerequisites remain:
+  Postgres bind + Human signing identity. All engineering-side gates
+  are green; the milestone is otherwise audit-ready.

@@ -91,3 +91,23 @@ FKs; expense/income sums exact (44.75 / 200.00); Unicode description
 - No test prints tokens, passwords, or secrets.
 - No new flaky-prone constructs (no sleeps, no wall-clock assertions;
   timeouts only on network calls in the gated live test).
+
+---
+
+## FOLLOW-UP 2026-10-09 (post-L2-unblock) — appended, original findings preserved
+
+| ID | Sev | Finding | Disposition |
+| --- | --- | --- | --- |
+| M21-S1 | BLOCKER→RESOLVED | Cross-SSID AP isolation blocked all device evidence. | **RESOLVED by Human** — Pixel moved to `FPT Telecom-7A47`; ARP REACHABLE; real HTTP 200 over direct Wi-Fi. |
+| M21-S5 | NOTE→CLOSED | HTTPS-on-device + live smoke unexercised. | **CLOSED** — release APK over `https://192.168.1.236:8443/` signed in via UI, created account, server read-back verified. |
+| M21-S8 | MINOR→FIXED | `LiveJourneyTest` class-level `@BeforeClass` assumption collapsed 18 tests into one "null" result — suite reported "expected 239, received 222" with 0 real failures. | **FIXED** (`6a5081d`) — per-test `assumeTrue` like `LiveBackendSmokeTest`; suite now completes: run#1 & run#2 both 0-fail on final source. |
+
+## Live execution evidence (new)
+
+- `LiveBackendSmokeTest` 3/3 executed, 0 skips — health, unauth 401,
+  register→login→account→txn→balance→logout over LAN HTTP.
+- `LiveJourneyTest` 18/18 executed, 0 skips — J1–J14 + x01–x04 vs real
+  Spring Boot + `spendwise_m21` PostgreSQL, synthetic identity only.
+- Fresh regressions: backend 458/458; Android JVM 755/755; lint/detekt/
+  R8/lintVital green; final connected runs #1 and #2 both PASS.
+- M21-S7 watch item: did not re-flake across two full suite runs.
