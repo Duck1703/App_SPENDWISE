@@ -266,3 +266,84 @@ prints only public cert metadata + the env-var names to set.
 - `M21_READY_FOR_EXTERNAL_AUDIT=NO` — ONE Human prerequisite remains:
   the permanent signing identity. All engineering-side gates are green;
   the milestone is otherwise audit-ready.
+
+---
+
+# Follow-up 3 — Human-signed release verified (FINAL)
+
+The Human created the permanent keystore at
+`C:\Users\Lenovo\.spendwise-release\spendwise-release.jks` via
+`scripts/lan/create-release-keystore.ps1` and built the signed release
+via `scripts/lan/build-signed-release.ps1` (interactive password prompts,
+process-scoped env injection only — no passwords on CLI, files, or Git).
+
+## Human signing identity — VERIFIED
+
+- `apksigner verify --print-certs` on
+  `app/build/outputs/apk/release/app-release.apk`:
+  **Verifies** — APK Signature Scheme v2=true, v1/v3/v4=false, one signer.
+- Signer DN: `CN=duc, OU=duckt, O=duckt, L=da nang, ST=da nang, C=dn`
+  (Human-owned — not the earlier ephemeral verification key).
+- Certificate SHA-256 fingerprint:
+  `29042817a471b8c0969da0d1f0fcfa3a3c5ac39da76bbc06cf08b43002911403`
+- Certificate SHA-1: `27356f35a1132d1a72aa06008e2d224bb31b3169` · RSA.
+- Keystore is outside Git; no secrets committed anywhere.
+  `HUMAN_KEY_BACKUP_CONFIRMED=YES` (acknowledged by the Human).
+- `SIGNED_WITH_HUMAN_KEY=YES` — **PASS**.
+
+## Signed release artifact
+
+- APK: `app/build/outputs/apk/release/app-release.apk`
+- SHA-256: `6c04a93e1bae7f9c214cd882a19980fe50ea3df47995c6ff59c572cb4fa81998`
+- Size: 2,493,178 bytes · applicationId `com.spendwise.android` ·
+  versionCode 1 · versionName `1.0.0` · BuildConfig URL
+  `https://192.168.1.236:8443/` (HTTPS, no placeholder).
+
+## Real HTTPS release acceptance — PASS (physical Pixel 4 XL)
+
+Clean install path (no prior package — no signature-mismatch uninstall
+needed). `adb install` → `Success`. `NO_IMMEDIATE_CRASH=YES`.
+
+- Register/login over real HTTPS+LAN-CA: PASS (UI sign-in, two accounts).
+- Open Home: PASS — dashboard rendered server-computed values
+  (Income 25 VND / Spent −25 VND / balance 0 VND).
+- Create/read synthetic account `finacct` via release UI: PASS —
+  persisted server-side (verified in PostgreSQL).
+- Create/read synthetic transaction via release UI (−25 EXPENSE): PASS —
+  row persisted server-side; account detail showed
+  `Current balance −25 VND` matching ledger sum `−25.00`.
+- Persisted history: PASS — transaction rows visible in UI list and in DB.
+- M20 eligible offsetting-entry flow: PASS — +25 INCOME offset added via
+  release UI; `Current balance 0 VND`; ledger sum `0.00`.
+- Append-only verified: original EXPENSE row `9d4309a5…` unchanged
+  alongside INCOME offset `d3c2b1ef…` — no row modified/deleted.
+- Session validation: PASS — Sign out → confirmation dialog → welcome
+  screen → fresh sign-in succeeded over HTTPS.
+- `SIGNED_RELEASE_INSTALL=PASS` · `RELEASE_HTTPS_LIVE_E2E=PASS`.
+
+## PostgreSQL network security — re-verified (no container change)
+
+- `docker port spendwise-m10-db 5432` → `127.0.0.1:55432` (loopback only).
+- `netstat` → `TCP 127.0.0.1:55432 LISTENING` — no 0.0.0.0 listener.
+- Pixel→`192.168.1.236:55432`: TCP connect **timed out** (BLOCKED).
+- Pixel→`192.168.1.236:8443`: TCP connect OK (HTTPS path open).
+- `/actuator/health`: `status:UP`, `db:UP`, `ssl:UP`.
+- `DATA_PRESERVED=YES` — same volume, all M21 data intact.
+
+## Updated status — ALL GATES GREEN
+
+- `M21_LAN_L2=PASS` · `M21_PIXEL_DIRECT_WIFI=PASS` ·
+  `M21_REAL_BACKEND_SMOKE=PASS` · `M21_J1_J14_LIVE=PASS`
+- `M21_HTTPS_RELEASE=PASS` · `SIGNED_WITH_HUMAN_KEY=YES` —
+  **PASS** (Human cert `29042817…`, v2 scheme)
+- `M21_SIGNED_RELEASE_INSTALL=PASS` · `M21_RELEASE_REAL_BACKEND_E2E=PASS`
+- `M21_POSTGRES_LOOPBACK_BIND=PASS` · `PIXEL_DB_PORT_BLOCKED=YES`
+- `M21_BACKUP_RESTORE=PASS` · `BACKEND 458/458` ·
+  `ANDROID_JVM 755/755` · `LINT/DETEKT/R8/LINT_VITAL=PASS` · `PIXEL ×2=PASS`
+- `M21_UNRESOLVED_BLOCKERS=0` · `M21_UNRESOLVED_MAJORS=0`
+- `M21_HUMAN_DOCS_PRESERVED=YES` · `M21_PRIVATE_DATA_ACCESSED=NO`
+- `M22_DEFINED=NO` · `M22_STARTED=NO`
+- **`M21_READY_FOR_EXTERNAL_AUDIT=YES`** — every acceptance gate is
+  evidenced. `M21_EXTERNAL_AUDIT=NOT_RUN` (independent audit is the next
+  action, owned outside this delivery). `SPENDWISE_PERSONAL_V1_COMPLETE=NO`
+  — Personal V1 still requires the external audit and Human approval.
