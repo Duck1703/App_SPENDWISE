@@ -34,7 +34,7 @@ High-level phase plan. Milestone briefs are created per phase by ATLAS using
 | M16 | Recurring Template Lifecycle (REQ-BE-012 `PATCH /api/recurring-transactions/{id}` + Android edit flow on recurring detail) | COMPLETE — external audit ACCEPTED, Human-approved. Audit remediated 1 Major (recurring `@Version` lost-update vs scheduler) + minors in-task; all gates re-green on final source (backend 383/383, Android JVM 653/653, lint/detekt/release/R8 green, physical 193/193 ×4, installed+launched). M17 is not defined (see [milestones/M16-RECURRING-LIFECYCLE.md](milestones/M16-RECURRING-LIFECYCLE.md), [reviews/M16-EXTERNAL-AUDIT.md](reviews/M16-EXTERNAL-AUDIT.md)) |
 | M17 | Transaction Notes (REQ-BE-010 — persist `description` on `Transaction` + response/export surfaces; Android: note input reframed + detail display) | COMPLETE — external audit ACCEPTED. Delivery: backend `ca5b380..9c123f7` (additive `VARCHAR(255)` `V12`, entity-normalized, returned on all reads + CSV column); Android `445ffb0`+ (wire/domain/UI rename, detail note block). Independent audit remediated 2 Majors in-task (surrogate-safe Unicode cap; CSV formula-injection neutralization) + minors; accepted heads backend `752eac3`, Android `deccaf2`. Final gates: backend 397/397, Android JVM 658/658, lint/detekt/release/R8 green, physical 196/196 ×2, installed+launched (see [milestones/M17-TRANSACTION-NOTES.md](milestones/M17-TRANSACTION-NOTES.md), [reviews/M17-EXTERNAL-AUDIT.md](reviews/M17-EXTERNAL-AUDIT.md)) |
 | M18 | Transaction Search (REQ-BE-007 residual — server-side `q` on `GET /api/transactions/page` over persisted `description` + Android search field) | COMPLETE — external audit ACCEPTED, Human-approved. M15 deferred `q` as near-fake while no searchable text was persisted; M17 delivered BE-010, unblocking it. One additive optional param composing the existing M15 spec (owner-scoped, blank-ignored, ≤255, LIKE-escaped, before pagination) + Transactions-tab search field (debounced apply, clear, results/empty/error/retry). Independent audit remediated 1 Minor in-task (superseded-append `loadingMore` flag — EXT-M18-1) and added 12 backend + 2 Android adversarial tests (real-HTTP decode proof, full-history reach, lone-metachar literals, shared-term owner counts). Accepted heads: Android `dfda980`, backend `d8554f0`. Final gates: backend 419/419, Android JVM 674/674, lint 0e/22w, detekt 0, release R8 green, physical Pixel 4 XL 200/200 ×2, install+launch (see [milestones/M18-TRANSACTION-SEARCH.md](milestones/M18-TRANSACTION-SEARCH.md), [reviews/M18-EXTERNAL-AUDIT.md](reviews/M18-EXTERNAL-AUDIT.md)) |
-| M19 | Account Lifecycle (REQ-BE-006 — `PATCH /api/accounts/{id}` rename + `archived` flag; archived hidden from entry pickers, still in ledger/balances; Android edit screen + archived badge + picker exclusion) | DEFINED — Human-authorized, awaiting implementation (see [milestones/M19-ACCOUNT-LIFECYCLE.md](milestones/M19-ACCOUNT-LIFECYCLE.md)) |
+| M19 | Account Lifecycle (REQ-BE-006 — `PATCH /api/accounts/{id}` rename + `archived` flag; archived hidden from entry pickers, still in ledger/balances; Android edit screen + archived badge + picker exclusion) | TECHNICALLY COMPLETE — ready for external audit. Backend `342e85d` (sparse PATCH, V13 `archived`, owner 404, `@Version` 409); Android edit screen (`AccountEditRoute`), archived badges on list/detail/dashboard, picker exclusion in all four entry surfaces, mutation-repaint fix. SENTINEL PASS (1 Minor remediated), ARGUS PASS. Final gates: backend 433/433, Android JVM 718/718, lint 0e/22w, detekt 0, release R8 green, physical Pixel 4 XL 213/213 ×2, installed + launched (see [milestones/M19-ACCOUNT-LIFECYCLE.md](milestones/M19-ACCOUNT-LIFECYCLE.md), [reviews/M19-EXTERNAL-AUDIT-HANDOFF.md](reviews/M19-EXTERNAL-AUDIT-HANDOFF.md)) |
 
 **Canonical sequence M0–M8 fully delivered and release-accepted.** V1
 was validated on emulator AND physical hardware (135/135 connected ×2
@@ -136,11 +136,14 @@ Android JVM 674/674, lint 0e/22w, detekt 0, release R8 green, physical
 Pixel 4 XL 200/200 ×2, installed + launched (see
 [milestones/M18-TRANSACTION-SEARCH.md](milestones/M18-TRANSACTION-SEARCH.md),
 [reviews/M18-EXTERNAL-AUDIT.md](reviews/M18-EXTERNAL-AUDIT.md)).
-**M19 (Account Lifecycle — REQ-BE-006) is DEFINED** — Human-authorized:
-`PATCH /api/accounts/{id}` rename + `archived` flag (hidden from entry
-pickers, still in ledger/balances); Android edit surface + picker
-exclusion (see
-[milestones/M19-ACCOUNT-LIFECYCLE.md](milestones/M19-ACCOUNT-LIFECYCLE.md)).
+**M19 (Account Lifecycle — REQ-BE-006) is TECHNICALLY COMPLETE — ready
+for external audit.** `PATCH /api/accounts/{id}` rename + `archived`
+flag (hidden from entry pickers, still in ledger/balances); Android
+edit screen + picker exclusion + archived badges; internal reviews
+PASS; all gates green on physical Pixel. **External audit NOT run —
+next action is one large independent external M19 audit** (see
+[milestones/M19-ACCOUNT-LIFECYCLE.md](milestones/M19-ACCOUNT-LIFECYCLE.md),
+[reviews/M19-EXTERNAL-AUDIT-HANDOFF.md](reviews/M19-EXTERNAL-AUDIT-HANDOFF.md)).
 Remaining product-gated capabilities (transaction correction, FX) stay
 gated.
 

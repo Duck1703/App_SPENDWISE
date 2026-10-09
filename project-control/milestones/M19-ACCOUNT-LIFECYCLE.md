@@ -1,25 +1,46 @@
 # M19 — Account Lifecycle (rename + archive/unarchive)
 
 ```
-STATUS: DEFINED — governance only, no implementation yet
+STATUS: TECHNICALLY COMPLETE — ready for external audit
 M18_COMPLETE=YES
 M19_DEFINED=YES
-M19_STARTED=NO
-M19_TECHNICAL_COMPLETE=NO
+M19_STARTED=YES
+M19_TECHNICAL_COMPLETE=YES
+M19_READY_FOR_EXTERNAL_AUDIT=YES
 M19_EXTERNAL_AUDIT=NOT_RUN
 M19_HUMAN_APPROVED=NO
 M19_HUMAN_AUTHORIZATION=EXPLICIT (M19 delivery block)
 CANONICAL_REQUIREMENT=REQ-BE-006 — `PATCH /api/accounts/{id}`
   (rename; optional `archived` flag); archived semantics:
   hidden from pickers, still in ledger/balances.
-ACCOUNT_LIFECYCLE=IN_DESIGN
+ACCOUNT_LIFECYCLE=DELIVERED
 M20_DEFINED=NO
 M20_STARTED=NO
-SPENDWISE_STATUS=M19_DEFINED
-NEXT_ACTION=IMPLEMENT M19 (backend contract + Android slice)
+SPENDWISE_STATUS=M19_READY_FOR_EXTERNAL_AUDIT
+NEXT_ACTION=ONE_LARGE_INDEPENDENT_EXTERNAL_M19_AUDIT
 BASELINE: Android e58dbbd (M18-accepted) · Backend d8554f0 (M18-accepted)
+DELIVERY: Backend 342e85d · Android eb88888(governance) +
+  08a39ec(impl) + c349edb(remediation+reviews)
 COURSE_SYNC_DEFERRED=YES
 ```
+
+## Delivery evidence (final gates, all on final source)
+
+| Gate | Result |
+|---|---|
+| Backend full regression | **433/433** (419 → +14: `AccountUpdateContractTest` 13, `AccountOptimisticLockTest` 1) |
+| Android JVM regression | **718/718** (674 → +44) |
+| lint / detekt | 0 errors (22 warnings, baseline parity) / 0 smells |
+| assembleDebug / assembleRelease + R8 + lintVital | PASS; M19 types verified retained in release mapping |
+| Physical Pixel 4 XL (99041FFBA006F0) ×2 on final source | **213/213 PASS** twice (200 → +13) |
+| Install + launch | streamed-install Success; `MainActivity` topResumed |
+| SENTINEL | PASS — 0B/0M/1m(remediated: mutation-repaint gap)/2N |
+| ARGUS | PASS — 0B/0M/0m/3N |
+
+## Handoff
+
+`project-control/reviews/M19-EXTERNAL-AUDIT-HANDOFF.md` is the audit
+brief — scope, invariants, falsification targets, reproduction commands.
 
 ## Selection rationale (decision record)
 
