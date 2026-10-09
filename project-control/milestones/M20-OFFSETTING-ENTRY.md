@@ -1,27 +1,32 @@
 # M20 — Offsetting Entry (guided transaction correction)
 
 ```
-STATUS: TECHNICAL_COMPLETE — external audit NOT run
+STATUS: COMPLETE — independent external audit ACCEPTED
 M19_COMPLETE=YES
 M20_DEFINED=YES
 M20_STARTED=YES
 M20_TECHNICAL_COMPLETE=YES
 M20_READY_FOR_EXTERNAL_AUDIT=YES
-M20_EXTERNAL_AUDIT=NOT_RUN
-M20_HUMAN_APPROVED=NO
-M20_HUMAN_AUTHORIZATION=EXPLICIT (M20 delivery block)
+M20_EXTERNAL_AUDIT=RUN
+M20_EXTERNAL_AUDIT_FINAL=ACCEPTED (reviews/M20-EXTERNAL-AUDIT.md —
+  0B/0M remaining; EXT-M20-1 Major + EXT-M20-2/-3 Minor remediated in-task)
+M20_HUMAN_APPROVED=YES (audit-commission conditional closeout: all
+  mandatory gates green on final source)
+M20_HUMAN_AUTHORIZATION=EXPLICIT (M20 delivery block + audit commission)
 CANONICAL_REQUIREMENT=PRODUCT.md §21 (offsetting-entry decision) +
   S10 (transaction detail primary action) + J14 (correction journey).
   No REQ-BE id — zero backend change; rides canonical
   `POST /api/transactions`.
-CORRECTION_VIA_OFFSET=DELIVERED
+CORRECTION_VIA_OFFSET=APPROVED
+OFFSETTING_ENTRY=APPROVED
 M21_DEFINED=NO
 M21_STARTED=NO
-SPENDWISE_STATUS=M20_READY_FOR_EXTERNAL_AUDIT
-NEXT_ACTION=ONE_LARGE_INDEPENDENT_EXTERNAL_M20_AUDIT
+SPENDWISE_STATUS=M20_COMPLETE
+NEXT_ACTION=HUMAN_M21_DECISION
 BASELINE: Android e1f149d (M19-accepted) · Backend 9970c3e (M19-accepted)
-DELIVERY_HEAD: Android see §Final state · Backend 1768a72
-COURSE_SYNC_DEFERRED=YES
+DELIVERY_HEAD: Android 06a10bf + audit remediation b0a359b ·
+  Backend 1768a72 + test-strengthening 4ced814 (production = baseline)
+COURSE_SYNC_DEFERRED=YES · M20_BACKEND_COURSE_SYNC_REQUIRED=NO
 ```
 
 ## Selection rationale (decision record)
@@ -177,16 +182,16 @@ BACKEND_HEAD=1768a72 (test-only commit; production tree identical
 
 | Gate | Result |
 |---|---|
-| Backend full regression (`./mvnw test`) | **457/457** — 0 F/0 E/0 S (452 baseline + 5 offset contract) |
-| Android JVM (`testDebugUnitTest`) | **742/742** — 0 F/0 E/0 S (722 baseline + 20) |
+| Backend full regression (`./mvnw clean test`) | **458/458** — 0 F/0 E/0 S (452 baseline + 6 offset contract; audit added the INCOME→EXPENSE direction + real `?q=` search pin) |
+| Android JVM (`testDebugUnitTest --rerun-tasks`) | **745/745** — 0 F/0 E/0 S (722 baseline + 20 delivery + 3 audit) |
 | `lintDebug` | 0 errors |
 | `detekt` | 0 code smells |
 | `assembleDebug` | PASS |
 | `assembleRelease` + `lintVitalRelease` + R8 | PASS (`minifyReleaseWithR8` green) |
-| Serializer retention | `offsetTransactionId` in release mapping; `@Serializable` keep rules cover all routes |
+| Serializer retention | `offsetTransactionId` + `TransactionCreateRoute$$serializer` in release `mapping.txt` |
 | Manifest posture | INTERNET only; `usesCleartextTraffic=false`; DataStore excluded from backup + device transfer — unchanged |
-| Release APK | `app/build/outputs/apk/release/app-release-unsigned.apk`, 2,478,662 B, SHA-256 `07f9b7155d5c81badc2d601f3a63de9dc84b9af92cfcdef94b13b8bcceddc2a3` |
-| Physical Pixel 4 XL `99041FFBA006F0` | `connectedDebugAndroidTest` **218/218** — run 1, **218/218** — run 2 (213 baseline + 5 screen tests) |
+| Release APK | `app/build/outputs/apk/release/app-release-unsigned.apk`, 2,478,662 B, SHA-256 `22313a217f9e22c35dacd14366740fe27f541c5ef179550dca30228599d9251b` |
+| Physical Pixel 4 XL | `connectedDebugAndroidTest` **218/218** — run 1, **218/218** — run 2 (on remediated final source) |
 | Final app install + launch | `app-debug.apk` installed; `MainActivity` top-resumed |
 
 ### Regression categories (final-source evidence)
@@ -214,3 +219,16 @@ M19_HISTORY_PRESERVATION=PASS (original row byte-identical post-offset)
 - `reviews/M20-ARGUS-REVIEW.md` — PASS (0B/0M/0 + 3 notes)
 - `reviews/M20-EXTERNAL-AUDIT-HANDOFF.md` — falsifiable claims + exact
   evidence for the external auditor.
+
+### External audit (independent)
+
+- `reviews/M20-EXTERNAL-AUDIT.md` — **ACCEPTED**. Found and remediated
+  `EXT-M20-1` (MAJOR — `loadOptions` re-run silently substituted a
+  vanished source account with the first picker entry under the offset
+  banner; now drops to `Required`, never substitutes), `EXT-M20-2`
+  (MINOR — eligibility trusted the cache-first picker list; offset now
+  re-resolves the source account `refresh=true`), `EXT-M20-3` (MINOR —
+  backend suite lacked the INCOME→EXPENSE direction and never sent a
+  real `q` search). 4 NOTEs carried (screen-tier device coverage,
+  banner copy on user type-flip, `inverseType` guard ordering,
+  double-tap nav stacking).
