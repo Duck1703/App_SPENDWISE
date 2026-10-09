@@ -652,10 +652,11 @@ class CreateTransactionViewModelTest {
     }
 
     @Test
-    fun `a re-run still drops a vanished offset account honestly`() = runTest {
-        // If the source account left the picker between loads, the form
-        // must not keep pointing at it — the account falls back, the
-        // draft fields stay.
+    fun `a re-run never substitutes a vanished offset account`() = runTest {
+        // EXT-M20-1: the offset banner promises a compensating entry for
+        // THE source row — a source account that left the picker must
+        // leave the field empty (Required on submit), never silently
+        // retarget the first live account. The draft fields survive.
         val accounts = FakeAccountRepository()
         var live = true
         accounts.listResult = {
@@ -673,8 +674,87 @@ class CreateTransactionViewModelTest {
         viewModel.loadOptions()
 
         val state = viewModel.state.value
-        assertEquals("acc-9", state.accountId) // picker truth wins
+        assertNull(state.accountId) // dropped — NOT silently retargeted to acc-9
         assertEquals("10.00", state.amount) // draft untouched
+        assertEquals("txn-src", state.offsetSourceId)
+
+        // A submit asks for a deliberate choice — nothing posts.
+        viewModel.submit()
+        runCurrent()
+        assertEquals(
+            CreateTransactionUiState.AccountError.Required,
+            viewModel.state.value.accountError,
+        )
+        assertTrue(txns.createCalls.isEmpty())
+    }
+
+    @Test
+    fun `a user-picked live account survives an offset re-run`() = runTest {
+        // EXT-M20-1 companion: the no-substitute rule only fires when
+        // the account actually vanished — a deliberate user choice that
+        // is still a live picker entry must be preserved.
+        val accounts = FakeAccountRepository()
+        accounts.listResult = {
+            listOf(
+                FakeAccountRepository.account(id = "acc-1"),
+                FakeAccountRepository.account(id = "acc-2"),
+            )
+        }
+        val txns = offsetSource(accountId = "acc-1")
+        val viewModel = vm(offsetTransactionId = "txn-src", txns = txns, accounts = accounts)
+        viewModel.onAccountChange("acc-2")
+
+        viewModel.loadOptions()
+
+        assertEquals("acc-2", viewModel.state.value.accountId)
+    }
+
+    @Test
+    fun `a stale picker list cannot smuggle a freshly-archived source account`() = runTest {
+        // EXT-M20-2: the picker list is cache-first — an account
+        // archived in ANOTHER session stays "live" in the cached list.
+        // The offset gate must re-resolve the source account's archived
+        // flag authoritatively rather than trusting the stale list.
+        val accounts = FakeAccountRepository()
+        accounts.listResult = { listOf(FakeAccountRepository.account(id = "acc-1")) } // stale: not archived
+        accounts.findByIdResult = { id, refresh ->
+            if (refresh) FakeAccountRepository.account(id = id, archived = true)
+            else FakeAccountRepository.account(id = id)
+        }
+        val txns = offsetSource(accountId = "acc-1")
+        val viewModel = vm(offsetTransactionId = "txn-src", txns = txns, accounts = accounts)
+
+        val state = viewModel.state.value
+        assertTrue(state.optionsError)
+        assertNull(state.offsetSourceId)
+        // and the authoritative check did run a fresh resolve
+        assertTrue(accounts.findByIdCalls.any { it.first == "acc-1" && it.second })
+    }
+
+    @Test
+    fun `a refused source prefills cleanly on retry when it resolves`() = runTest {
+        // Retry from optionsError re-fetches the source (offsetSourceId
+        // was never set) and prefills exactly once when it resolves.
+        var fail = true
+        val txns = FakeTransactionRepository()
+        txns.findByIdResult = { id ->
+            if (fail) throw AppErrorException(AppError.NetworkUnavailable)
+            else FakeTransactionRepository.transaction(id = id, type = TransactionType.INCOME)
+        }
+        val viewModel = vm(
+            offsetTransactionId = "txn-src",
+            txns = txns,
+            accounts = accountBacked(),
+        )
+        assertTrue(viewModel.state.value.optionsError)
+
+        fail = false
+        viewModel.loadOptions()
+
+        val state = viewModel.state.value
+        assertFalse(state.optionsError)
+        assertEquals(TransactionType.EXPENSE, state.type)
+        assertEquals("txn-src", state.offsetSourceId)
     }
 
     @Test

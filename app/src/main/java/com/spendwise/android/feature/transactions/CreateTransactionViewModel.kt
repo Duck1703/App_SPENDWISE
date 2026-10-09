@@ -91,17 +91,29 @@ class CreateTransactionViewModel @Inject constructor(
                 } else {
                     null
                 }
-                if (offsetSource != null && !offsetSource.isOffsettableOn(accounts)) {
-                    // The source turned TRANSFER_* / UNKNOWN, or its
-                    // account is gone/archived — refuse the prefill
-                    // honestly rather than minting a wrong entry.
-                    _state.value = _state.value.copy(
-                        accounts = accounts,
-                        categories = categories,
-                        optionsLoading = false,
-                        optionsError = true,
-                    )
-                    return@launch
+                if (offsetSource != null) {
+                    // §21 re-check against AUTHORITATIVE account state —
+                    // the cache-first picker list can carry a stale
+                    // archived flag when the account was archived in
+                    // another session between detail and this form. A
+                    // failed lookup lands in the catch chain below —
+                    // the same honest optionsError/optionsExpired
+                    // surface as any other options failure.
+                    val sourceAccountLive = accountRepository
+                        .findById(offsetSource.accountId, refresh = true)
+                        .let { !it.archived }
+                    if (!offsetSource.isOffsettableOn(accounts) || !sourceAccountLive) {
+                        // The source turned TRANSFER_* / UNKNOWN, or its
+                        // account is gone/archived — refuse the prefill
+                        // honestly rather than minting a wrong entry.
+                        _state.value = _state.value.copy(
+                            accounts = accounts,
+                            categories = categories,
+                            optionsLoading = false,
+                            optionsError = true,
+                        )
+                        return@launch
+                    }
                 }
                 val base = _state.value.copy(
                     accounts = accounts,
@@ -109,13 +121,21 @@ class CreateTransactionViewModel @Inject constructor(
                     optionsLoading = false,
                 )
                 _state.value = if (offsetSource == null) {
+                    val liveAccountId = _state.value.accountId
+                        ?.takeIf { id -> accounts.any { it.id == id } }
                     base.copy(
-                        // A stale accountId (picker refresh, archived
-                        // offset source) drops out honestly — never a
-                        // silent substitute.
-                        accountId = _state.value.accountId
-                            ?.takeIf { id -> accounts.any { it.id == id } }
-                            ?: accounts.firstOrNull()?.id,
+                        // A stale accountId drops out honestly. In
+                        // offset mode there is NO silent substitute —
+                        // the compensating entry must post against the
+                        // account the user sees and deliberately picks;
+                        // a vanished source account leaves the field
+                        // empty (Required on submit) instead of quietly
+                        // retargeting the first picker account.
+                        accountId = if (offsetTransactionId == null) {
+                            liveAccountId ?: accounts.firstOrNull()?.id
+                        } else {
+                            liveAccountId
+                        },
                     )
                 } else {
                     // §21 prefill: inverse type, same account/amount/
