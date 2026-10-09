@@ -1,12 +1,12 @@
 # M20 — Offsetting Entry (guided transaction correction)
 
 ```
-STATUS: IN_DELIVERY — external audit NOT run
+STATUS: TECHNICAL_COMPLETE — external audit NOT run
 M19_COMPLETE=YES
 M20_DEFINED=YES
 M20_STARTED=YES
-M20_TECHNICAL_COMPLETE=NO
-M20_READY_FOR_EXTERNAL_AUDIT=NO
+M20_TECHNICAL_COMPLETE=YES
+M20_READY_FOR_EXTERNAL_AUDIT=YES
 M20_EXTERNAL_AUDIT=NOT_RUN
 M20_HUMAN_APPROVED=NO
 M20_HUMAN_AUTHORIZATION=EXPLICIT (M20 delivery block)
@@ -17,9 +17,10 @@ CANONICAL_REQUIREMENT=PRODUCT.md §21 (offsetting-entry decision) +
 CORRECTION_VIA_OFFSET=DELIVERED
 M21_DEFINED=NO
 M21_STARTED=NO
-SPENDWISE_STATUS=M20_IN_DELIVERY
-NEXT_ACTION=M20_IMPLEMENTATION
+SPENDWISE_STATUS=M20_READY_FOR_EXTERNAL_AUDIT
+NEXT_ACTION=ONE_LARGE_INDEPENDENT_EXTERNAL_M20_AUDIT
 BASELINE: Android e1f149d (M19-accepted) · Backend 9970c3e (M19-accepted)
+DELIVERY_HEAD: Android see §Final state · Backend 1768a72
 COURSE_SYNC_DEFERRED=YES
 ```
 
@@ -96,26 +97,32 @@ offset round-trip as a supported composition): expense then equal
 income restores the balance; both rows stay visible in list/page/
 search/export; original row fields untouched; per-owner isolation.
 
-## Android scope
+## Android scope (as delivered)
 
-- `TransactionCreateRoute(accountId, offsetOf: String?)` — typed nav
-  arg carries the source transaction id; the VM resolves the source
-  from the repository (server-truth, not a nav-arg snapshot).
-- `TransactionDetailScreen`: "Create offsetting entry" action on
-  eligible rows (INCOME/EXPENSE + active source account); hidden on
-  TRANSFER_*/UNKNOWN/archived. Read-only banner copy retained —
+- `TransactionCreateRoute(accountId, offsetTransactionId: String?)` —
+  typed nav arg carries the source transaction id; the VM resolves the
+  source from the repository (server-truth, not a nav-arg snapshot).
+- `TransactionDetailScreen`: "Create offsetting entry" `OutlinedButton`
+  + verbatim §21 caption on eligible rows (`offsetEligible` =
+  INCOME/EXPENSE + non-archived resolved account); hidden on
+  TRANSFER_*/UNKNOWN/archived/unresolved. Read-only banner retained —
   entries still can't be *edited*.
-- `TransactionDetailViewModel`: resolve the account object (not just
+- `TransactionDetailViewModel`: resolves the account object (not just
   the name) so `offsetEligible` reflects `!account.archived`.
-- `CreateTransactionViewModel` offset mode: resolve source → prefill
-  inverse type / same account / same amount / same category → render
-  the §21 honest banner in-form → save through the identical validated
-  submit path (submit lock, ambiguous copy, M13 no-replay all
-  inherited unchanged). If the source or its account can't be resolved
-  to a pickable account → honest `OffsetUnavailable` state.
-- Navigation: detail → `TransactionCreateRoute(offsetOf = id)`;
-  after save, pop back to detail (existing `onCreated` contract; the
-  Transactions tab repaint lands via the repository mutations signal).
+- `CreateTransactionViewModel` offset mode: inside `loadOptions()` the
+  source is re-fetched via `findById` (cache-warmed by the detail
+  visit) → eligibility re-verified (`TRANSFER_*`/`UNKNOWN`/archived or
+  vanished account → honest `optionsError` + retry) → prefills inverse
+  type / same account / same amount (`BigDecimal.toPlainString`) / same
+  category → renders the §21 honest banner (`offsetSourceId != null`)
+  → saves through the identical validated submit path (submit lock,
+  ambiguous copy, M13 no-replay all inherited unchanged). The prefill
+  applies exactly once — `loadOptions` re-runs (account-404 picker
+  refresh, retry) refresh options without clobbering user edits.
+- Navigation: detail → `TransactionCreateRoute(offsetTransactionId)`;
+  after save, pop back to the source detail (existing `onCreated`
+  contract; the Transactions tab repaint lands via the repository
+  `mutations` signal).
 
 ## Invariants protected
 
@@ -155,3 +162,55 @@ archived-source → ineligible; source-unresolvable → error state;
 submit lock; ambiguous); screen tests (action visible/hidden per
 eligibility, banner present in offset mode, prefilled values render);
 connected tests on physical Pixel.
+
+## Final state
+
+```
+ANDROID_BASELINE=e1f149d99ef48192d63e83a76207395acc978e7e
+BACKEND_BASELINE=9970c3e944a11e295115bb5787b83e1aca5c3f75
+ANDROID_HEAD=<final commit — see git>
+BACKEND_HEAD=1768a72 (test-only commit; production tree identical
+  to baseline)
+```
+
+### Gates (all re-executed on final source)
+
+| Gate | Result |
+|---|---|
+| Backend full regression (`./mvnw test`) | **457/457** — 0 F/0 E/0 S (452 baseline + 5 offset contract) |
+| Android JVM (`testDebugUnitTest`) | **742/742** — 0 F/0 E/0 S (722 baseline + 20) |
+| `lintDebug` | 0 errors |
+| `detekt` | 0 code smells |
+| `assembleDebug` | PASS |
+| `assembleRelease` + `lintVitalRelease` + R8 | PASS (`minifyReleaseWithR8` green) |
+| Serializer retention | `offsetTransactionId` in release mapping; `@Serializable` keep rules cover all routes |
+| Manifest posture | INTERNET only; `usesCleartextTraffic=false`; DataStore excluded from backup + device transfer — unchanged |
+| Release APK | `app/build/outputs/apk/release/app-release-unsigned.apk`, 2,478,662 B, SHA-256 `07f9b7155d5c81badc2d601f3a63de9dc84b9af92cfcdef94b13b8bcceddc2a3` |
+| Physical Pixel 4 XL `99041FFBA006F0` | `connectedDebugAndroidTest` **218/218** — run 1, **218/218** — run 2 (213 baseline + 5 screen tests) |
+| Final app install + launch | `app-debug.apk` installed; `MainActivity` top-resumed |
+
+### Regression categories (final-source evidence)
+
+```
+M0_M19_REGRESSION=PASS   (backend 457/457 · android jvm 742/742)
+M13_NO_REPLAY=PASS       (submit lock + ambiguous pins incl. offset mode)
+M15_PAGINATION=PASS      (untouched; offset row is an ordinary page item)
+M16_OPTIMISTIC_LOCK=PASS (untouched — account PATCH suite green)
+M17_DESCRIPTION=PASS     (untouched; note starts empty per §21)
+M17_UNICODE=PASS         (untouched)
+M17_CSV_SECURITY=PASS    (untouched; both rows export verbatim)
+M18_SEARCH=PASS          (untouched)
+M18_LOADING_MORE_FIX=PASS
+M19_ACCOUNT_EDIT_ARCHIVE=PASS
+M19_VALIDATION_PARITY=PASS
+M19_FOUR_PICKERS=PASS    (archived-source offset refuses the prefill)
+M19_HISTORY_PRESERVATION=PASS (original row byte-identical post-offset)
+```
+
+### Internal reviews
+
+- `reviews/M20-SENTINEL-REVIEW.md` — PASS (0B/0M/1 minor remediated
+  `062e728` + 3 notes)
+- `reviews/M20-ARGUS-REVIEW.md` — PASS (0B/0M/0 + 3 notes)
+- `reviews/M20-EXTERNAL-AUDIT-HANDOFF.md` — falsifiable claims + exact
+  evidence for the external auditor.
