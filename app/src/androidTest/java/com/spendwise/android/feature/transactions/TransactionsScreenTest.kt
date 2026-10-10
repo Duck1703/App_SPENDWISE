@@ -238,6 +238,36 @@ class TransactionsScreenTest {
     }
 
     @Test
+    fun row_transferLegTitlesTypeNotUncategorized() {
+        // Transfer legs always arrive with category=null — the title must
+        // name the kind ("Transfer"), not a misleading "Uncategorized".
+        screen(
+            TransactionsUiState.Content(
+                items = listOf(
+                    txn(
+                        "t8",
+                        type = TransactionType.TRANSFER_OUT,
+                        category = null,
+                        sourceRef = "TRANSFER:ref-1:OUT",
+                    ),
+                ),
+                accountNames = mapOf("acc-1" to "Wallet"),
+                filters = TransactionFilters(),
+                totalElements = 1,
+                hasMore = false,
+            ),
+        )
+
+        composeRule.onNodeWithContentDescription(
+            "Transfer ${TestFormats.signedAmount("25.50", "USD", credit = false)} " +
+                "USD Transfer on Wallet, Transfer, " +
+                com.spendwise.android.core.ui.format.DateFormat.format(
+                    java.time.LocalDate.of(2026, 10, 4),
+                ),
+        ).assertIsDisplayed()
+    }
+
+    @Test
     fun row_showsTheServerOccurrenceDate() {
         screen(
             TransactionsUiState.Content(

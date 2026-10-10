@@ -151,6 +151,10 @@ fun ProvenanceBadge(provenance: TransactionProvenance, modifier: Modifier = Modi
             text = label,
             style = MaterialTheme.typography.labelSmall,
             color = SwColors.Muted,
+            // Never break a provenance word across lines — under width
+            // pressure the account name ellipsizes first.
+            maxLines = 1,
+            softWrap = false,
         )
     }
 }
@@ -163,8 +167,15 @@ fun ProvenanceBadge(provenance: TransactionProvenance, modifier: Modifier = Modi
 @Composable
 fun TransactionRow(transaction: Transaction, accountName: String?, onClick: () -> Unit) {
     val typeLabel = transactionTypeLabel(transaction.type)
-    val categoryText = transaction.category?.let { categoryLabel(it) }
-        ?: stringResource(R.string.txn_category_uncategorized)
+    // Transfer legs always arrive with category=null — titling them
+    // "Uncategorized" is honest-but-misleading text (a transfer has no
+    // category axis). Title them after their type instead.
+    val categoryText = when {
+        transaction.type == TransactionType.TRANSFER_IN ||
+            transaction.type == TransactionType.TRANSFER_OUT -> typeLabel
+        transaction.category != null -> categoryLabel(transaction.category!!)
+        else -> stringResource(R.string.txn_category_uncategorized)
+    }
     val provenanceText = provenanceLabel(transaction.provenance)
         ?.let { ", $it" }
         .orEmpty()
@@ -212,6 +223,9 @@ fun TransactionRow(transaction: Transaction, accountName: String?, onClick: () -
                     color = SwColors.Muted,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    // fill=false: take only needed width, but yield to the
+                    // badge and ellipsize first when the pair is too wide.
+                    modifier = Modifier.weight(1f, fill = false),
                 )
                 ProvenanceBadge(
                     provenance = transaction.provenance,
