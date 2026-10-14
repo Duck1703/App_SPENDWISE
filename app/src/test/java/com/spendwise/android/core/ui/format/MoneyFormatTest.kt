@@ -68,6 +68,39 @@ class MoneyFormatTest {
     }
 
     @Test
+    fun `VND zero and unit amounts render bare`() {
+        val vi = Locale.forLanguageTag("vi-VN")
+        assertEquals("0", MoneyFormat.format(money("0", "VND"), vi))
+        assertEquals("1", MoneyFormat.format(money("1", "VND"), vi))
+    }
+
+    @Test
+    fun `VND stored-as-scale-2 whole amount still renders integer`() {
+        // Backend normalizes to NUMERIC(19,2): 100 arrives as "100.00" —
+        // must not become "100,00".
+        assertEquals("100", MoneyFormat.format(money("100.00", "VND"), Locale.US))
+    }
+
+    @Test
+    fun `VND edge fractions render honestly`() {
+        val vi = Locale.forLanguageTag("vi-VN")
+        assertEquals("100,01", MoneyFormat.format(money("100.01", "VND"), vi))
+        assertEquals("100,99", MoneyFormat.format(money("100.99", "VND"), vi))
+    }
+
+    @Test
+    fun `VND negative fractional amount keeps sign and fraction`() {
+        assertEquals("-100,50", MoneyFormat.format(money("-100.50", "VND"), Locale.forLanguageTag("vi-VN")))
+        assertEquals("-0.01", MoneyFormat.format(money("-0.01", "VND"), Locale.US))
+    }
+
+    @Test
+    fun `EUR unchanged for whole and fractional amounts`() {
+        assertEquals("100.00", MoneyFormat.format(money("100", "EUR"), Locale.US))
+        assertEquals("1.234,56", MoneyFormat.format(money("1234.56", "EUR"), Locale.forLanguageTag("vi-VN")))
+    }
+
+    @Test
     fun `USD renders two fraction digits`() {
         assertEquals(
             "1,250.50",
