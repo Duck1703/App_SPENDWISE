@@ -1,5 +1,7 @@
 package com.spendwise.android.feature.home
 
+import com.spendwise.android.core.model.Transaction
+import com.spendwise.android.core.model.TransactionPage
 import com.spendwise.android.core.network.AppError
 import com.spendwise.android.core.network.AppErrorException
 import com.spendwise.android.data.repository.SessionEndedException
@@ -35,6 +37,21 @@ class HomeViewModelTest {
     )
 
     private fun content(vm: HomeViewModel) = vm.state.value as HomeUiState.Content
+
+    /** A server page of activity rows, shaped like `GET /api/transactions/page` returns. */
+    private fun activityPage(
+        vararg txns: Transaction,
+        totalElements: Long = txns.size.toLong(),
+    ): suspend (FakeTransactionRepository.PageCall) -> TransactionPage = { call ->
+        TransactionPage(
+            items = txns.toList(),
+            page = call.page,
+            size = call.size,
+            totalElements = totalElements,
+            totalPages = if (txns.isEmpty()) 0 else 1,
+            hasNext = totalElements > txns.size,
+        )
+    }
 
     // ── §17 hero states ─────────────────────────────────────────────
 
@@ -86,7 +103,7 @@ class HomeViewModelTest {
         val accounts = FakeAccountRepository()
         accounts.listResult = { _ -> oneAccount() }
         val txns = FakeTransactionRepository()
-        txns.listResult = { _, _, _ -> listOf(FakeTransactionRepository.transaction()) }
+        txns.listPageResult = activityPage(FakeTransactionRepository.transaction())
         val dashboard = FakeDashboardRepository()
         dashboard.monthResult = { throw AppErrorException(AppError.Server(500)) }
         val viewModel = vm(accounts, txns, dashboard)
@@ -129,7 +146,7 @@ class HomeViewModelTest {
         assertEquals(java.math.BigDecimal("7"), totals.income)
         assertEquals(2, dashboard.monthCalls.size)
         assertEquals(1, accounts.listCalls.size) // accounts leg untouched
-        assertEquals(1, txns.listCalls.size) // activity leg untouched
+        assertEquals(1, txns.pageCalls.size) // activity leg untouched
     }
 
     // ── accounts spine ──────────────────────────────────────────────
@@ -180,23 +197,44 @@ class HomeViewModelTest {
     // ── activity section ────────────────────────────────────────────
 
     @Test
-    fun `activity renders the first five rows of the unfiltered list`() = runTest {
+    fun `activity fetches only the first page of five — the unpaged list API is never called`() = runTest {
         val accounts = FakeAccountRepository()
         accounts.listResult = { _ -> oneAccount() }
         val txns = FakeTransactionRepository()
-        txns.listResult = { _, _, _ ->
-            (1..8).map { FakeTransactionRepository.transaction(id = "t$it") }
-        }
+        // Server returns the newest-first page; 8 rows exist in total.
+        txns.listPageResult = activityPage(
+            *(1..5).map { FakeTransactionRepository.transaction(id = "t$it") }.toTypedArray(),
+            totalElements = 8,
+        )
         val viewModel = vm(accounts, txns)
 
         val activity = content(viewModel).activity as ActivityState.Items
         assertEquals(5, activity.transactions.size)
         assertEquals("t5", activity.transactions.last().id)
-        // The unfiltered call — no account/type/category params.
-        val call = txns.listCalls.single()
+        // The paged, unfiltered call — no account/type/category params.
+        val call = txns.pageCalls.single()
+        assertEquals(0, call.page)
+        assertEquals(5, call.size)
         assertEquals(null, call.accountId)
         assertEquals(null, call.type)
         assertEquals(null, call.category)
+        assertTrue(txns.listCalls.isEmpty()) // whole-ledger fetch never happens
+    }
+
+    @Test
+    fun `activity renders rows in the server's newest-first order`() = runTest {
+        val accounts = FakeAccountRepository()
+        accounts.listResult = { _ -> oneAccount() }
+        val txns = FakeTransactionRepository()
+        txns.listPageResult = activityPage(
+            FakeTransactionRepository.transaction(id = "newest"),
+            FakeTransactionRepository.transaction(id = "middle"),
+            FakeTransactionRepository.transaction(id = "oldest"),
+        )
+        val viewModel = vm(accounts, txns)
+
+        val activity = content(viewModel).activity as ActivityState.Items
+        assertEquals(listOf("newest", "middle", "oldest"), activity.transactions.map { it.id })
     }
 
     @Test
@@ -216,7 +254,7 @@ class HomeViewModelTest {
         val accounts = FakeAccountRepository()
         accounts.listResult = { _ -> oneAccount() }
         val txns = FakeTransactionRepository()
-        txns.listResult = { _, _, _ -> throw AppErrorException(AppError.Server(500)) }
+        txns.listPageResult = { throw AppErrorException(AppError.Server(500)) }
         val viewModel = vm(accounts, txns)
 
         val state = content(viewModel)
@@ -231,9 +269,9 @@ class HomeViewModelTest {
         accounts.listResult = { _ -> oneAccount() }
         val txns = FakeTransactionRepository()
         var fail = true
-        txns.listResult = { _, _, _ ->
+        txns.listPageResult = {
             if (fail) throw AppErrorException(AppError.NetworkUnavailable)
-            else listOf(FakeTransactionRepository.transaction(id = "t9"))
+            else activityPage(FakeTransactionRepository.transaction(id = "t9"))(it)
         }
         val dashboard = FakeDashboardRepository()
         val viewModel = vm(accounts, txns, dashboard)
@@ -244,7 +282,7 @@ class HomeViewModelTest {
 
         val activity = content(viewModel).activity as ActivityState.Items
         assertEquals("t9", activity.transactions.single().id)
-        assertEquals(2, txns.listCalls.size)
+        assertEquals(2, txns.pageCalls.size)
         assertEquals(1, dashboard.monthCalls.size) // hero leg untouched
     }
 
@@ -257,12 +295,12 @@ class HomeViewModelTest {
         val txns = FakeTransactionRepository()
         val dashboard = FakeDashboardRepository()
         val viewModel = vm(accounts, txns, dashboard)
-        assertEquals(1, txns.listCalls.size)
+        assertEquals(1, txns.pageCalls.size)
 
         txns.emitMutation()
 
         assertEquals(2, accounts.listCalls.size)
-        assertEquals(2, txns.listCalls.size)
+        assertEquals(2, txns.pageCalls.size)
         assertEquals(2, dashboard.monthCalls.size)
     }
 
@@ -363,9 +401,9 @@ class HomeViewModelTest {
         accounts.listResult = { _ -> oneAccount() }
         val txns = FakeTransactionRepository()
         var expired = true
-        txns.listResult = { _, _, _ ->
+        txns.listPageResult = {
             if (expired) throw AppErrorException(AppError.SessionExpired)
-            else listOf(FakeTransactionRepository.transaction(id = "t1"))
+            else activityPage(FakeTransactionRepository.transaction(id = "t1"))(it)
         }
         val viewModel = vm(accounts, txns)
 
