@@ -206,8 +206,10 @@ class HomeViewModel @Inject constructor(
     /** Activity rows — non-fatal section: failure degrades to retry. */
     private suspend fun fetchActivity(): ActivityState =
         try {
+            // Server-paged read (occurredOn DESC, id DESC): only the newest
+            // MAX_ACTIVITY_ROWS rows cross the wire, never the whole ledger.
             ActivityState.Items(
-                transactionRepository.list().take(MAX_ACTIVITY_ROWS),
+                transactionRepository.listPage(page = 0, size = MAX_ACTIVITY_ROWS).items,
             )
         } catch (e: SessionEndedException) {
             expiredMidLoad = true
