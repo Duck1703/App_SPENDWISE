@@ -21,6 +21,52 @@ class MoneyFormatTest {
         )
     }
 
+    // Honest-fraction fix: VND's ISO width is 0 but the backend stores
+    // scale 2 (NUMERIC(19,2)) — a stored fraction must render, not be
+    // rounded away into a wrong-looking integer.
+
+    @Test
+    fun `VND whole amount keeps zero fraction digits`() {
+        assertEquals("100", MoneyFormat.format(money("100", "VND"), Locale.US))
+    }
+
+    @Test
+    fun `VND fractional amounts render honestly in vi-VN`() {
+        val vi = Locale.forLanguageTag("vi-VN")
+        assertEquals("100,25", MoneyFormat.format(money("100.25", "VND"), vi))
+        assertEquals("100,50", MoneyFormat.format(money("100.5", "VND"), vi))
+        assertEquals("0,01", MoneyFormat.format(money("0.01", "VND"), vi))
+    }
+
+    @Test
+    fun `VND fractional amounts render honestly in en-US`() {
+        assertEquals("100.25", MoneyFormat.format(money("100.25", "VND"), Locale.US))
+        assertEquals("0.01", MoneyFormat.format(money("0.01", "VND"), Locale.US))
+    }
+
+    @Test
+    fun `VND grouped amount keeps its fraction`() {
+        val vi = Locale.forLanguageTag("vi-VN")
+        assertEquals("1.234,56", MoneyFormat.format(money("1234.56", "VND"), vi))
+    }
+
+    @Test
+    fun `other zero-digit currencies render stored fractions too`() {
+        // Same defect class as VND — e.g. JPY also has ISO 0 digits.
+        assertEquals("100.50", MoneyFormat.format(money("100.5", "JPY"), Locale.US))
+        assertEquals("100", MoneyFormat.format(money("100", "JPY"), Locale.US))
+    }
+
+    @Test
+    fun `USD whole amount still renders two fraction digits`() {
+        assertEquals("100.00", MoneyFormat.format(money("100", "USD"), Locale.US))
+    }
+
+    @Test
+    fun `three-digit ISO currency keeps three digits`() {
+        assertEquals("100.250", MoneyFormat.format(money("100.25", "KWD"), Locale.US))
+    }
+
     @Test
     fun `USD renders two fraction digits`() {
         assertEquals(
