@@ -56,6 +56,11 @@ data class CreateTransactionRequestDto(
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val description: String? = null,
     val occurredOn: String,
+    // F2 idempotency: client-generated per-intent key. The backend stores it as the row's
+    // sourceRef, so a retried submission dedupes on UNIQUE(user_id, source_ref) instead of
+    // double-posting. Null keeps the legacy server-generated ref.
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val clientRef: String? = null,
 )
 
 /**

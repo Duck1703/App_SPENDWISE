@@ -31,8 +31,8 @@ class FakeTransactionRepository : TransactionRepository {
         )
     }
     var findByIdResult: suspend (id: String) -> Transaction = { transaction() }
-    var createResult: suspend (accountId: String, type: TransactionType, amount: Money, occurredOn: LocalDate, category: String?, description: String?) -> Transaction =
-        { _, _, _, _, _, _ -> transaction() }
+    var createResult: suspend (accountId: String, type: TransactionType, amount: Money, occurredOn: LocalDate, category: String?, description: String?, clientRef: String?) -> Transaction =
+        { _, _, _, _, _, _, _ -> transaction() }
     var transferResult: suspend (sourceAccountId: String, destinationAccountId: String, amount: Money) -> TransferOutcome =
         { source, destination, _ ->
             TransferOutcome(
@@ -62,6 +62,7 @@ class FakeTransactionRepository : TransactionRepository {
         val occurredOn: LocalDate,
         val category: String?,
         val description: String?,
+        val clientRef: String?,
     )
 
     val listCalls = mutableListOf<ListCall>()
@@ -142,9 +143,10 @@ class FakeTransactionRepository : TransactionRepository {
         occurredOn: LocalDate,
         category: String?,
         description: String?,
+        clientRef: String?,
     ): Transaction {
-        createCalls += CreateCall(accountId, type, amount, occurredOn, category, description)
-        return createResult(accountId, type, amount, occurredOn, category, description)
+        createCalls += CreateCall(accountId, type, amount, occurredOn, category, description, clientRef)
+        return createResult(accountId, type, amount, occurredOn, category, description, clientRef)
     }
 
     override suspend fun transfer(

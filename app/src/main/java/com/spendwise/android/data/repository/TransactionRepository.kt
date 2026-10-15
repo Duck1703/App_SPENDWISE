@@ -121,6 +121,7 @@ interface TransactionRepository {
         occurredOn: LocalDate,
         category: String? = null,
         description: String? = null,
+        clientRef: String? = null,
     ): Transaction
 
     /**
@@ -261,6 +262,7 @@ class RemoteTransactionRepository @Inject constructor(
         occurredOn: LocalDate,
         category: String?,
         description: String?,
+        clientRef: String?,
     ): Transaction {
         // The backend rejects TRANSFER_* with a plain 400; the client
         // never sends them — this guard keeps a domain defect local
@@ -281,6 +283,7 @@ class RemoteTransactionRepository @Inject constructor(
                     // ISO yyyy-MM-dd — LocalDate.toString() is exactly the
                     // wire format; no formatter needed.
                     occurredOn = occurredOn.toString(),
+                    clientRef = clientRef,
                 ),
             )
         } catch (e: ApiException) {
