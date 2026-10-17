@@ -133,7 +133,13 @@ android {
             .map(String::toInt).orElse(1).get()
         versionName = providers.gradleProperty("spendwise.versionName").orElse("1.0.0").get()
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // Live UI E2E pre-Application guard (V5 A2): on a placeholder-URL
+        // build this behaves exactly like the stock runner; on a live-URL
+        // build it refuses Application creation unless opt-in + run-id +
+        // a valid on-device L0 attestation are present — before any startup
+        // session restore can emit traffic. Test config only; no production
+        // behavior changes.
+        testInstrumentationRunner = "com.spendwise.android.live.LiveUiE2eRunner"
 
         buildConfigField("String", "SPENDWISE_API_BASE_URL", "\"$apiBaseUrl\"")
     }
@@ -252,4 +258,7 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    // Live UI E2E only — UiAutomator for SAF document picker / system UI
+    // and shell-level process control on the dedicated test device.
+    androidTestImplementation(libs.androidx.uiautomator)
 }
