@@ -207,7 +207,11 @@ class HomeViewModel @Inject constructor(
     private suspend fun fetchActivity(): ActivityState =
         try {
             ActivityState.Items(
-                transactionRepository.list().take(MAX_ACTIVITY_ROWS),
+                // W2-F01: the server-ordered page endpoint (occurredOn
+                // DESC, id DESC) — the unpaged list returns rows in
+                // undefined order and downloads the whole ledger for a
+                // five-row widget.
+                transactionRepository.listPage(size = MAX_ACTIVITY_ROWS).items,
             )
         } catch (e: SessionEndedException) {
             expiredMidLoad = true

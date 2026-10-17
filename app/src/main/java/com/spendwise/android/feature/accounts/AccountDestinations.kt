@@ -97,6 +97,7 @@ fun AccountDetailDestination(
             onTransfer = onTransfer,
             onEdit = onEdit,
             onRetryHistory = viewModel::retryHistory,
+            onLoadMoreHistory = viewModel::loadNextHistoryPage,
         )
     }
 }

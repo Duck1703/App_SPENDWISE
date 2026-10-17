@@ -171,35 +171,50 @@ class RemoteImportRepository @Inject constructor(
             throw AppErrorException(AppError.Unknown(e), e)
         }
 
+    // W2-F03: field-level parses run AFTER the fetch() catch boundary —
+    // without this guard a malformed value in a valid 200 (e.g. an
+    // unparseable importedAt) would escape to viewModelScope as a raw
+    // fatal instead of the app's Unknown error. Same convention as
+    // TransactionRepository.toDomain.
     private fun com.spendwise.android.data.remote.ImportBatchListItemDto.toSummaryDomain() =
-        ImportBatchSummary(
-            batchId = batchId,
-            accountId = accountId,
-            fileName = fileName,
-            importedAt = Instant.parse(importedAt),
-            successCount = successCount,
-            duplicateCount = duplicateCount,
-            failedCount = failedCount,
-        )
+        try {
+            ImportBatchSummary(
+                batchId = batchId,
+                accountId = accountId,
+                fileName = fileName,
+                importedAt = Instant.parse(importedAt),
+                successCount = successCount,
+                duplicateCount = duplicateCount,
+                failedCount = failedCount,
+            )
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            throw AppErrorException(AppError.Unknown(e), e)
+        }
 
     private fun com.spendwise.android.data.remote.ImportBatchSummaryDto.toDomain() =
-        ImportBatch(
-            batchId = batchId,
-            accountId = accountId,
-            fileName = fileName,
-            importedAt = Instant.parse(importedAt),
-            successCount = successCount,
-            duplicateCount = duplicateCount,
-            failedCount = failedCount,
-            rows = rows.map { row ->
-                ImportRow(
-                    rowNumber = row.rowNumber,
-                    status = ImportRowStatus.of(row.status),
-                    reason = row.reason,
-                    transactionId = row.transactionId,
-                )
-            },
-        )
+        try {
+            ImportBatch(
+                batchId = batchId,
+                accountId = accountId,
+                fileName = fileName,
+                importedAt = Instant.parse(importedAt),
+                successCount = successCount,
+                duplicateCount = duplicateCount,
+                failedCount = failedCount,
+                rows = rows.map { row ->
+                    ImportRow(
+                        rowNumber = row.rowNumber,
+                        status = ImportRowStatus.of(row.status),
+                        reason = row.reason,
+                        transactionId = row.transactionId,
+                    )
+                },
+            )
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            throw AppErrorException(AppError.Unknown(e), e)
+        }
 }
 
 /** The picked file couldn't be opened/read locally — nothing was sent. */

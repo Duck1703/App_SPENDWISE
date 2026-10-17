@@ -277,6 +277,42 @@ class ImportRepositoryTest {
     }
 
     @Test
+    fun `history with malformed importedAt surfaces AppError Unknown — never a raw fatal`() = runTest {
+        // W2-F03: a contract-violating 200 (structurally valid JSON,
+        // malformed field value) must stay inside the app's error
+        // family — a DateTimeParseException escaping to viewModelScope
+        // would be an unhandled fatal.
+        val h = harness()
+        signIn(h)
+        h.service.listResponse = listOf(
+            FakeImportsService.listItemDto(importedAt = "not-a-timestamp"),
+        )
+
+        try {
+            h.repository.history()
+            fail("expected AppErrorException")
+        } catch (e: AppErrorException) {
+            assertTrue(e.error is AppError.Unknown)
+        }
+    }
+
+    @Test
+    fun `batch with malformed importedAt surfaces AppError Unknown — never a raw fatal`() = runTest {
+        val h = harness()
+        signIn(h)
+        h.service.detailResponse = FakeImportsService.summaryDto().copy(
+            importedAt = "not-a-timestamp",
+        )
+
+        try {
+            h.repository.batch("batch-1")
+            fail("expected AppErrorException")
+        } catch (e: AppErrorException) {
+            assertTrue(e.error is AppError.Unknown)
+        }
+    }
+
+    @Test
     fun `history maps a network failure to NetworkUnavailable`() = runTest {
         val h = harness()
         signIn(h)

@@ -86,7 +86,13 @@ class HomeViewModelTest {
         val accounts = FakeAccountRepository()
         accounts.listResult = { _ -> oneAccount() }
         val txns = FakeTransactionRepository()
-        txns.listResult = { _, _, _ -> listOf(FakeTransactionRepository.transaction()) }
+        txns.listPageResult = { call ->
+            com.spendwise.android.core.model.TransactionPage(
+                items = listOf(FakeTransactionRepository.transaction()),
+                page = call.page, size = call.size,
+                totalElements = 1, totalPages = 1, hasNext = false,
+            )
+        }
         val dashboard = FakeDashboardRepository()
         dashboard.monthResult = { throw AppErrorException(AppError.Server(500)) }
         val viewModel = vm(accounts, txns, dashboard)
@@ -129,7 +135,7 @@ class HomeViewModelTest {
         assertEquals(java.math.BigDecimal("7"), totals.income)
         assertEquals(2, dashboard.monthCalls.size)
         assertEquals(1, accounts.listCalls.size) // accounts leg untouched
-        assertEquals(1, txns.listCalls.size) // activity leg untouched
+        assertEquals(1, txns.pageCalls.size) // activity leg untouched
     }
 
     // ── accounts spine ──────────────────────────────────────────────
@@ -180,23 +186,43 @@ class HomeViewModelTest {
     // ── activity section ────────────────────────────────────────────
 
     @Test
-    fun `activity renders the first five rows of the unfiltered list`() = runTest {
+    fun `activity renders the server-sorted first page — never the unordered unbounded list`() = runTest {
         val accounts = FakeAccountRepository()
         accounts.listResult = { _ -> oneAccount() }
         val txns = FakeTransactionRepository()
-        txns.listResult = { _, _, _ ->
-            (1..8).map { FakeTransactionRepository.transaction(id = "t$it") }
+        // W2-F01: the section must consume the server-ordered page
+        // endpoint (occurredOn DESC, id DESC), not the unordered
+        // unpaged list. The fake returns the newest-five slice in the
+        // server's order — a deliberately non-insertion id sequence
+        // proves the VM renders the page verbatim, no local sort.
+        txns.listPageResult = { call ->
+            assertEquals(0, call.page)
+            assertEquals(5, call.size)
+            com.spendwise.android.core.model.TransactionPage(
+                items = (5 downTo 1).map {
+                    FakeTransactionRepository.transaction(id = "t$it")
+                },
+                page = call.page,
+                size = call.size,
+                totalElements = 8,
+                totalPages = 2,
+                hasNext = true,
+            )
         }
         val viewModel = vm(accounts, txns)
 
         val activity = content(viewModel).activity as ActivityState.Items
         assertEquals(5, activity.transactions.size)
-        assertEquals("t5", activity.transactions.last().id)
-        // The unfiltered call — no account/type/category params.
-        val call = txns.listCalls.single()
+        assertEquals(listOf("t5", "t4", "t3", "t2", "t1"), activity.transactions.map { it.id })
+        // Bounded contract: one paged call, zero unbounded list calls.
+        assertEquals(1, txns.pageCalls.size)
+        val call = txns.pageCalls.single()
         assertEquals(null, call.accountId)
         assertEquals(null, call.type)
         assertEquals(null, call.category)
+        assertEquals(0, call.page)
+        assertEquals(5, call.size)
+        assertTrue(txns.listCalls.isEmpty())
     }
 
     @Test
@@ -216,7 +242,7 @@ class HomeViewModelTest {
         val accounts = FakeAccountRepository()
         accounts.listResult = { _ -> oneAccount() }
         val txns = FakeTransactionRepository()
-        txns.listResult = { _, _, _ -> throw AppErrorException(AppError.Server(500)) }
+        txns.listPageResult = { _ -> throw AppErrorException(AppError.Server(500)) }
         val viewModel = vm(accounts, txns)
 
         val state = content(viewModel)
@@ -231,9 +257,16 @@ class HomeViewModelTest {
         accounts.listResult = { _ -> oneAccount() }
         val txns = FakeTransactionRepository()
         var fail = true
-        txns.listResult = { _, _, _ ->
+        txns.listPageResult = { call ->
             if (fail) throw AppErrorException(AppError.NetworkUnavailable)
-            else listOf(FakeTransactionRepository.transaction(id = "t9"))
+            else com.spendwise.android.core.model.TransactionPage(
+                items = listOf(FakeTransactionRepository.transaction(id = "t9")),
+                page = call.page,
+                size = call.size,
+                totalElements = 1,
+                totalPages = 1,
+                hasNext = false,
+            )
         }
         val dashboard = FakeDashboardRepository()
         val viewModel = vm(accounts, txns, dashboard)
@@ -244,7 +277,7 @@ class HomeViewModelTest {
 
         val activity = content(viewModel).activity as ActivityState.Items
         assertEquals("t9", activity.transactions.single().id)
-        assertEquals(2, txns.listCalls.size)
+        assertEquals(2, txns.pageCalls.size)
         assertEquals(1, dashboard.monthCalls.size) // hero leg untouched
     }
 
@@ -257,12 +290,12 @@ class HomeViewModelTest {
         val txns = FakeTransactionRepository()
         val dashboard = FakeDashboardRepository()
         val viewModel = vm(accounts, txns, dashboard)
-        assertEquals(1, txns.listCalls.size)
+        assertEquals(1, txns.pageCalls.size)
 
         txns.emitMutation()
 
         assertEquals(2, accounts.listCalls.size)
-        assertEquals(2, txns.listCalls.size)
+        assertEquals(2, txns.pageCalls.size)
         assertEquals(2, dashboard.monthCalls.size)
     }
 
@@ -363,9 +396,13 @@ class HomeViewModelTest {
         accounts.listResult = { _ -> oneAccount() }
         val txns = FakeTransactionRepository()
         var expired = true
-        txns.listResult = { _, _, _ ->
+        txns.listPageResult = { call ->
             if (expired) throw AppErrorException(AppError.SessionExpired)
-            else listOf(FakeTransactionRepository.transaction(id = "t1"))
+            else com.spendwise.android.core.model.TransactionPage(
+                items = listOf(FakeTransactionRepository.transaction(id = "t1")),
+                page = call.page, size = call.size,
+                totalElements = 1, totalPages = 1, hasNext = false,
+            )
         }
         val viewModel = vm(accounts, txns)
 
