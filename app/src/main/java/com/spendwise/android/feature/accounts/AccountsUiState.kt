@@ -92,7 +92,21 @@ sealed interface AccountDetailUiState {
     /** The account-scoped transaction list — read-only like the ledger. */
     sealed interface AccountHistory {
         data object Loading : AccountHistory
-        data class Items(val transactions: List<Transaction>) : AccountHistory
+
+        /**
+         * W2-F02: server-paged history (`occurredOn DESC, id DESC`) —
+         * every row stays reachable via load-more, never truncated.
+         * [nextPage] is the next index to request; [moreError] arms the
+         * footer retry without losing loaded rows.
+         */
+        data class Items(
+            val transactions: List<Transaction>,
+            val hasNext: Boolean = false,
+            val nextPage: Int = 1,
+            val loadingMore: Boolean = false,
+            val moreError: Boolean = false,
+        ) : AccountHistory
+
         data object Error : AccountHistory
     }
 

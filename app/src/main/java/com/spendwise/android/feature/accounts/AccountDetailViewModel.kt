@@ -117,10 +117,20 @@ class AccountDetailViewModel @Inject constructor(
      * the header. A session expiry marks [historyExpired] so same-user
      * resume re-runs it via [onVisible] instead of leaving it spinning.
      */
-    private suspend fun fetchHistory(): AccountDetailUiState.AccountHistory =
-        try {
+    private suspend fun fetchHistory(): AccountDetailUiState.AccountHistory {
+        // W3-R01: every page-0 reload starts a new epoch — in-flight
+        // appends from an older history must not publish into the fresh
+        // one (a bare nextPage check collides: reload resets it to 1).
+        historyEpoch++
+        return try {
+            // W2-F02: server-ordered page 0 (occurredOn DESC, id DESC).
+            // The unpaged list returned rows in undefined order and
+            // pulled the entire account ledger into memory.
+            val page = transactionRepository.listPage(accountId = accountId, page = 0)
             AccountDetailUiState.AccountHistory.Items(
-                transactionRepository.list(accountId = accountId),
+                transactions = page.items,
+                hasNext = page.hasNext,
+                nextPage = 1,
             )
         } catch (e: SessionEndedException) {
             // Dead-generation write — resume reloads via onVisible.
@@ -134,6 +144,59 @@ class AccountDetailViewModel @Inject constructor(
                 AccountDetailUiState.AccountHistory.Error
             }
         }
+    }
+
+    /**
+     * Appends the next server-sorted page. Guarded like the section
+     * load: refresh/retry resets to page 0, a mid-flight append never
+     * double-fires, and an append failure keeps loaded rows with an
+     * honest footer retry ([AccountDetailUiState.AccountHistory.Items.moreError]).
+     */
+    fun loadNextHistoryPage() {
+        val content = _state.value as? AccountDetailUiState.Content ?: return
+        val history = content.history as? AccountDetailUiState.AccountHistory.Items ?: return
+        if (!history.hasNext || history.loadingMore) return
+        val page = history.nextPage
+        val epoch = historyEpoch
+        _state.value = content.copy(
+            history = history.copy(loadingMore = true, moreError = false),
+        )
+        viewModelScope.launch {
+            val next = try {
+                transactionRepository.listPage(accountId = accountId, page = page)
+            } catch (e: SessionEndedException) {
+                if (epoch == historyEpoch) historyExpired = true
+                return@launch
+            } catch (e: AppErrorException) {
+                if (e.error is AppError.SessionExpired) {
+                    if (epoch == historyEpoch) historyExpired = true
+                    return@launch
+                }
+                if (epoch != historyEpoch) return@launch // stale epoch — fresh page-0 owns the footer
+                (_state.value as? AccountDetailUiState.Content)?.let { current ->
+                    (current.history as? AccountDetailUiState.AccountHistory.Items)?.let { h ->
+                        _state.value = current.copy(
+                            history = h.copy(loadingMore = false, moreError = true),
+                        )
+                    }
+                }
+                return@launch
+            }
+            if (epoch != historyEpoch) return@launch // superseded by a fresh page-0 load
+            val current = _state.value as? AccountDetailUiState.Content ?: return@launch
+            val h = current.history as? AccountDetailUiState.AccountHistory.Items ?: return@launch
+            if (h.nextPage != page) return@launch
+            _state.value = current.copy(
+                history = h.copy(
+                    transactions = (h.transactions + next.items).distinctBy { it.id },
+                    hasNext = next.hasNext,
+                    nextPage = page + 1,
+                    loadingMore = false,
+                    moreError = false,
+                ),
+            )
+        }
+    }
 
     /** Inline retry for the history section only — the header is untouched. */
     fun retryHistory() {
@@ -148,6 +211,9 @@ class AccountDetailViewModel @Inject constructor(
 
     private var expiredMidLoad = false
     private var historyExpired = false
+
+    /** W3-R01: increments on every page-0 history load; appends check it. */
+    private var historyEpoch = 0
 
     /** Re-fired when this destination re-enters composition (resume-pop). */
     fun onVisible() {

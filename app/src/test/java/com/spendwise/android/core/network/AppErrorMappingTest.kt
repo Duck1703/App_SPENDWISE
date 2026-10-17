@@ -47,6 +47,16 @@ class AppErrorMappingTest {
     }
 
     @Test
+    fun `429 maps to Unknown — no invented retry semantics`() {
+        // Wave-2 correction: 429 does not hit the Server branch (5xx
+        // only) — it surfaces as Unknown → generic error UI. The
+        // backend contract defines no rate-limit semantics; the client
+        // must not invent one.
+        val error = ApiException(status = 429).toAppError()
+        assertTrue(error is AppError.Unknown)
+    }
+
+    @Test
     fun `problem detail DTO decodes tolerantly and ignores unknown keys`() {
         val body = """{"type":"about:blank","title":"Validation failed","status":400,"detail":"see fields","instance":"/api/x","fields":{"a":"b"},"surprise":42}"""
         val dto = json.decodeFromString<ProblemDetailDto>(body)

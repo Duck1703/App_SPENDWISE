@@ -1,14 +1,17 @@
 package com.spendwise.android.feature.accounts
 
 import androidx.lifecycle.SavedStateHandle
+import com.spendwise.android.core.model.TransactionPage
 import com.spendwise.android.core.network.AppError
 import com.spendwise.android.core.network.AppErrorException
 import com.spendwise.android.data.repository.SessionEndedException
 import com.spendwise.android.fakes.FakeAccountRepository
 import com.spendwise.android.fakes.FakeTransactionRepository
 import com.spendwise.android.fakes.MainDispatcherRule
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -105,10 +108,23 @@ class AccountDetailViewModelTest {
     // ── M3: account-scoped history section ────────────────────────────────
 
     @Test
-    fun `content carries the account-scoped history`() = runTest {
+    fun `content carries the account-scoped history — first server-ordered page`() = runTest {
         val txns = FakeTransactionRepository()
-        txns.listResult = { _, _, _ ->
-            listOf(FakeTransactionRepository.transaction(id = "t1", accountId = "acc-1"))
+        // W2-F02 Option A: history consumes the server-sorted page
+        // endpoint (occurredOn DESC, id DESC), scoped to this account.
+        txns.listPageResult = { call ->
+            assertEquals("acc-1", call.accountId)
+            assertEquals(0, call.page)
+            com.spendwise.android.core.model.TransactionPage(
+                items = listOf(
+                    FakeTransactionRepository.transaction(id = "t1", accountId = "acc-1"),
+                ),
+                page = call.page,
+                size = call.size,
+                totalElements = 1,
+                totalPages = 1,
+                hasNext = false,
+            )
         }
 
         val vm = viewModel(txns = txns)
@@ -117,13 +133,14 @@ class AccountDetailViewModelTest {
         val history = state.history as AccountDetailUiState.AccountHistory.Items
         assertEquals(listOf("t1"), history.transactions.map { it.id })
         // Scoped to this account via the real server filter param.
-        assertEquals("acc-1", txns.listCalls.single().accountId)
+        assertEquals("acc-1", txns.pageCalls.single().accountId)
+        assertTrue(txns.listCalls.isEmpty()) // never the unordered unbounded read
     }
 
     @Test
     fun `history failure degrades the section, never the header`() = runTest {
         val txns = FakeTransactionRepository()
-        txns.listResult = { _, _, _ -> throw AppErrorException(AppError.Server(500)) }
+        txns.listPageResult = { _ -> throw AppErrorException(AppError.Server(500)) }
 
         val vm = viewModel(txns = txns)
 
@@ -136,11 +153,18 @@ class AccountDetailViewModelTest {
     fun `history retry reloads only the section`() = runTest {
         val txns = FakeTransactionRepository()
         var fail = true
-        txns.listResult = { _, _, _ ->
+        txns.listPageResult = { call ->
             if (fail) {
                 throw AppErrorException(AppError.NetworkUnavailable)
             } else {
-                listOf(FakeTransactionRepository.transaction(id = "t1"))
+                com.spendwise.android.core.model.TransactionPage(
+                    items = listOf(FakeTransactionRepository.transaction(id = "t1")),
+                    page = call.page,
+                    size = call.size,
+                    totalElements = 1,
+                    totalPages = 1,
+                    hasNext = false,
+                )
             }
         }
         val repo = FakeAccountRepository()
@@ -153,6 +177,197 @@ class AccountDetailViewModelTest {
         assertTrue(state.history is AccountDetailUiState.AccountHistory.Items)
         // The account itself was not re-requested.
         assertEquals(1, repo.findByIdCalls.size)
+    }
+
+    @Test
+    fun `history pages append in order with no duplicates — every row reachable`() = runTest {
+        val txns = FakeTransactionRepository()
+        // Page 0 supplies t5,t4 (server newest-first); page 1 supplies
+        // t3 plus a duplicate t4 — dedup by id must hold.
+        txns.listPageResult = { call ->
+            com.spendwise.android.core.model.TransactionPage(
+                items = when (call.page) {
+                    0 -> listOf("t5", "t4").map { FakeTransactionRepository.transaction(id = it, accountId = "acc-1") }
+                    else -> listOf("t4", "t3").map { FakeTransactionRepository.transaction(id = it, accountId = "acc-1") }
+                },
+                page = call.page,
+                size = call.size,
+                totalElements = 3,
+                totalPages = 2,
+                hasNext = call.page == 0,
+            )
+        }
+        val vm = viewModel(txns = txns)
+
+        var history = (vm.state.value as AccountDetailUiState.Content).history
+            as AccountDetailUiState.AccountHistory.Items
+        assertTrue(history.hasNext)
+
+        vm.loadNextHistoryPage()
+
+        history = (vm.state.value as AccountDetailUiState.Content).history
+            as AccountDetailUiState.AccountHistory.Items
+        assertEquals(listOf("t5", "t4", "t3"), history.transactions.map { it.id })
+        assertFalse(history.hasNext)
+        assertEquals(2, txns.pageCalls.size)
+        assertEquals(0, txns.pageCalls[0].page)
+        assertEquals(1, txns.pageCalls[1].page)
+    }
+
+    @Test
+    fun `history load-more failure keeps rows and exposes the retry state`() = runTest {
+        val txns = FakeTransactionRepository()
+        txns.listPageResult = { call ->
+            if (call.page > 0) throw AppErrorException(AppError.NetworkUnavailable)
+            com.spendwise.android.core.model.TransactionPage(
+                items = listOf(FakeTransactionRepository.transaction(id = "t5", accountId = "acc-1")),
+                page = call.page,
+                size = call.size,
+                totalElements = 2,
+                totalPages = 2,
+                hasNext = true,
+            )
+        }
+        val vm = viewModel(txns = txns)
+
+        vm.loadNextHistoryPage()
+
+        val history = (vm.state.value as AccountDetailUiState.Content).history
+            as AccountDetailUiState.AccountHistory.Items
+        assertEquals(listOf("t5"), history.transactions.map { it.id })
+        assertTrue(history.moreError)
+        assertFalse(history.loadingMore)
+    }
+
+    @Test
+    fun `history load-more is a no-op at the last page`() = runTest {
+        val txns = FakeTransactionRepository()
+        txns.listPageResult = { call ->
+            com.spendwise.android.core.model.TransactionPage(
+                items = listOf(FakeTransactionRepository.transaction(id = "t1", accountId = "acc-1")),
+                page = call.page,
+                size = call.size,
+                totalElements = 1,
+                totalPages = 1,
+                hasNext = false,
+            )
+        }
+        val vm = viewModel(txns = txns)
+
+        vm.loadNextHistoryPage()
+
+        assertEquals(1, txns.pageCalls.size) // only the initial page
+    }
+
+    @Test
+    fun `stale page append is ignored after a refresh reloaded page 0`() = runTest {
+        // W3-R01: page 1 in flight → mutation reloads page 0 → stale page 1
+        // must NOT append to / advance the fresh history.
+        val txns = FakeTransactionRepository()
+        val gate = CompletableDeferred<TransactionPage>()
+        var pageZeroCalls = 0
+        txns.listPageResult = { call ->
+            when {
+                call.page == 0 -> {
+                    pageZeroCalls++
+                    TransactionPage(
+                        items = listOf(
+                            FakeTransactionRepository.transaction(
+                                id = if (pageZeroCalls == 1) "t1" else "t2",
+                                accountId = "acc-1",
+                            ),
+                        ),
+                        page = 0,
+                        size = call.size,
+                        totalElements = 3,
+                        totalPages = 3,
+                        hasNext = true,
+                    )
+                }
+                else -> gate.await()
+            }
+        }
+        val vm = viewModel(txns = txns)
+
+        // Old page 1 dispatched, still in flight.
+        vm.loadNextHistoryPage()
+        assertTrue(
+            ((vm.state.value as AccountDetailUiState.Content).history
+                as AccountDetailUiState.AccountHistory.Items).loadingMore,
+        )
+
+        // Mutation reloads page 0 — the fresh epoch publishes [t2].
+        txns.emitMutation()
+
+        // Stale page 1 finally lands — belongs to the dead epoch.
+        gate.complete(
+            TransactionPage(
+                items = listOf(FakeTransactionRepository.transaction(id = "stale", accountId = "acc-1")),
+                page = 1,
+                size = 20,
+                totalElements = 3,
+                totalPages = 3,
+                hasNext = true,
+            ),
+        )
+
+        val history = (vm.state.value as AccountDetailUiState.Content).history
+            as AccountDetailUiState.AccountHistory.Items
+        assertEquals(listOf("t2"), history.transactions.map { it.id })
+        assertEquals(1, history.nextPage) // not advanced by the stale page
+        assertFalse(history.loadingMore)
+        assertFalse(history.moreError)
+    }
+
+    @Test
+    fun `stale page error is ignored after a refresh reloaded page 0`() = runTest {
+        // W3-R01: the same interleaving where the obsolete request fails —
+        // its error must not mark the fresh history's footer.
+        val txns = FakeTransactionRepository()
+        val gate = CompletableDeferred<TransactionPage>()
+        var pageZeroCalls = 0
+        txns.listPageResult = { call ->
+            when {
+                call.page == 0 -> {
+                    pageZeroCalls++
+                    TransactionPage(
+                        items = listOf(
+                            FakeTransactionRepository.transaction(
+                                id = if (pageZeroCalls == 1) "t1" else "t2",
+                                accountId = "acc-1",
+                            ),
+                        ),
+                        page = 0,
+                        size = call.size,
+                        totalElements = 3,
+                        totalPages = 3,
+                        hasNext = true,
+                    )
+                }
+                else -> gate.await()
+            }
+        }
+        val vm = viewModel(txns = txns)
+
+        vm.loadNextHistoryPage()
+        txns.emitMutation()
+        gate.completeExceptionally(AppErrorException(AppError.Server(500)))
+
+        val history = (vm.state.value as AccountDetailUiState.Content).history
+            as AccountDetailUiState.AccountHistory.Items
+        assertEquals(listOf("t2"), history.transactions.map { it.id })
+        assertFalse(history.moreError)
+        assertFalse(history.loadingMore)
+    }
+
+    @Test
+    fun `history request never touches another account's rows`() = runTest {
+        val txns = FakeTransactionRepository()
+        val vm = viewModel(id = "acc-9", txns = txns)
+        vm.state.value // settle
+
+        assertTrue(txns.pageCalls.isNotEmpty())
+        assertTrue(txns.pageCalls.all { it.accountId == "acc-9" })
     }
 
     @Test
@@ -185,11 +400,15 @@ class AccountDetailViewModelTest {
         val repo = FakeAccountRepository()
         val txns = FakeTransactionRepository()
         var dead = true
-        txns.listResult = { _, _, _ ->
+        txns.listPageResult = { call ->
             if (dead) {
                 throw SessionEndedException()
             } else {
-                listOf(FakeTransactionRepository.transaction(id = "t1"))
+                com.spendwise.android.core.model.TransactionPage(
+                    items = listOf(FakeTransactionRepository.transaction(id = "t1")),
+                    page = call.page, size = call.size,
+                    totalElements = 1, totalPages = 1, hasNext = false,
+                )
             }
         }
         val vm = viewModel(repo = repo, txns = txns)
@@ -203,7 +422,7 @@ class AccountDetailViewModelTest {
 
         state = vm.state.value as AccountDetailUiState.Content
         assertTrue(state.history is AccountDetailUiState.AccountHistory.Items)
-        assertEquals(2, txns.listCalls.size)
+        assertEquals(2, txns.pageCalls.size)
         // The header itself was not refetched — the section retried alone.
         assertEquals(1, repo.findByIdCalls.size)
     }
@@ -295,7 +514,7 @@ class AccountDetailViewModelTest {
         txns.emitMutation()
 
         assertEquals(listOf("acc-1" to false, "acc-1" to true), repo.findByIdCalls)
-        assertEquals(2, txns.listCalls.size)
+        assertEquals(2, txns.pageCalls.size)
     }
 
     @Test

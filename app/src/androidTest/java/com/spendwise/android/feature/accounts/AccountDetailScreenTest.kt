@@ -37,6 +37,7 @@ class AccountDetailScreenTest {
         var transferFor: String? = null,
         var editFor: String? = null,
         var historyRetries: Int = 0,
+        var historyLoadMore: Int = 0,
     )
 
     private fun screen(state: AccountDetailUiState, harness: Harness = Harness()) {
@@ -51,6 +52,7 @@ class AccountDetailScreenTest {
                     onTransfer = { harness.transferFor = it },
                     onEdit = { harness.editFor = it },
                     onRetryHistory = { harness.historyRetries++ },
+                    onLoadMoreHistory = { harness.historyLoadMore++ },
                 )
             }
         }
@@ -239,5 +241,69 @@ class AccountDetailScreenTest {
         ).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Try again").performScrollTo().performClick()
         assertEquals(1, harness.historyRetries)
+    }
+
+    // ── W2-F02: paged history footer ─────────────────────────────────
+
+    @Test
+    fun hasNext_sentinelFiresLoadMoreWhenVisible() {
+        val harness = Harness()
+        screen(
+            AccountDetailUiState.Content(
+                account(),
+                history = AccountDetailUiState.AccountHistory.Items(
+                    transactions = listOf(txn("t1")),
+                    hasNext = true,
+                ),
+            ),
+            harness,
+        )
+
+        composeRule.onNodeWithContentDescription(
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+                .targetContext.getString(R.string.transactions_loading_more),
+        ).performScrollTo().assertIsDisplayed()
+        composeRule.waitUntil(5_000) { harness.historyLoadMore >= 1 }
+    }
+
+    @Test
+    fun loadingMore_sentinelDoesNotRefire() {
+        val harness = Harness()
+        screen(
+            AccountDetailUiState.Content(
+                account(),
+                history = AccountDetailUiState.AccountHistory.Items(
+                    transactions = listOf(txn("t1")),
+                    hasNext = true,
+                    loadingMore = true,
+                ),
+            ),
+            harness,
+        )
+
+        composeRule.waitForIdle()
+        assertEquals(0, harness.historyLoadMore)
+    }
+
+    @Test
+    fun moreError_bannerRetriesTheAppend() {
+        val harness = Harness()
+        screen(
+            AccountDetailUiState.Content(
+                account(),
+                history = AccountDetailUiState.AccountHistory.Items(
+                    transactions = listOf(txn("t1")),
+                    hasNext = true,
+                    moreError = true,
+                ),
+            ),
+            harness,
+        )
+
+        composeRule.onNodeWithText(
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+                .targetContext.getString(R.string.transactions_more_error_title),
+        ).performScrollTo().performClick()
+        assertEquals(1, harness.historyLoadMore)
     }
 }
