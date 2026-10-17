@@ -12,8 +12,10 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -21,16 +23,21 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.spendwise.android.R
 import com.spendwise.android.core.designsystem.AccountTile
 import com.spendwise.android.core.designsystem.MoneyText
+import com.spendwise.android.core.designsystem.SwBanner
+import com.spendwise.android.core.designsystem.SwBannerKind
 import com.spendwise.android.core.designsystem.SwCard
 import com.spendwise.android.core.designsystem.SwColors
 import com.spendwise.android.core.designsystem.SwHeader
@@ -55,6 +62,7 @@ fun AccountDetailScreen(
     onTransfer: (String) -> Unit,
     onEdit: (String) -> Unit,
     onRetryHistory: () -> Unit,
+    onLoadMoreHistory: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize()) {
@@ -102,6 +110,7 @@ fun AccountDetailScreen(
                 onTransfer = onTransfer,
                 onEdit = onEdit,
                 onRetryHistory = onRetryHistory,
+                onLoadMoreHistory = onLoadMoreHistory,
             )
         }
     }
@@ -115,6 +124,7 @@ private fun AccountDetailContent(
     onTransfer: (String) -> Unit,
     onEdit: (String) -> Unit,
     onRetryHistory: () -> Unit,
+    onLoadMoreHistory: () -> Unit,
 ) {
     val account = state.account
     // M7 perf: LazyColumn — an account's transaction history is
@@ -246,6 +256,38 @@ private fun AccountDetailContent(
                                 accountName = account.name,
                                 onClick = { onOpenTransaction(transaction.id) },
                             )
+                        }
+                    }
+                    // W2-F02 footer: the sentinel composes only while a
+                    // next page exists — entering the viewport fires the
+                    // append; a failure swaps to the honest retry banner.
+                    when {
+                        history.moreError -> item(key = "history-more-error") {
+                            SwBanner(
+                                title = stringResource(R.string.transactions_more_error_title),
+                                text = stringResource(R.string.transactions_more_error_body),
+                                kind = SwBannerKind.Error,
+                                modifier = Modifier.clickable(onClick = onLoadMoreHistory),
+                            )
+                        }
+                        history.hasNext -> item(key = "history-load-more") {
+                            val moreCd = stringResource(R.string.transactions_loading_more)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = SwSpacing.Sm),
+                                horizontalArrangement = Arrangement.Center,
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .semantics { contentDescription = moreCd },
+                                    color = SwColors.BrandDeep,
+                                )
+                            }
+                            if (!history.loadingMore) {
+                                LaunchedEffect(Unit) { onLoadMoreHistory() }
+                            }
                         }
                     }
                 }
