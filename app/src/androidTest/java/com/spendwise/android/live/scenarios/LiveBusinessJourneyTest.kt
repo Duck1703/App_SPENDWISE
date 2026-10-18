@@ -1,9 +1,12 @@
 package com.spendwise.android.live.scenarios
 
+import android.os.Process
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.spendwise.android.live.LiveUiE2eGate
 import com.spendwise.android.live.infrastructure.FixtureApi
 import com.spendwise.android.live.infrastructure.OwnerControlPlane
+import com.spendwise.android.live.infrastructure.RunOwnership
 import com.spendwise.android.live.infrastructure.SyntheticFixture
 import org.json.JSONObject
 import org.junit.Test
@@ -17,13 +20,34 @@ import java.time.format.DateTimeFormatter
  * One sequential, cumulative-state pass. Each checkpoint runs only when
  * its mechanism is attested; an unexecuted checkpoint is recorded
  * BLOCKED — and the journey verdict is PARTIAL, never PASS (B5).
+ *
+ * BJ-22 is a REAL in-journey process kill (ARGUS-01): it cannot run
+ * inside one instrumentation session — killing the app kills the JUnit
+ * thread (B03). The journey is therefore two-phase:
+ *
+ *   Phase A [bjMaster_phaseA] — checkpoints BJ-01..BJ-21, then parks on a
+ *      pushed route (session alive, "Home" invisible → teardown skips
+ *      sign-out) and writes a run-bound ARM marker
+ *      (run_id, case=BJ-MASTER, pid, creds, post-kill marker account).
+ *      The host then force-stops the process and deposits the proof.
+ *   Phase B [bjMaster_phaseB] — a SECOND instrumentation invocation:
+ *      verifies marker+proof bind THIS run/execution, imports phase-A's
+ *      21 checkpoint records so the final evidence is self-contained,
+ *      relaunches, and asserts an honest post-kill surface (restored
+ *      session OR expired-overlay/login → re-auth) with journey data
+ *      intact. THAT is checkpoint BJ-22 — no borrowed proof.
  */
 @RunWith(AndroidJUnit4::class)
 class LiveBusinessJourneyTest : LiveE2eTestBase() {
 
+    private fun armMarkerFile(): File = File(
+        InstrumentationRegistry.getInstrumentation().targetContext.filesDir,
+        "live-e2e/process-kill-arm.json",
+    )
+
     @Test
-    fun bj_masterJourney() {
-        val ctx = begin("BJ-MASTER")
+    fun bjMaster_phaseA() {
+        val ctx = begin("BJ-MASTER-A")
         try {
             val f = ctx.fixture
             val att = ctx.attestation
@@ -356,27 +380,174 @@ class LiveBusinessJourneyTest : LiveE2eTestBase() {
                 driver.navAccounts()
                 driver.waitText(acct2)
             }
-            cp("BJ-22", mechanismMissing = !killReady) {
-                // B03: host-produced proof must bind to THIS run —
-                // run_id match + a real death (after_pid<=0). A bare file
-                // or stale proof is not evidence of the journey's death.
-                val proofFile = File(att.processKillProofPath)
-                ctx.recorder.serverCheck(
-                    "kill proof exists at attested path",
-                    proofFile.isFile, att.processKillProofPath)
-                val proof = JSONObject(proofFile.readText())
-                ctx.recorder.serverCheck(
-                    "kill proof bound to this run + real death recorded",
-                    proof.optString("run_id") == att.runId &&
-                        proof.optLong("after_pid", -1) <= 0,
-                    "proof=${proof.toString().take(300)}")
-                driver.launchMain()
-                driver.waitCd("Home", timeoutMs = 90_000)
+            // BJ-22 setup — arm for the REAL in-journey kill. The process
+            // must die between phase A and phase B; parking on a pushed
+            // detail route keeps the session alive through teardown
+            // ("Home" invisible → no sign-out), so phase B can observe a
+            // genuine post-kill restore-or-expired surface.
+            ctx.recorder.step("checkpoint BJ-22 — arming for in-journey kill")
+            if (!killReady) {
+                blocked++
+                ctx.recorder.note("BJ-22 BLOCKED — process kill not attested")
+            } else {
+                RunOwnership.requireProcessKill(att)
+                driver.tap(acct2) // pushed detail route — hides the nav bar
+                val marker = JSONObject()
+                    .put("run_id", att.runId)
+                    .put("case", "BJ-MASTER")
+                    .put("phase", "ARMED")
+                    .put("pid", Process.myPid())
+                    .put("armed_epoch_s", System.currentTimeMillis() / 1000)
+                    .put("user", f.username)
+                    .put("pw", f.password)
+                    .put("account", acct2)
+                armMarkerFile().apply {
+                    parentFile?.mkdirs(); writeText(marker.toString())
+                }
+                executed++
+                ctx.recorder.step(
+                    "ARM marker written: pid=${Process.myPid()} — host must " +
+                        "kill now and deposit proof at ${att.processKillProofPath}")
+                ctx.recorder.assertion("BJ-22 armed — awaiting host kill + phase B")
             }
 
             ctx.recorder.serverVerify(
-                "journey: $executed executed, $blocked mechanism-blocked")
-            ctx.finish(if (blocked == 0) "PASS" else "PARTIAL")
+                "journey phase A: $executed executed, $blocked mechanism-blocked " +
+                    "(BJ-22 completes in phase B after the host kill)")
+            ctx.finish("PHASE_A_COMPLETE")
+        } finally { ctx.recorder.flush() }
+    }
+
+    /** Phase B — a SECOND instrumentation after the host kill. Verifies
+     *  the death is bound to THIS execution (marker pid == proof
+     *  before_pid, kill after arm), imports phase-A checkpoint records,
+     *  relaunches, and asserts the honest post-kill surface + data. */
+    @Test
+    fun bjMaster_phaseB() {
+        val ctx = begin("BJ-MASTER")
+        try {
+            RunOwnership.requireProcessKill(ctx.attestation)
+            val att = ctx.attestation
+
+            // --- Bind the death to THIS execution -------------------------
+            ctx.recorder.step("checkpoint BJ-22 — verify in-journey kill")
+            val markerFile = armMarkerFile()
+            if (!markerFile.isFile) {
+                ctx.finishBlocked(
+                    "no ARM marker — bjMaster_phaseA did not run in this " +
+                        "execution lineage")
+            }
+            val marker = JSONObject(markerFile!!.readText())
+            ctx.recorder.serverCheck(
+                "ARM marker belongs to this run + this case",
+                marker.optString("run_id") == att.runId &&
+                    marker.optString("case") == "BJ-MASTER",
+                "marker run_id=${marker.optString("run_id")} case=${marker.optString("case")}",
+            )
+            val armedPid = marker.getLong("pid")
+            val armedAt = marker.getLong("armed_epoch_s")
+
+            val proofFile = File(att.processKillProofPath)
+            if (!proofFile.isFile) {
+                ctx.finishBlocked(
+                    "kill proof absent at '${att.processKillProofPath}' — " +
+                        "host orchestrator did not run")
+            }
+            val proof = JSONObject(proofFile.readText())
+            ctx.recorder.serverCheck(
+                "proof bound to THIS execution (run_id match, " +
+                    "before_pid==armed pid, after_pid<=0, killed_at>=armed_at)",
+                proof.optString("run_id") == att.runId &&
+                    proof.optLong("before_pid") == armedPid &&
+                    proof.optLong("after_pid", -1) <= 0 &&
+                    proof.optLong("killed_at_epoch_s") >= armedAt,
+                "before=${proof.optLong("before_pid")} " +
+                    "after=${proof.optLong("after_pid")} " +
+                    "killed_at=${proof.optLong("killed_at_epoch_s")} " +
+                    "armed_pid=$armedPid armed_at=$armedAt",
+            )
+            ctx.recorder.assertion("in-journey process death proven — not a borrowed proof")
+
+            // --- Import phase-A checkpoint records ------------------------
+            val runId = LiveUiE2eGate.runId()
+            val phaseAEv = File(
+                InstrumentationRegistry.getInstrumentation()
+                    .targetContext.filesDir,
+                "live-e2e/$runId/BJ-MASTER-A/evidence.json",
+            )
+            ctx.recorder.serverCheck(
+                "phase-A evidence exists for this run", phaseAEv.isFile)
+            val pa = JSONObject(phaseAEv.readText())
+            ctx.recorder.serverCheck(
+                "phase-A bound to this run + completed cleanly",
+                pa.optString("run_id") == runId &&
+                    pa.optString("final_verdict") == "PHASE_A_COMPLETE",
+                "verdict=${pa.optString("final_verdict")}",
+            )
+            var cpDone = 0
+            var cpBlocked = 0
+            val paEntries = pa.getJSONArray("entries")
+            for (i in 0 until paEntries.length()) {
+                val e = paEntries.getJSONObject(i)
+                val d = e.optString("detail")
+                when {
+                    e.optString("kind") == "ASSERTION" &&
+                        d.contains(Regex("^BJ-\\d+ complete -> OK$")) -> {
+                        cpDone++
+                        ctx.recorder.assertion("phaseA: ${d.removeSuffix(" -> OK")}")
+                    }
+                    e.optString("kind") == "NOTE" && d.contains("BLOCKED") -> cpBlocked++
+                }
+            }
+            ctx.recorder.serverCheck(
+                "phase-A executed all 21 predecessor checkpoints",
+                cpDone == 21, "completed=$cpDone blocked=$cpBlocked")
+
+            // --- Relaunch — honest post-kill surface ----------------------
+            driver.launchMain()
+            var surface = ""
+            composeRule.waitUntil(90_000) {
+                when {
+                    driver.textVisible("Session expired") -> { surface = "expired"; true }
+                    driver.textVisible("Username") -> { surface = "login"; true }
+                    driver.textVisible("Sign in") -> { surface = "welcome"; true }
+                    driver.textVisible("Home") -> { surface = "home"; true }
+                    else -> false
+                }
+            }
+            when (surface) {
+                "home" -> ctx.recorder.assertion(
+                    "persisted session restored post-kill (refresh still valid)")
+                "expired" -> {
+                    ctx.recorder.assertion(
+                        "honest expired-session surface after process death")
+                    driver.tap("Sign in again")
+                    reAuthViaUi(ctx, marker.getString("user"), marker.getString("pw"))
+                }
+                "login" -> {
+                    ctx.recorder.assertion("honest login surface after process death")
+                    reAuthViaUi(ctx, marker.getString("user"), marker.getString("pw"))
+                }
+                "welcome" -> {
+                    ctx.recorder.assertion("honest signed-out surface after process death")
+                    driver.tap("Sign in")
+                    driver.waitText("Username")
+                    reAuthViaUi(ctx, marker.getString("user"), marker.getString("pw"))
+                }
+                else -> throw AssertionError(
+                    "no honest post-kill surface observed (none of " +
+                        "Home/expired/login/welcome within 90s)")
+            }
+
+            // --- Journey data survives the death --------------------------
+            driver.navAccounts()
+            driver.waitText(marker.getString("account"), timeoutMs = 60_000)
+            ctx.recorder.freshness("journey data intact post-kill",
+                driver.waitFresh(marker.getString("account")))
+            ctx.recorder.assertion("BJ-22 complete")
+            ctx.recorder.serverVerify(
+                "journey: 22 checkpoints, phaseB imports $cpDone + this kill proof")
+            ctx.finish(if (cpBlocked == 0) "PASS" else "PARTIAL")
         } finally { ctx.recorder.flush() }
     }
 }

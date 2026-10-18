@@ -32,6 +32,7 @@ object LiveCaseIds {
     const val LUI_23 = "LUI-23" // Real process kill + relaunch
     const val LUI_24A = "LUI-24a" // Offline-before-send → single retry
     const val LUI_24B = "LUI-24b" // Ambiguous in-flight loss → no replay
+    const val LUI_24C = "LUI-24c" // Post-commit response loss → no replay
     const val LUI_25 = "LUI-25" // Compose semantics smoke
     const val LUI_26 = "LUI-26" // 200+ ledger bounded fetch + jank
     const val LUI_27 = "LUI-27" // Dashboard aggregates + mixed currency
@@ -41,9 +42,9 @@ object LiveCaseIds {
         LUI_01, LUI_02, LUI_03, LUI_04, LUI_05, LUI_06, LUI_07,
         LUI_08, LUI_09, LUI_10, LUI_11, LUI_12, LUI_13, LUI_14,
         LUI_15, LUI_16, LUI_17, LUI_18, LUI_27, LUI_28,
-        LUI_19, LUI_20, LUI_21, LUI_22, LUI_23, LUI_24A, LUI_24B,
+        LUI_19, LUI_20, LUI_21, LUI_22, LUI_23, LUI_24A, LUI_24B, LUI_24C,
         LUI_25, LUI_26,
-    ) // 29 ids — 24a/24b are distinct variants of one row
+    ) // 30 ids — 24a/24b/24c are distinct variants of one row
 
     val BJ_CHECKPOINTS: List<String> = (1..22).map { "BJ-%02d".format(it) }
 }

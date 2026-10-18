@@ -9,16 +9,19 @@ import com.spendwise.android.live.infrastructure.LiveCaseIds
 import com.spendwise.android.live.infrastructure.OwnerControlPlane
 import com.spendwise.android.live.infrastructure.ProbeResult
 import com.spendwise.android.live.infrastructure.RunOwnership
+import org.json.JSONObject
 import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
  * Live UI E2E — reliability/limit scenarios.
- * Owners: LUI-24a, LUI-24b, LUI-25, LUI-26.
+ * Owners: LUI-24a, LUI-24b, LUI-24c, LUI-25, LUI-26.
  *
- * LUI-24a/24b are DISTINCT outcomes (V3): 24a = offline-before-send (retry
- * lands exactly once); 24b = ambiguous in-flight loss (honest UI, no
- * auto-replay, read-only verification). Both need owner-approved network
+ * LUI-24a/24b/24c are DISTINCT outcomes (V3): 24a = offline-before-send
+ * (retry lands exactly once); 24b = ambiguous in-flight loss BEFORE
+ * delivery (honest UI, no auto-replay, ≤1 row); 24c = post-commit
+ * response loss (upstream committed, response withheld — honest UI, no
+ * auto-replay, exactly 1 row). All need owner-approved network
  * mechanisms — absent them, they BLOCK, never fake a PASS.
  */
 @RunWith(AndroidJUnit4::class)
@@ -185,6 +188,69 @@ class LiveReliabilityE2eTest : LiveE2eTestBase() {
             ctx.recorder.serverCheck(
                 "at most one parsed row landed — no duplicate replay",
                 ctx.api.countTransactions(acctId, note) <= 1,
+            )
+            ctx.finish("PASS")
+        } finally { ctx.recorder.flush() }
+    }
+
+    /** LUI-24c (P1 — ARGUS-02): post-commit response loss. The proxy
+     *  forwards the POST, the backend COMMITS (upstream 2xx consumed —
+     *  a 2xx is only produced after the transaction commits), then the
+     *  response is withheld — the client sees a transport fault on a
+     *  write that already landed. Distinct from 24b's pre-delivery drop:
+     *  here the row MUST exist (`== 1`, never `<= 1`). The no-replay
+     *  oracle is proxy-side: `proxy-stats.txn_posts_seen` counts every
+     *  POST /api/transactions that traversed the proxy — a replay would
+     *  be a second sighting. Requires host-set `adb reverse tcp:8080
+     *  -> tcp:18081` so app traffic traverses the proxy. */
+    @Test
+    fun lui24c_postCommitResponseLossNoReplay() {
+        val ctx = begin(LiveCaseIds.LUI_24C)
+        try {
+            RunOwnership.requireNetworkFault(ctx.attestation)
+            RunOwnership.requireInFlightFault(ctx.attestation)
+            val control = OwnerControlPlane(ctx.recorder, ctx.attestation.inflightFaultEndpoint)
+            val (acct, acctId) = signedInWithAccount(ctx)
+            val note = ctx.fixture.txnNote("24c")
+
+            ctx.recorder.serverCheck(
+                "proxy counters reset — baseline zero for the replay oracle",
+                control.call("proxy-stats-reset"),
+            )
+            ctx.recorder.serverCheck(
+                "control plane armed post-commit response drop",
+                control.call("arm-drop-response",
+                    """{"username":"${ctx.fixture.username}"}"""),
+            )
+            driver.navAccounts()
+            driver.tap(acct)
+            driver.tap("Add transaction")
+            driver.tap("Expense")
+            driver.typeText("Amount", "8.50")
+            driver.typeText("Note (optional)", note)
+            driver.tap("Save transaction")
+            // Contract text from txn_create_error_ambiguous — the
+            // response died after the commit; only honest copy is rendered.
+            driver.waitText(
+                "check your transactions before trying again",
+                substring = true, timeoutMs = 60_000,
+            )
+            ctx.recorder.assertion("ambiguous-save honest UI; no auto-replay fired")
+            driver.screenshot(ctx.recorder, "ambiguous-ui")
+
+            ctx.recorder.serverCheck(
+                "upstream committed — exactly one parsed row exists " +
+                    "(post-commit, unlike 24b's <=1 bound)",
+                ctx.api.countTransactions(acctId, note) == 1,
+            )
+            Thread.sleep(8_000) // cover any hypothetical auto-retry window
+            val stats = control.get("proxy-stats")?.let { JSONObject(it) }
+            ctx.recorder.serverCheck(
+                "proxy saw exactly one txn POST + one response drop — " +
+                    "no auto-replay fired",
+                stats != null && stats.optInt("txn_posts_seen") == 1 &&
+                    stats.optInt("response_drops") == 1,
+                "stats=${stats?.toString()?.take(200)}",
             )
             ctx.finish("PASS")
         } finally { ctx.recorder.flush() }
