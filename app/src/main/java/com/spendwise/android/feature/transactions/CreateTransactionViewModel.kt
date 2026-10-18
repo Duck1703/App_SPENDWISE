@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.time.LocalDate
+import java.util.UUID
 import javax.inject.Inject
 
 /**
@@ -59,6 +60,17 @@ class CreateTransactionViewModel @Inject constructor(
 
     /** M20: source row id when this form is an offsetting entry. */
     private val offsetTransactionId: String? = savedStateHandle["offsetTransactionId"]
+
+    /**
+     * F2 idempotency: one client-generated key per form instance (one financial
+     * intent). It lives in [SavedStateHandle], so process death keeps the SAME key
+     * bound to the same pending draft — a user retry after any failure replays
+     * against the backend's UNIQUE(user_id, source_ref) instead of double-posting.
+     * A new screen = new ViewModel = new key, so a genuinely new transaction always
+     * gets a fresh ref.
+     */
+    private val clientRef: String = savedStateHandle.get<String>("createTxnClientRef")
+        ?: UUID.randomUUID().toString().also { savedStateHandle["createTxnClientRef"] = it }
 
     private val _state = MutableStateFlow(CreateTransactionUiState(accountId = prefillAccountId))
     val state: StateFlow<CreateTransactionUiState> = _state.asStateFlow()
@@ -253,6 +265,7 @@ class CreateTransactionViewModel @Inject constructor(
                     occurredOn = current.occurredOn,
                     category = current.category,
                     description = current.description,
+                    clientRef = clientRef,
                 )
                 _events.send(Event.Created)
             } catch (e: SessionEndedException) {
@@ -298,6 +311,12 @@ class CreateTransactionViewModel @Inject constructor(
                                 CreateTransactionUiState.CreateTxnFormError.Generic
                             }
                         AppError.NetworkUnavailable ->
+                            CreateTransactionUiState.CreateTxnFormError.Ambiguous
+                        // F2: 409 here means the clientRef already landed under a
+                        // different payload, or the duplicate is still in flight —
+                        // the honest surface is the same "couldn't confirm, check
+                        // before resubmitting" copy as an ambiguous transport loss.
+                        AppError.Conflict ->
                             CreateTransactionUiState.CreateTxnFormError.Ambiguous
                         is AppError.Server -> CreateTransactionUiState.CreateTxnFormError.Server
                         else -> CreateTransactionUiState.CreateTxnFormError.Generic

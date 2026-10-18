@@ -15,6 +15,8 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -214,7 +216,7 @@ class CreateTransactionViewModelTest {
     fun `double-tap during flight sends exactly one create`() = runTest {
         val txns = FakeTransactionRepository()
         val gate = CompletableDeferred<com.spendwise.android.core.model.Transaction>()
-        txns.createResult = { _, _, _, _, _, _ -> gate.await() }
+        txns.createResult = { _, _, _, _, _, _, _ -> gate.await() }
         val viewModel = vm(accounts = accountBacked(), txns = txns)
         fillValid(viewModel)
 
@@ -228,7 +230,7 @@ class CreateTransactionViewModelTest {
     @Test
     fun `server field errors land on their fields`() = runTest {
         val txns = FakeTransactionRepository()
-        txns.createResult = { _, _, _, _, _, _ ->
+        txns.createResult = { _, _, _, _, _, _, _ ->
             throw AppErrorException(
                 AppError.Validation(mapOf("amount" to "must be greater than 0")),
             )
@@ -251,7 +253,7 @@ class CreateTransactionViewModelTest {
     fun `account 404 refreshes the picker and reports honestly`() = runTest {
         val accounts = accountBacked()
         val txns = FakeTransactionRepository()
-        txns.createResult = { _, _, _, _, _, _ -> throw AppErrorException(AppError.NotFound) }
+        txns.createResult = { _, _, _, _, _, _, _ -> throw AppErrorException(AppError.NotFound) }
         val viewModel = vm(accounts = accounts, txns = txns)
         fillValid(viewModel)
 
@@ -268,7 +270,7 @@ class CreateTransactionViewModelTest {
     @Test
     fun `network failure is the ambiguous form error — never auto-retried`() = runTest {
         val txns = FakeTransactionRepository()
-        txns.createResult = { _, _, _, _, _, _ -> throw AppErrorException(AppError.NetworkUnavailable) }
+        txns.createResult = { _, _, _, _, _, _, _ -> throw AppErrorException(AppError.NetworkUnavailable) }
         val viewModel = vm(accounts = accountBacked(), txns = txns)
         fillValid(viewModel)
 
@@ -357,7 +359,7 @@ class CreateTransactionViewModelTest {
         // AND the outcome must be marked ambiguous (not silently
         // editable). The preserved draft resubmits only by hand.
         val txns = FakeTransactionRepository()
-        txns.createResult = { _, _, _, _, _, _ -> throw SessionEndedException() }
+        txns.createResult = { _, _, _, _, _, _, _ -> throw SessionEndedException() }
         val viewModel = vm(accounts = accountBacked(), txns = txns)
         fillValid(viewModel)
 
@@ -368,7 +370,7 @@ class CreateTransactionViewModelTest {
         assertEquals(CreateTransactionUiState.CreateTxnFormError.Ambiguous, state.formError)
         assertEquals("25.50", state.amount) // draft preserved
 
-        txns.createResult = { _, _, _, _, _, _ -> FakeTransactionRepository.transaction(id = "retry-1") }
+        txns.createResult = { _, _, _, _, _, _, _ -> FakeTransactionRepository.transaction(id = "retry-1") }
         viewModel.submit()
 
         assertEquals(2, txns.createCalls.size)
@@ -421,7 +423,7 @@ class CreateTransactionViewModelTest {
     @Test
     fun `a picked date survives an ambiguous write — draft kept for retry`() = runTest {
         val txns = FakeTransactionRepository()
-        txns.createResult = { _, _, _, _, _, _ -> throw AppErrorException(AppError.NetworkUnavailable) }
+        txns.createResult = { _, _, _, _, _, _, _ -> throw AppErrorException(AppError.NetworkUnavailable) }
         val viewModel = vm(accounts = accountBacked(), txns = txns)
         fillValid(viewModel)
         viewModel.onDateChange(LocalDate.of(2024, 12, 31))
@@ -762,7 +764,7 @@ class CreateTransactionViewModelTest {
         val txns = offsetSource()
         val gate = CompletableDeferred<com.spendwise.android.core.model.Transaction>()
         var createCalls = 0
-        txns.createResult = { _, _, _, _, _, _ -> createCalls++; gate.await() }
+        txns.createResult = { _, _, _, _, _, _, _ -> createCalls++; gate.await() }
         val viewModel = vm(
             offsetTransactionId = "txn-src",
             txns = txns,
@@ -775,5 +777,130 @@ class CreateTransactionViewModelTest {
         gate.complete(FakeTransactionRepository.transaction())
         runCurrent()
         assertEquals(1, createCalls)
+    }
+}
+
+// ── F2: clientRef idempotency ─────────────────────────────────────
+
+class CreateTransactionClientRefTest {
+
+    @get:Rule
+    val mainDispatcherRule = MainDispatcherRule()
+
+    private fun vm(
+        txns: FakeTransactionRepository = FakeTransactionRepository(),
+        accounts: FakeAccountRepository = FakeAccountRepository(),
+        cats: FakeCategoryRepository = FakeCategoryRepository(),
+        savedStateHandle: SavedStateHandle = SavedStateHandle(),
+    ) = CreateTransactionViewModel(
+        savedStateHandle = savedStateHandle,
+        transactionRepository = txns,
+        accountRepository = accounts,
+        categoryRepository = cats,
+    )
+
+    private fun accountBacked(
+        id: String = "acc-1",
+        currency: String = "VND",
+    ) = FakeAccountRepository().apply {
+        listResult = { _ -> listOf(FakeAccountRepository.account(id = id, currency = currency)) }
+    }
+
+    @Test
+    fun `submit sends a generated clientRef`() = runTest {
+        val txns = FakeTransactionRepository()
+        val viewModel = vm(txns = txns, accounts = accountBacked())
+        viewModel.onAmountChange("25.50")
+
+        viewModel.submit()
+        runCurrent()
+
+        val ref = txns.createCalls.single().clientRef
+        assertNotNull(ref)
+        assertTrue(ref!!.isNotBlank())
+    }
+
+    @Test
+    fun `retry after an ambiguous failure reuses the same clientRef`() = runTest {
+        val txns = FakeTransactionRepository()
+        val viewModel = vm(txns = txns, accounts = accountBacked())
+        viewModel.onAmountChange("25.50")
+        txns.createResult = { _, _, _, _, _, _, _ -> throw AppErrorException(AppError.NetworkUnavailable) }
+
+        viewModel.submit()
+        runCurrent()
+        txns.createResult = { _, _, _, _, _, _, _ -> FakeTransactionRepository.transaction(id = "landed-1") }
+        viewModel.submit()
+        runCurrent()
+
+        assertEquals(2, txns.createCalls.size)
+        assertEquals(txns.createCalls[0].clientRef, txns.createCalls[1].clientRef)
+    }
+
+    @Test
+    fun `a new ViewModel instance mints a fresh clientRef`() = runTest {
+        val firstTxns = FakeTransactionRepository()
+        val secondTxns = FakeTransactionRepository()
+        val first = vm(txns = firstTxns, accounts = accountBacked())
+        val second = vm(txns = secondTxns, accounts = accountBacked())
+        first.onAmountChange("25.50")
+        second.onAmountChange("25.50")
+
+        first.submit(); runCurrent()
+        second.submit(); runCurrent()
+
+        assertNotEquals(firstTxns.createCalls.single().clientRef, secondTxns.createCalls.single().clientRef)
+    }
+
+    @Test
+    fun `process death keeps the pending intent's clientRef via SavedStateHandle`() = runTest {
+        val handle = SavedStateHandle()
+        val firstTxns = FakeTransactionRepository()
+        val first = vm(txns = firstTxns, accounts = accountBacked(), savedStateHandle = handle)
+        first.onAmountChange("25.50")
+        firstTxns.createResult = { _, _, _, _, _, _, _ -> throw AppErrorException(AppError.NetworkUnavailable) }
+        first.submit()
+        runCurrent()
+
+        // Recreated VM (as after process death) inherits the same handle.
+        val secondTxns = FakeTransactionRepository()
+        val second = vm(txns = secondTxns, accounts = accountBacked(), savedStateHandle = handle)
+        second.onAmountChange("25.50")
+        second.submit()
+        runCurrent()
+
+        assertEquals(firstTxns.createCalls.single().clientRef, secondTxns.createCalls.single().clientRef)
+    }
+
+    @Test
+    fun `a 409 conflict surfaces the ambiguous form error`() = runTest {
+        val txns = FakeTransactionRepository()
+        txns.createResult = { _, _, _, _, _, _, _ -> throw AppErrorException(AppError.Conflict) }
+        val viewModel = vm(txns = txns, accounts = accountBacked())
+        viewModel.onAmountChange("25.50")
+
+        viewModel.submit()
+        runCurrent()
+
+        val state = viewModel.state.value
+        assertFalse(state.isSubmitting)
+        assertEquals(CreateTransactionUiState.CreateTxnFormError.Ambiguous, state.formError)
+    }
+
+    @Test
+    fun `rapid double taps still send one request with one clientRef`() = runTest {
+        val txns = FakeTransactionRepository()
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        txns.createResult = { _, _, _, _, _, _, _ -> gate.await(); FakeTransactionRepository.transaction() }
+        val viewModel = vm(txns = txns, accounts = accountBacked())
+        viewModel.onAmountChange("25.50")
+
+        viewModel.submit()
+        viewModel.submit()
+        viewModel.submit()
+        gate.complete(Unit)
+        runCurrent()
+
+        assertEquals(1, txns.createCalls.size)
     }
 }
